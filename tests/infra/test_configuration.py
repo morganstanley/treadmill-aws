@@ -3,10 +3,11 @@ Unit test for EC2 configuration.
 """
 
 import unittest
-import mock
 import io
 
-from treadmill.infra import configuration, SCRIPT_DIR
+import mock
+
+from treadmill_aws.infra import configuration, SCRIPT_DIR
 
 
 class ConfigurationTest(unittest.TestCase):
@@ -18,6 +19,7 @@ class ConfigurationTest(unittest.TestCase):
 
     @mock.patch('builtins.open', create=True)
     def test_get_userdata(self, open_mock):
+        """Test get userdata."""
         open_mock.side_effect = [
             io.StringIO(self.init_script_data),
             io.StringIO('{{ DOMAIN }}'),
@@ -25,7 +27,7 @@ class ConfigurationTest(unittest.TestCase):
         ]
 
         config = configuration.Configuration()
-        self.assertEquals(config.get_userdata(), '')
+        self.assertEqual(config.get_userdata(), '')
 
         config = configuration.Configuration()
         config.setup_scripts = [
@@ -34,7 +36,7 @@ class ConfigurationTest(unittest.TestCase):
         ]
         userdata = config.get_userdata()
 
-        self.assertEquals(
+        self.assertEqual(
             userdata,
             self.init_script_data + 'test.treadmill\nmycell\n'
         )
@@ -44,7 +46,8 @@ class MasterTest(unittest.TestCase):
     """Tests master configuration"""
 
     @mock.patch('builtins.open', create=True)
-    def test_master_configuration_script_data(self, open_mock):
+    def test_script_data(self, _open_mock):
+        """Test master configuration script data."""
         config = configuration.Master('', '', '', '', '', '', '', '', '')
         expected_script_data = {
             'provision-base.sh': [
@@ -78,7 +81,8 @@ class LDAPTest(unittest.TestCase):
     """Tests master configuration"""
 
     @mock.patch('builtins.open', create=True)
-    def test_ldap_configuration_script_data(self, open_mock):
+    def test_script_data(self, _open_mock):
+        """Test ldap configuration script data."""
         config = configuration.LDAP('', '', '', '', '', '', '')
         expected_script_data = {
             'provision-base.sh': [
@@ -113,7 +117,8 @@ class IPATest(unittest.TestCase):
     """Tests ipa configuration"""
 
     @mock.patch('builtins.open', create=True)
-    def test_ipa_configuration_script_data(self, open_mock):
+    def test_script_data(self, _open_mock):
+        """Test ipa configuration script data."""
         config = configuration.IPA(
             ipa_admin_password='admin-password',
             tm_release='some-release',
@@ -148,7 +153,8 @@ class ZookeeperTest(unittest.TestCase):
     """Tests zookeeper configuration"""
 
     @mock.patch('builtins.open', create=True)
-    def test_zookeeper_configuration_script_data(self, open_mock):
+    def test_script_data(self, _open_mock):
+        """Test zookeeper configuration script data."""
         config = configuration.Zookeeper(
             hostname='zookeeper',
             ldap_hostname='ldap_host',
@@ -185,7 +191,8 @@ class NodeTest(unittest.TestCase):
     """Tests node configuration"""
 
     @mock.patch('builtins.open', create=True)
-    def test_node_configuration_script_data(self, open_mock):
+    def test_script_data(self, _open_mock):
+        """Test node configuration script data."""
         config = configuration.Node(
             hostname='node',
             tm_release='tm_release',

@@ -1,3 +1,0 @@
-{
-  "network": "{{ docker_network }}"
-}

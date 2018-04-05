@@ -5,16 +5,17 @@ Unit test for EC2 node.
 import unittest
 import mock
 
-from treadmill.infra.setup.node import Node
+from treadmill_aws.infra.setup.node import Node
 
 
 class NodeTest(unittest.TestCase):
     """Tests EC2 Node"""
 
-    @mock.patch('treadmill.infra.instances.Instances')
-    @mock.patch('treadmill.infra.connection.Connection')
-    def test_hostnames_for_multiple(self, ConnectionMock, InstancesMock):
-        InstancesMock.get_hostnames_by_roles = mock.Mock(return_value={
+    @mock.patch('treadmill_aws.infra.instances.Instances')
+    @mock.patch('treadmill_aws.infra.connection.Connection')
+    def test_hostnames_for_multiple(self, _conn_mock, instance_mock):
+        """Test hostnames for multiple."""
+        instance_mock.get_hostnames_by_roles = mock.Mock(return_value={
             'IPA': 'ipa-hostname',
             'LDAP': 'ldap-hostname',
         })
@@ -30,10 +31,11 @@ class NodeTest(unittest.TestCase):
         self.assertEqual(_ldap_hostname, 'ldap-hostname')
         self.assertEqual(_ipa_hostname, 'ipa-hostname')
 
-    @mock.patch('treadmill.infra.instances.Instances')
-    @mock.patch('treadmill.infra.connection.Connection')
-    def test_hostnames_for_single(self, ConnectionMock, InstancesMock):
-        InstancesMock.get_hostnames_by_roles = mock.Mock(return_value={
+    @mock.patch('treadmill_aws.infra.instances.Instances')
+    @mock.patch('treadmill_aws.infra.connection.Connection')
+    def test_hostnames_for_single(self, _conn_mock, instance_mock):
+        """Test hostnames for single."""
+        instance_mock.get_hostnames_by_roles = mock.Mock(return_value={
             'IPA': 'ipa-hostname',
         })
 
@@ -47,10 +49,11 @@ class NodeTest(unittest.TestCase):
 
         self.assertEqual(_ipa_hostname, 'ipa-hostname')
 
-    @mock.patch('treadmill.infra.instances.Instances')
-    @mock.patch('treadmill.infra.connection.Connection')
-    def test_hostnames_for_none(self, ConnectionMock, InstancesMock):
-        InstancesMock.get_hostnames_by_roles = mock.Mock(return_value={})
+    @mock.patch('treadmill_aws.infra.instances.Instances')
+    @mock.patch('treadmill_aws.infra.connection.Connection')
+    def test_hostnames_for_none(self, _conn_mock, instance_mock):
+        """Test hostnames for none."""
+        instance_mock.get_hostnames_by_roles = mock.Mock(return_value={})
 
         node = Node(
             vpc_id='vpc-id',
@@ -60,40 +63,45 @@ class NodeTest(unittest.TestCase):
         self.assertEqual(node.hostnames_for(roles=['IPA']), [None])
         self.assertEqual(node.hostnames_for(roles=[]), [])
 
-    @mock.patch('treadmill.infra.connection.Connection')
-    def test_zk_url_cluster(self, ConnectionMock):
+    @mock.patch('treadmill_aws.infra.connection.Connection')
+    def test_zk_url_cluster(self, _conn_mock):
+        """Tst zk url cluster."""
         node = Node(
             vpc_id='vpc-id',
             name='node'
         )
 
+        # pylint: disable=protected-access
         _zk_url = node._zk_url(
             hostname='zk1,zk2,zk3'
         )
 
         self.assertEqual(_zk_url, 'zookeeper://foo@zk1:2181,zk2:2181,zk3:2181')
 
-    @mock.patch('treadmill.infra.connection.Connection')
-    def test_zk_url_standalone(self, ConnectionMock):
+    @mock.patch('treadmill_aws.infra.connection.Connection')
+    def test_zk_url_standalone(self, _conn_mock):
+        """Test zk url standalone."""
         node = Node(
             vpc_id='vpc-id',
             name='node'
         )
 
+        # pylint: disable=protected-access
         _zk_url = node._zk_url(
             hostname='zk1'
         )
 
         self.assertEqual(_zk_url, 'zookeeper://foo@zk1:2181')
 
-    @mock.patch('treadmill.infra.instances.Instances')
-    @mock.patch('treadmill.infra.connection.Connection')
-    @mock.patch('treadmill.infra.vpc.VPC')
-    def test_node_destroy_by_instance_id(self, VPCMock,
-                                         ConnectionMock, InstancesMock,):
+    @mock.patch('treadmill_aws.infra.instances.Instances')
+    @mock.patch('treadmill_aws.infra.connection.Connection')
+    @mock.patch('treadmill_aws.infra.vpc.VPC')
+    def test_destroy_by_instance_id(self, _vpc_mock,
+                                    _conn_mock, instance_mock):
+        """Test destory by instance id."""
         _instances_obj_mock = mock.Mock()
-        InstancesMock.get = mock.Mock(return_value=_instances_obj_mock)
-        InstancesMock.get_hostnames_by_roles = mock.Mock(return_value={
+        instance_mock.get = mock.Mock(return_value=_instances_obj_mock)
+        instance_mock.get_hostnames_by_roles = mock.Mock(return_value={
             'NODE': 'node1-1000.domain'
         })
 
@@ -105,17 +113,18 @@ class NodeTest(unittest.TestCase):
             instance_id='instance-id'
         )
 
-        InstancesMock.get.assert_called_once_with(ids=['instance-id'])
+        instance_mock.get.assert_called_once_with(ids=['instance-id'])
         _instances_obj_mock.terminate.assert_called_once_with()
 
-    @mock.patch('treadmill.infra.instances.Instances')
-    @mock.patch('treadmill.infra.connection.Connection')
-    @mock.patch('treadmill.infra.vpc.VPC')
-    def test_node_destroy_by_instance_name(self, VPCMock,
-                                           ConnectionMock, InstancesMock,):
+    @mock.patch('treadmill_aws.infra.instances.Instances')
+    @mock.patch('treadmill_aws.infra.connection.Connection')
+    @mock.patch('treadmill_aws.infra.vpc.VPC')
+    def test_destroy_by_instance_name(self, _vpc_mock,
+                                      _conn_mock, instance_mock):
+        """Test destroy by instance name."""
         _instances_obj_mock = mock.Mock()
-        InstancesMock.get = mock.Mock(return_value=_instances_obj_mock)
-        InstancesMock.get_hostnames_by_roles = mock.Mock(return_value={
+        instance_mock.get = mock.Mock(return_value=_instances_obj_mock)
+        instance_mock.get_hostnames_by_roles = mock.Mock(return_value={
             'NODE': 'node-instance-name.domain'
         })
 
@@ -125,7 +134,7 @@ class NodeTest(unittest.TestCase):
         )
         node.destroy()
 
-        InstancesMock.get.assert_called_once_with(
+        instance_mock.get.assert_called_once_with(
             filters=[
                 {
                     'Name': 'tag-key',
@@ -139,16 +148,13 @@ class NodeTest(unittest.TestCase):
         )
         _instances_obj_mock.terminate.assert_called_once_with()
 
-    @mock.patch('treadmill.infra.instances.Instances')
-    @mock.patch('treadmill.infra.connection.Connection')
-    @mock.patch('treadmill.infra.vpc.VPC')
-    def test_node_destroy_without_identifier_should_do_nothing(
-            self,
-            VPCMock,
-            ConnectionMock,
-            InstancesMock,
-    ):
-        InstancesMock.get = mock.Mock()
+    @mock.patch('treadmill_aws.infra.instances.Instances')
+    @mock.patch('treadmill_aws.infra.connection.Connection')
+    @mock.patch('treadmill_aws.infra.vpc.VPC')
+    def test_destroy_without_identifier(self, _vpc_mock, _conn_mock,
+                                        instance_mock):
+        """Test destroy without identifier."""
+        instance_mock.get = mock.Mock()
 
         node = Node(
             vpc_id='vpc-id',
@@ -156,4 +162,4 @@ class NodeTest(unittest.TestCase):
         )
         node.destroy()
 
-        InstancesMock.get.assert_not_called()
+        instance_mock.get.assert_not_called()

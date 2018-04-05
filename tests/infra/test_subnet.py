@@ -5,18 +5,20 @@ Unit test for EC2 subnet.
 import unittest
 import mock
 
-from treadmill.infra.subnet import Subnet
+from treadmill_aws.infra.subnet import Subnet
 
 
 class SubnetTest(unittest.TestCase):
+    """Subnet test."""
 
-    @mock.patch('treadmill.infra.connection.Connection')
-    def test_init(self, ConnectionMock):
-        conn_mock = ConnectionMock()
+    @mock.patch('treadmill_aws.infra.connection.Connection')
+    def test_init(self, connection_mock):
+        """Test init."""
+        conn_mock = connection_mock()
         Subnet.ec2_conn = Subnet.route53_conn = conn_mock
 
         subnet = Subnet(
-            id=1,
+            instance_id=1,
             vpc_id='vpc-id',
             metadata={
                 'Tags': [{
@@ -26,19 +28,20 @@ class SubnetTest(unittest.TestCase):
             }
         )
 
-        self.assertEquals(subnet.vpc_id, 'vpc-id')
-        self.assertEquals(subnet.name, 'goo')
-        self.assertEquals(subnet.ec2_conn, conn_mock)
+        self.assertEqual(subnet.vpc_id, 'vpc-id')
+        self.assertEqual(subnet.name, 'goo')
+        self.assertEqual(subnet.ec2_conn, conn_mock)
 
-    @mock.patch('treadmill.infra.connection.Connection')
-    def test_create_tags(self, ConnectionMock):
-        conn_mock = ConnectionMock()
+    @mock.patch('treadmill_aws.infra.connection.Connection')
+    def test_create_tags(self, connection_mock):
+        """Test create tags."""
+        conn_mock = connection_mock()
         conn_mock.create_tags = mock.Mock()
 
         Subnet.ec2_conn = Subnet.route53_conn = conn_mock
         subnet = Subnet(
             name='foo',
-            id='1',
+            instance_id='1',
             vpc_id='vpc-id'
         )
         subnet.create_tags()
@@ -51,10 +54,11 @@ class SubnetTest(unittest.TestCase):
             }]
         )
 
-    @mock.patch('treadmill.infra.connection.Connection')
-    def test_create(self, ConnectionMock):
-        ConnectionMock.context.region_name = 'us-east-1'
-        conn_mock = ConnectionMock()
+    @mock.patch('treadmill_aws.infra.connection.Connection')
+    def test_create(self, connection_mock):
+        """Test create."""
+        connection_mock.context.region_name = 'us-east-1'
+        conn_mock = connection_mock()
         subnet_json_mock = {
             'SubnetId': '1'
         }
@@ -73,7 +77,7 @@ class SubnetTest(unittest.TestCase):
             name='foo',
             gateway_id='gateway-id'
         )
-        self.assertEqual(_subnet.id, '1')
+        self.assertEqual(_subnet.instance_id, '1')
         self.assertEqual(_subnet.name, 'foo')
         self.assertEqual(_subnet.metadata, subnet_json_mock)
         conn_mock.create_subnet.assert_called_once_with(
@@ -101,9 +105,10 @@ class SubnetTest(unittest.TestCase):
             SubnetId='1',
         )
 
-    @mock.patch('treadmill.infra.connection.Connection')
-    def test_refresh(self, ConnectionMock):
-        conn_mock = ConnectionMock()
+    @mock.patch('treadmill_aws.infra.connection.Connection')
+    def test_refresh(self, connection_mock):
+        """Test refresh."""
+        conn_mock = connection_mock()
         subnet_json_mock = {
             'VpcId': 'vpc-id',
             'Foo': 'bar'
@@ -113,7 +118,7 @@ class SubnetTest(unittest.TestCase):
         })
 
         Subnet.ec2_conn = Subnet.route53_conn = conn_mock
-        _subnet = Subnet(id='subnet-id', vpc_id=None, metadata=None)
+        _subnet = Subnet(instance_id='subnet-id', vpc_id=None, metadata=None)
         _subnet.refresh()
 
         self.assertEqual(_subnet.vpc_id, 'vpc-id')
@@ -121,12 +126,13 @@ class SubnetTest(unittest.TestCase):
 
     @mock.patch.object(Subnet, 'refresh')
     @mock.patch.object(Subnet, 'get_instances')
-    @mock.patch('treadmill.infra.connection.Connection')
-    def test_show(self, ConnectionMock, get_instances_mock, refresh_mock):
-        conn_mock = ConnectionMock()
+    @mock.patch('treadmill_aws.infra.connection.Connection')
+    def test_show(self, connection_mock, get_instances_mock, refresh_mock):
+        """Test show."""
+        conn_mock = connection_mock()
         Subnet.ec2_conn = Subnet.route53_conn = conn_mock
 
-        _subnet = Subnet(id='subnet-id',
+        _subnet = Subnet(instance_id='subnet-id',
                          vpc_id='vpc-id',
                          metadata=None)
         _subnet.instances = None
@@ -145,19 +151,21 @@ class SubnetTest(unittest.TestCase):
         get_instances_mock.assert_called_once_with(refresh=True, role=None)
         refresh_mock.assert_called_once()
 
-    @mock.patch('treadmill.infra.connection.Connection')
-    def test_persisted(self, ConnectionMock):
-        _subnet = Subnet(id='subnet-id', metadata={'foo': 'goo'})
+    @mock.patch('treadmill_aws.infra.connection.Connection')
+    def test_persisted(self, _connection_mock):
+        """Test persisted."""
+        _subnet = Subnet(instance_id='subnet-id', metadata={'foo': 'goo'})
 
         self.assertFalse(_subnet.persisted)
 
         _subnet.metadata['SubnetId'] = 'subnet-id'
         self.assertTrue(_subnet.persisted)
 
-    @mock.patch('treadmill.infra.connection.Connection')
-    def test_persist(self, ConnectionMock):
-        ConnectionMock.context.region_name = 'us-east-1'
-        conn_mock = ConnectionMock()
+    @mock.patch('treadmill_aws.infra.connection.Connection')
+    def test_persist(self, connection_mock):
+        """Test persist."""
+        connection_mock.context.region_name = 'us-east-1'
+        conn_mock = connection_mock()
         Subnet.ec2_conn = Subnet.route53_conn = conn_mock
 
         conn_mock.create_subnet = mock.Mock(
@@ -169,7 +177,10 @@ class SubnetTest(unittest.TestCase):
         )
 
         _subnet = Subnet(
-            id='subnet-id', metadata=None, vpc_id='vpc-id', name='subnet-name'
+            instance_id='subnet-id',
+            metadata=None,
+            vpc_id='vpc-id',
+            name='subnet-name'
         )
 
         _subnet.persist(

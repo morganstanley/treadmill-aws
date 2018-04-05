@@ -1,15 +1,15 @@
-'''IPA API tests.'''
+"""IPA API tests."""
 
+import subprocess
 import unittest
 
 import mock
 
-from treadmill.api import ipa
-import subprocess
+from treadmill_aws.api import ipa
 
 
 class ApiIPATest(unittest.TestCase):
-    '''treadmill.api.ipa tests.'''
+    """treadmill_aws.api.ipa tests."""
 
     def setUp(self):
         self.ipa = ipa.API()
@@ -18,6 +18,7 @@ class ApiIPATest(unittest.TestCase):
         pass
 
     def test_add_host(self):
+        """Test add host."""
         _ipa_result_mock = (
             b'foo\n bar\n goo\n tao\n random password: tao-pass-goo-foo'
         )
@@ -37,6 +38,7 @@ class ApiIPATest(unittest.TestCase):
         ])
 
     def test_delete_host(self):
+        """Test delete host."""
         _ipa_result_mock = (
             b'------------------\n'
             b'Deleted host "some-host"\n'
@@ -53,6 +55,7 @@ class ApiIPATest(unittest.TestCase):
         ])
 
     def test_delete_host_failure(self):
+        """Test delete host failure."""
         _ipa_result_mock = (
             b'------------------\n'
             b'Could not Delete host "some-host"\n'
@@ -70,6 +73,7 @@ class ApiIPATest(unittest.TestCase):
         ])
 
     def test_service_add(self):
+        """Test service add."""
         _ipa_result_mock = (
             b'------------------\n'
             b'members added 1\n'

@@ -5,36 +5,42 @@ Unit test for boto3 singleton connection
 import unittest
 import mock
 
-from treadmill.infra import connection
+from treadmill_aws.infra import connection
 
 
 class ConnectionTest(unittest.TestCase):
     """Tests for boto3 connection singleton."""
 
     def setUp(self):
+        # pylint: disable=protected-access
         connection.Connection._instances = {}
 
     def tearDown(self):
+        # pylint: disable=protected-access
         connection.Connection._instances = {}
 
     @mock.patch('boto3.client', mock.Mock(return_value='foo'))
     def test_establish(self):
+        """Test establish."""
         conn = connection.Connection()
         connection.boto3.client.assert_called_with(
             'ec2', region_name=connection.Connection.context.region_name
         )
-        self.assertEquals(conn, 'foo')
+        self.assertEqual(conn, 'foo')
 
     @mock.patch('boto3.client', mock.Mock(return_value='foo'))
     def test_establish_with_region(self):
+        """Test establish with region."""
         connection.Connection.context.region_name = 'foobar'
         conn = connection.Connection()
         connection.boto3.client.assert_called_with('ec2', region_name='foobar')
-        self.assertEquals(conn, 'foo')
+        self.assertEqual(conn, 'foo')
 
     @mock.patch('boto3.client')
     def test_connection_singleton(self, client_mock):
+        """Test connection singleton."""
         client_obj_mock = mock.Mock()
+        # pylint: disable=protected-access
         client_obj_mock._service_model.service_name = 'EC2'
         client_mock.return_value = client_obj_mock
         conn1 = connection.Connection()
@@ -42,7 +48,7 @@ class ConnectionTest(unittest.TestCase):
         connection.boto3.client.assert_called_once_with(
             'ec2', region_name=connection.Connection.context.region_name
         )
-        self.assertEquals(conn1, conn2)
+        self.assertEqual(conn1, conn2)
 
 
 if __name__ == '__main__':

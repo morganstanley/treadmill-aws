@@ -1,1 +1,0 @@
-{{ _alias.powershell }} -File .winss-svscan\finish.ps1

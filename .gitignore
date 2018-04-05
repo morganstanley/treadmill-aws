@@ -19,7 +19,7 @@ __pycache__
 !.tmpwatch.exclude
 
 # Ignore generated files/dir
-lib/python/treadmill.egg-info/*
+lib/python/Treadmill_AWS.egg-info/*
 doc/build
 wheels/
 build/

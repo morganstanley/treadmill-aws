@@ -5,32 +5,33 @@ Unit test for EC2 ipa.
 import unittest
 import mock
 
-from treadmill.infra.setup.ipa import IPA
-from treadmill.infra import constants
+from treadmill_aws.infra.setup.ipa import IPA
+from treadmill_aws.infra import constants
 
 
 class IPATest(unittest.TestCase):
     """Tests EC2 ipa setup."""
 
     @mock.patch('time.time', mock.Mock(return_value=1000))
-    @mock.patch('treadmill.infra.subnet.Subnet')
-    @mock.patch('treadmill.infra.get_iam_role')
-    @mock.patch('treadmill.infra.configuration.IPA')
-    @mock.patch('treadmill.infra.connection.Connection')
-    @mock.patch('treadmill.infra.vpc.VPC')
-    @mock.patch('treadmill.infra.instances.Instances')
-    def test_setup_ipa(self, InstancesMock,
-                       VPCMock, ConnectionMock, IPAConfigurationMock,
-                       get_iam_role_mock, SubnetMock):
-        ConnectionMock.context.domain = 'foo.bar'
+    @mock.patch('treadmill_aws.infra.subnet.Subnet')
+    @mock.patch('treadmill_aws.infra.get_iam_role')
+    @mock.patch('treadmill_aws.infra.configuration.IPA')
+    @mock.patch('treadmill_aws.infra.connection.Connection')
+    @mock.patch('treadmill_aws.infra.vpc.VPC')
+    @mock.patch('treadmill_aws.infra.instances.Instances')
+    def test_setup_ipa(self, instances_mock,
+                       vpc_mock, connection_mock, ipa_configuration_mock,
+                       get_iam_role_mock, subnet_mock):
+        """Test setup IPA."""
+        connection_mock.context.domain = 'foo.bar'
         instance_mock = mock.Mock(metadata={'PrivateIpAddress': '1.1.1.1'})
         instance_mock.name = 'ipa'
         instance_mock.running_status = mock.Mock(return_value='passed')
-        instances_mock = mock.Mock(instances=[instance_mock])
-        InstancesMock.create = mock.Mock(return_value=instances_mock)
-        conn_mock = ConnectionMock('route53')
+        instances = mock.Mock(instances=[instance_mock])
+        instances_mock.create = mock.Mock(return_value=instances)
+        conn_mock = connection_mock('route53')
         _vpc_id_mock = 'vpc-id'
-        _vpc_mock = VPCMock(id=_vpc_id_mock)
+        _vpc_mock = vpc_mock(instance_id=_vpc_id_mock)
         _vpc_mock.secgroup_ids = ['secgroup_id']
         _vpc_mock.gateway_ids = [123]
 
@@ -45,14 +46,14 @@ class IPATest(unittest.TestCase):
         _private_ip = '1.1.1.1'
         _subnet_mock = mock.Mock(
             persisted=False,
-            id='subnet-id',
+            instance_id='subnet-id',
             vpc_id=_vpc_id_mock,
             name='subnet-name',
-            get_instances=mock.Mock(return_value=instances_mock)
+            get_instances=mock.Mock(return_value=instances)
         )
-        SubnetMock.get = mock.Mock(return_value=_subnet_mock)
+        subnet_mock.get = mock.Mock(return_value=_subnet_mock)
 
-        _ipa_configuration_mock = IPAConfigurationMock()
+        _ipa_configuration_mock = ipa_configuration_mock()
         _ipa_configuration_mock.get_userdata = mock.Mock(
             return_value='user-data-script'
         )
@@ -96,8 +97,8 @@ class IPATest(unittest.TestCase):
                 }])
             ]
         )
-        self.assertEqual(ipa.subnet.instances, instances_mock)
-        InstancesMock.create.assert_called_once_with(
+        self.assertEqual(ipa.subnet.instances, instances)
+        instances_mock.create.assert_called_once_with(
             image='foo-123',
             name='ipa1-1000.foo.bar',
             count=1,
@@ -117,7 +118,7 @@ class IPATest(unittest.TestCase):
         )
 
         self.assertEqual(
-            IPAConfigurationMock.mock_calls[1],
+            ipa_configuration_mock.mock_calls[1],
             mock.mock.call(
                 ipa_admin_password='ipa-admin-password',
                 tm_release='release',
@@ -128,16 +129,17 @@ class IPATest(unittest.TestCase):
         )
         _ipa_configuration_mock.get_userdata.assert_called_once()
 
-    @mock.patch('treadmill.infra.subnet.Subnet')
-    @mock.patch('treadmill.infra.connection.Connection')
-    @mock.patch('treadmill.infra.vpc.VPC')
-    def test_ipa_destroy(self, VPCMock, ConnectionMock, SubnetMock):
-        ConnectionMock.context.domain = 'foo.bar'
-        _subnet_mock = SubnetMock(
+    @mock.patch('treadmill_aws.infra.subnet.Subnet')
+    @mock.patch('treadmill_aws.infra.connection.Connection')
+    @mock.patch('treadmill_aws.infra.vpc.VPC')
+    def test_ipa_destroy(self, vpc_mock, connection_mock, subnet_mock):
+        """Test IPA destroy."""
+        connection_mock.context.domain = 'foo.bar'
+        _subnet_mock = subnet_mock(
             subnet_name='subnet-name'
         )
         _vpc_id_mock = 'vpc-id'
-        _vpc_mock = VPCMock(id=_vpc_id_mock)
+        _vpc_mock = vpc_mock(instance_id=_vpc_id_mock)
         _vpc_mock.secgroup_ids = ['secgroup_id']
         _instance = mock.Mock(private_ip='1.1.1.1')
         _instance.name = 'ipa'

@@ -1,23 +1,23 @@
 """
-Unit test for treadmill infra.
+Unit test for treadmill_aws.infra.
 """
 
 import unittest
 import mock
 
-from treadmill import infra
+from treadmill_aws import infra
 
 
 class InfraTest(unittest.TestCase):
-    """Tests treadmill infra"""
+    """Tests treadmill_aws.infra"""
 
-    @mock.patch('treadmill.infra.connection.Connection')
-    def test_create_iam_role(self, ConnectionMock):
+    @mock.patch('treadmill_aws.infra.connection.Connection')
+    def test_create_iam_role(self, connection_mock):
         "Test create IAM role"
-        iam_conn_mock = ConnectionMock()
+        iam_conn_mock = connection_mock()
         iam_conn_mock.create_role = mock.Mock(return_value='custom_role')
         role = infra.create_iam_role(name='foo')
-        self.assertEquals(role, 'custom_role')
+        self.assertEqual(role, 'custom_role')
         iam_conn_mock.create_role.assert_called_once()
         iam_conn_mock.create_instance_profile.assert_called_once_with(
             InstanceProfileName='foo'
@@ -27,16 +27,16 @@ class InfraTest(unittest.TestCase):
             InstanceProfileName='foo'
         )
 
-    @mock.patch('treadmill.infra.connection.Connection')
-    @mock.patch('treadmill.infra.create_iam_role')
-    def test_get_iam_role(self, create_iam_role_mock, ConnectionMock):
+    @mock.patch('treadmill_aws.infra.connection.Connection')
+    @mock.patch('treadmill_aws.infra.create_iam_role')
+    def test_get_iam_role(self, create_iam_role_mock, connection_mock):
         "Test get IAM role"
-        iam_conn_mock = ConnectionMock()
+        iam_conn_mock = connection_mock()
         iam_conn_mock.get_role = mock.Mock(return_value='custom_role')
         role = infra.get_iam_role(
             name='Test_Role', create=False
         )
-        self.assertEquals(role, 'custom_role')
+        self.assertEqual(role, 'custom_role')
         iam_conn_mock.get_role.assert_called_once_with(
             RoleName='Test_Role'
         )

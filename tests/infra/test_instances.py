@@ -5,16 +5,18 @@ Unit test for EC2 instance.
 import unittest
 import mock
 
-from treadmill.infra.instances import Instance
-from treadmill.infra.instances import Instances
+from treadmill_aws.infra.instances import Instance
+from treadmill_aws.infra.instances import Instances
 
 
+# pylint: disable=invalid-name
 class InstanceTest(unittest.TestCase):
     """Tests EC2 instance"""
 
     def test_init(self):
+        """Test init."""
         instance = Instance(
-            id=1,
+            instance_id=1,
             metadata={
                 'PrivateIpAddress': '1.1.1.1',
                 'Tags': [{
@@ -24,22 +26,23 @@ class InstanceTest(unittest.TestCase):
             }
         )
 
-        self.assertEquals(instance.name, 'goo')
-        self.assertEquals(instance.private_ip, '1.1.1.1')
+        self.assertEqual(instance.name, 'goo')
+        self.assertEqual(instance.private_ip, '1.1.1.1')
 
-    @mock.patch('treadmill.infra.connection.Connection')
-    def test_create_tags(self, ConnectionMock):
-        conn_mock = ConnectionMock()
+    @mock.patch('treadmill_aws.infra.connection.Connection')
+    def test_create_tags(self, connection_mock):
+        """Test create tags."""
+        conn_mock = connection_mock()
         conn_mock.create_tags = mock.Mock()
         Instance.ec2_conn = conn_mock
 
         instance = Instance(
             name='foo',
-            id='1',
+            instance_id='1',
             metadata={'AmiLaunchIndex': 100}
         )
         instance.create_tags()
-        self.assertEquals(instance.name, 'foo')
+        self.assertEqual(instance.name, 'foo')
 
         conn_mock.create_tags.assert_called_once_with(
             Resources=['1'],
@@ -49,20 +52,21 @@ class InstanceTest(unittest.TestCase):
             }]
         )
 
-    @mock.patch('treadmill.infra.instances.connection.Connection')
-    def test_create_tags_with_role(self, ConnectionMock):
-        ConnectionMock.context.domain = 'do.main'
-        conn_mock = ConnectionMock()
+    @mock.patch('treadmill_aws.infra.instances.connection.Connection')
+    def test_create_tags_with_role(self, connection_mock):
+        """Test create tags with role."""
+        connection_mock.context.domain = 'do.main'
+        conn_mock = connection_mock()
         conn_mock.create_tags = mock.Mock()
         Instance.ec2_conn = conn_mock
         instance = Instance(
             name='foo',
-            id='1',
+            instance_id='1',
             metadata={'AmiLaunchIndex': 100},
             role='role-name'
         )
         instance.create_tags()
-        self.assertEquals(instance.name, 'foo')
+        self.assertEqual(instance.name, 'foo')
 
         conn_mock.create_tags.assert_called_once_with(
             Resources=['1'],
@@ -75,9 +79,10 @@ class InstanceTest(unittest.TestCase):
             }]
         )
 
-    @mock.patch('treadmill.infra.instances.connection.Connection')
-    def test_running_instance(self, ConnectionMock):
-        conn_mock = ConnectionMock()
+    @mock.patch('treadmill_aws.infra.instances.connection.Connection')
+    def test_running_instance(self, connection_mock):
+        """Test running instance."""
+        conn_mock = connection_mock()
         conn_mock.describe_instance_status = mock.Mock(
             return_value={
                 'InstanceStatuses': [{
@@ -102,13 +107,15 @@ class InstanceTest(unittest.TestCase):
             InstanceIds=['instance-id']
         )
 
-    @mock.patch('treadmill.infra.instances.connection.Connection')
-    def test_running_instance_without_refresh(self, ConnectionMock):
-        conn_mock = ConnectionMock()
+    @mock.patch('treadmill_aws.infra.instances.connection.Connection')
+    def test_running_instance_without_refresh(self, connection_mock):
+        """Test running instance without refresh."""
+        conn_mock = connection_mock()
         _instance = Instance(
             name='foo'
         )
         _instance.ec2_conn = conn_mock
+        # pylint: disable=protected-access
         _instance._running_status = 'goo'
         self.assertEqual(
             _instance.running_status(),
@@ -116,9 +123,10 @@ class InstanceTest(unittest.TestCase):
         )
         conn_mock.describe_instance_status.assert_not_called()
 
-    @mock.patch('treadmill.infra.instances.connection.Connection')
-    def test_running_instance_with_refresh(self, ConnectionMock):
-        conn_mock = ConnectionMock()
+    @mock.patch('treadmill_aws.infra.instances.connection.Connection')
+    def test_running_instance_with_refresh(self, connection_mock):
+        """Test running instance with refresh."""
+        conn_mock = connection_mock()
         conn_mock.describe_instance_status = mock.Mock(
             return_value={
                 'InstanceStatuses': [{
@@ -135,6 +143,7 @@ class InstanceTest(unittest.TestCase):
             metadata={'InstanceId': 'instance-id'}
         )
         _instance.ec2_conn = conn_mock
+        # pylint: disable=protected-access
         _instance._running_status = 'goo'
         self.assertEqual(
             _instance.running_status(),
@@ -152,9 +161,10 @@ class InstanceTest(unittest.TestCase):
 class InstancesTest(unittest.TestCase):
     """Tests instances collection"""
 
-    @mock.patch('treadmill.infra.instances.connection.Connection')
-    def test_create(self, ConnectionMock):
-        ConnectionMock.context.domain = 'joo.goo'
+    @mock.patch('treadmill_aws.infra.instances.connection.Connection')
+    def test_create(self, connection_mock):
+        """Test create."""
+        connection_mock.context.domain = 'joo.goo'
         instance1_metadata_mock = {
             'InstanceId': 1,
             'AmiLaunchIndex': 0
@@ -172,7 +182,7 @@ class InstancesTest(unittest.TestCase):
             instance2_metadata_mock
         ]
 
-        conn_mock = ConnectionMock()
+        conn_mock = connection_mock()
         conn_mock.run_instances = mock.Mock(return_value={
             'Instances': sample_instances
         })
@@ -197,16 +207,16 @@ class InstancesTest(unittest.TestCase):
             role='role'
         ).instances
 
-        instance_ids = [i.id for i in instances]
+        instance_ids = [i.instance_id for i in instances]
 
-        self.assertEquals(len(instances), 2)
+        self.assertEqual(len(instances), 2)
         self.assertIsInstance(instances[0], Instance)
         self.assertIsInstance(instances[1], Instance)
         self.assertCountEqual(instance_ids, [1, 2])
-        self.assertEquals(instances[0].metadata, instance1_metadata_mock)
-        self.assertEquals(instances[1].metadata, instance2_metadata_mock)
-        self.assertEquals(instances[0].role, 'role')
-        self.assertEquals(instances[1].role, 'role')
+        self.assertEqual(instances[0].metadata, instance1_metadata_mock)
+        self.assertEqual(instances[1].metadata, instance2_metadata_mock)
+        self.assertEqual(instances[0].role, 'role')
+        self.assertEqual(instances[1].role, 'role')
 
         conn_mock.run_instances.assert_called_with(
             ImageId='ami-123',
@@ -227,14 +237,15 @@ class InstancesTest(unittest.TestCase):
             InstanceIds=[1, 2]
         )
 
-    @mock.patch('treadmill.api.ipa.API')
-    @mock.patch('treadmill.infra.instances.Instance')
-    @mock.patch('treadmill.infra.instances.connection.Connection')
-    def test_terminate(self, ConnectionMock, InstanceMock, IpaAPIMock):
-        conn_mock = ConnectionMock()
-        ipa_api_mock = IpaAPIMock()
-        instance_1_mock = InstanceMock()
-        instance_1_mock.id = 1
+    @mock.patch('treadmill_aws.api.ipa.API')
+    @mock.patch('treadmill_aws.infra.instances.Instance')
+    @mock.patch('treadmill_aws.infra.instances.connection.Connection')
+    def test_terminate(self, connection_mock, instance_mock, ipa_api_mock):
+        """Test terminate."""
+        conn_mock = connection_mock()
+        ipa_api_mock = ipa_api_mock()
+        instance_1_mock = instance_mock()
+        instance_1_mock.instance_id = 1
         instance_1_mock.hostname = 'hostname'
         instance = Instances(instances=[instance_1_mock])
         instance.volume_ids = ['vol-id0']
@@ -254,14 +265,15 @@ class InstancesTest(unittest.TestCase):
         )
         ipa_api_mock.delete_host.assert_called_once_with(hostname='hostname')
 
-    @mock.patch('treadmill.api.ipa.API')
-    @mock.patch('treadmill.infra.instances.Instance')
-    @mock.patch('treadmill.infra.instances.connection.Connection')
-    def test_terminate_ipa(self, ConnectionMock, InstanceMock, IpaAPIMock):
-        conn_mock = ConnectionMock()
-        ipa_api_mock = IpaAPIMock()
-        instance_1_mock = InstanceMock()
-        instance_1_mock.id = 1
+    @mock.patch('treadmill_aws.api.ipa.API')
+    @mock.patch('treadmill_aws.infra.instances.Instance')
+    @mock.patch('treadmill_aws.infra.instances.connection.Connection')
+    def test_terminate_ipa(self, connection_mock, instance_mock, ipa_api_mock):
+        """Test terminate IPA."""
+        conn_mock = connection_mock()
+        ipa_api_mock = ipa_api_mock()
+        instance_1_mock = instance_mock()
+        instance_1_mock.instance_id = 1
         instance_1_mock.role = 'IPA'
         instance_1_mock.hostname = 'hostname'
         instance = Instances(instances=[instance_1_mock])
@@ -282,9 +294,10 @@ class InstancesTest(unittest.TestCase):
         )
         ipa_api_mock.delete_host.assert_not_called()
 
-    @mock.patch('treadmill.infra.instances.connection.Connection')
-    def test_load_volume_ids(self, connectionMock):
-        conn_mock = connectionMock()
+    @mock.patch('treadmill_aws.infra.instances.connection.Connection')
+    def test_load_volume_ids(self, connection_mock):
+        """Test load volume ids."""
+        conn_mock = connection_mock()
         conn_mock.describe_volumes = mock.Mock(return_value={
             'Volumes': [{
                 'VolumeId': 'vol-id'
@@ -292,10 +305,10 @@ class InstancesTest(unittest.TestCase):
         })
 
         Instance.ec2_conn = conn_mock
-        instance = Instances([Instance(id=1)])
+        instance = Instances([Instance(instance_id=1)])
         instance.load_volume_ids()
 
-        self.assertEquals(instance.volume_ids, ['vol-id'])
+        self.assertEqual(instance.volume_ids, ['vol-id'])
         conn_mock.describe_volumes.assert_called_once_with(
             Filters=[{
                 'Name': 'attachment.instance-id',
@@ -303,18 +316,20 @@ class InstancesTest(unittest.TestCase):
             }]
         )
 
-    @mock.patch('treadmill.infra.instances.connection.Connection')
-    def test_load_json_without_criteria(self, ConnectionMock):
-        conn_mock = ConnectionMock()
+    @mock.patch('treadmill_aws.infra.instances.connection.Connection')
+    def test_load_json_without_criteria(self, connection_mock):
+        """Test load json without criteria."""
+        conn_mock = connection_mock()
 
         Instance.ec2_conn = conn_mock
         self.assertEqual(Instances.load_json(), [])
 
         conn_mock.describe_instances.assert_not_called()
 
-    @mock.patch('treadmill.infra.instances.connection.Connection')
-    def test_load_json_with_instance_ids(self, ConnectionMock):
-        conn_mock = ConnectionMock()
+    @mock.patch('treadmill_aws.infra.instances.connection.Connection')
+    def test_load_json_with_instance_ids(self, connection_mock):
+        """Test load json with instance ids."""
+        conn_mock = connection_mock()
 
         sample_instances = [
             {'InstanceId': 1}, {'InstanceId': 2}, {'InstanceId': 3}
@@ -329,11 +344,12 @@ class InstancesTest(unittest.TestCase):
         conn_mock.describe_instances.assert_called_once_with(
             InstanceIds=[1, 2, 3]
         )
-        self.assertEquals(instance_details, sample_instances)
+        self.assertEqual(instance_details, sample_instances)
 
-    @mock.patch('treadmill.infra.instances.connection.Connection')
-    def test_load_json_with_filters(self, ConnectionMock):
-        conn_mock = ConnectionMock()
+    @mock.patch('treadmill_aws.infra.instances.connection.Connection')
+    def test_load_json_with_filters(self, connection_mock):
+        """Test load json with filters."""
+        conn_mock = connection_mock()
 
         sample_instances = [
             {'InstanceId': 1}, {'InstanceId': 2}, {'InstanceId': 3}
@@ -348,11 +364,12 @@ class InstancesTest(unittest.TestCase):
         conn_mock.describe_instances.assert_called_once_with(
             Filters=[{'foo': 'bar'}]
         )
-        self.assertEquals(instance_details, sample_instances)
+        self.assertEqual(instance_details, sample_instances)
 
-    @mock.patch('treadmill.infra.instances.connection.Connection')
-    def test_get_by_roles(self, ConnectionMock):
-        conn_mock = ConnectionMock()
+    @mock.patch('treadmill_aws.infra.instances.connection.Connection')
+    def test_get_by_roles(self, connection_mock):
+        """Test get by roles."""
+        conn_mock = connection_mock()
 
         sample_instances = [
             {'InstanceId': 1}
@@ -372,11 +389,12 @@ class InstancesTest(unittest.TestCase):
             ]
         )
         self.assertIsInstance(result, Instances)
-        self.assertEquals(result.instances[0].metadata, sample_instances[0])
+        self.assertEqual(result.instances[0].metadata, sample_instances[0])
 
-    @mock.patch('treadmill.infra.instances.connection.Connection')
-    def test_get_by_roles_no_instance(self, ConnectionMock):
-        conn_mock = ConnectionMock()
+    @mock.patch('treadmill_aws.infra.instances.connection.Connection')
+    def test_get_by_roles_no_instance(self, connection_mock):
+        """Test get by rules with no instance."""
+        conn_mock = connection_mock()
 
         conn_mock.describe_instances = mock.Mock(return_value={
             'Reservations': [{'Instances': []}]
@@ -396,10 +414,11 @@ class InstancesTest(unittest.TestCase):
         self.assertIsInstance(result, Instances)
         self.assertEqual(result.instances, [])
 
-    @mock.patch('treadmill.infra.instances.connection.Connection')
-    def test_hostnames_by_roles_with_multiple_instances(self, ConnectionMock):
-        ConnectionMock.context.domain = 'domain'
-        conn_mock = ConnectionMock()
+    @mock.patch('treadmill_aws.infra.instances.connection.Connection')
+    def test_hostnames_by_roles_with_multiple_instances(self, connection_mock):
+        """Test hostnames by roles with multiple instances."""
+        connection_mock.context.domain = 'domain'
+        conn_mock = connection_mock()
         sample_instances = [
             {
                 'InstanceId': 1, 'Tags': [
@@ -429,14 +448,15 @@ class InstancesTest(unittest.TestCase):
                 {'Name': 'tag-value', 'Values': ['IPA']}
             ]
         )
-        self.assertEquals(result, {
+        self.assertEqual(result, {
             'IPA': 'ipa-hostname-with-domain,ipa2-hostname-with-domain'
         })
 
-    @mock.patch('treadmill.infra.instances.connection.Connection')
-    def test_hostnames_by_roles_with_single_instances(self, ConnectionMock):
-        ConnectionMock.context.domain = 'domain'
-        conn_mock = ConnectionMock()
+    @mock.patch('treadmill_aws.infra.instances.connection.Connection')
+    def test_hostnames_by_roles_with_single_instances(self, connection_mock):
+        """Test hostnames by roles with single instances."""
+        connection_mock.context.domain = 'domain'
+        conn_mock = connection_mock()
         sample_instances = [
             {
                 'InstanceId': 1, 'Tags': [
@@ -461,13 +481,14 @@ class InstancesTest(unittest.TestCase):
                 {'Name': 'tag-value', 'Values': ['IPA']}
             ]
         )
-        self.assertEquals(result, {
+        self.assertEqual(result, {
             'IPA': 'ipa-hostname-with-domain'
         })
 
-    @mock.patch('treadmill.infra.instances.connection.Connection')
-    def test_get_ami_id(self, ConnectionMock):
-        conn_mock = ConnectionMock()
+    @mock.patch('treadmill_aws.infra.instances.connection.Connection')
+    def test_get_ami_id(self, connection_mock):
+        """Test get AMI id."""
+        conn_mock = connection_mock()
 
         sample_images = [
             {'ImageId': 'ami-123', 'CreationDate': '2017-08-23T00:00:00.000Z'},
@@ -488,7 +509,7 @@ class InstancesTest(unittest.TestCase):
                 {'Name': 'image-type', 'Values': ['machine']}
             ]
         )
-        self.assertEquals(ami_id, 'ami-123')
+        self.assertEqual(ami_id, 'ami-123')
 
 
 if __name__ == '__main__':
