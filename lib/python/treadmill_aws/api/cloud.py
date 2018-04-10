@@ -76,8 +76,10 @@ class API(object):
                     return json.loads(result.decode('utf-8').replace("'", '"'))
                 else:
                     raise ValueError(
-                        ', '.join(default_mandatory_params) +
-                        ' are mandatory arguments for ' + role + ' role .'
+                        '%s are mandatory for role: %s' % (
+                            ', '.join(default_mandatory_params),
+                            role
+                        )
                     )
 
             _mandatory_params = []
