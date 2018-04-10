@@ -1,0 +1,28 @@
+# Ignore compiled/temporary files
+__pycache__
+*.pyc
+.*
+
+# Keep s6 files from templates
+!.s6-svscan
+!.winss-svscan
+
+
+# Ensure that .git* files are included
+!.gitignore
+!.gitattributes
+
+# Keep track of .keepme files
+!.keepme
+
+# Preserve tmpwatch files
+!.tmpwatch.exclude
+
+# Ignore generated files/dir
+lib/python/Treadmill_AWS.egg-info/*
+doc/build
+wheels/
+build/
+dist/
+cover/
+

@@ -1,0 +1,5 @@
+boto3==1.4.4
+boto==2.46.1
+
+# treadmill>=3.7,<4
+git+https://github.com/Morgan-Stanley/treadmill.git@master#egg=treadmill

@@ -1,0 +1,2 @@
+"""treadmill.cli tests
+"""

@@ -1,0 +1,29 @@
+language: python
+
+env:
+- TOXENV=py34
+- TOXENV=pep8
+- TOXENV=pylint
+
+install:
+- sudo touch /etc/ld.so.preload
+- pip install tox
+
+script:
+- tox -vv tests
+
+after_success:
+  - coverage combine
+  - codecov
+
+notifications:
+  email: false
+
+# Don't fail on trunk versions.
+matrix:
+  allow_failures:
+    - env: TOX_ENV=pep8
+    - env: TOX_ENV=pylint
+
+notifications:
+  email: false

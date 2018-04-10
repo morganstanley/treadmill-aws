@@ -1,0 +1,9 @@
+jsonpointer
+mock
+pylint
+pytest
+pytest-cov
+Sphinx
+tox
+blinker
+decorator

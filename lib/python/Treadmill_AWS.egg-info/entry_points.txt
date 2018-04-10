@@ -1,0 +1,14 @@
+# vim:syntax=cfg
+
+[treadmill.rest.api]
+cloud = treadmill_aws.rest.api.cloud
+
+[treadmill.api]
+cloud = treadmill_aws.api.cloud
+
+[treadmill.cli]
+cloud = treadmill_aws.cli.cloud
+
+[treadmill.cli.admin]
+cloud = treadmill_aws.cli.admin.cloud
+
