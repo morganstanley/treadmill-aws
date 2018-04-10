@@ -5,13 +5,26 @@ from treadmill_aws.infra import connection
 
 class EC2Object:
     """EC2 object."""
-    ec2_conn = connection.Connection()
 
     def __init__(self, name=None, instance_id=None, metadata=None, role=None):
         self._id = instance_id
         self.metadata = metadata
         self._role = role
         self._name = name
+        self._ec2_conn = None
+
+    @property
+    def ec2_conn(self):
+        """Lazy construction of EC2 connection."""
+        if self._ec2_conn is None:
+            self._ec2_conn = connection.Connection()
+        return self._ec2_conn
+
+    @ec2_conn.setter
+    def ec2_conn(self, value):
+        """EC2 connection, setter.
+        """
+        self._ec2_conn = value
 
     @property
     def instance_id(self):
