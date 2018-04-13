@@ -63,8 +63,7 @@ class AWSClientTest(unittest.TestCase):
                       '         >> /etc/profile.d/http_proxy.sh\n    '
                       'echo "export NO_PROXY=localhost,169.254.169.254,'
                       '*.foo.com"         >> /etc/profile.d/http_proxy.sh\n  '
-                      '  echo "proxy=http://proxy.foo.com:3128/" >> '
-                      '/etc/yum.conf\n    yum install -y ipa-client\n    '
+                      '  yum install -y ipa-client\n    '
                       'ipa-client-install     --no-krb5-offline-password     '
                       '--enable-dns-updates     --password=\'123456789\'     '
                       '--mkhomedir     --no-ntp     --unattended'))

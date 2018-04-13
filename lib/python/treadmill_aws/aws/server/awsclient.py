@@ -17,7 +17,6 @@ def render_manifest(domain, hostname, otp, proxy):
         >> /etc/profile.d/http_proxy.sh
     echo "export NO_PROXY=localhost,169.254.169.254,*.{domain}" \
         >> /etc/profile.d/http_proxy.sh
-    echo "proxy={proxy}" >> /etc/yum.conf
     yum install -y ipa-client
     ipa-client-install \
     --no-krb5-offline-password \
