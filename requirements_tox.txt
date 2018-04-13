@@ -1,0 +1,6 @@
+# Until Kazoo SASL patches are upstreamed
+#
+# It is necessary to install kazoo from repo first when running tox, as
+# treadmill downstream will ask for kazoo-2.4.0.dev and this does not exist
+# in pypi.
+git+https://github.com/ceache/kazoo.git@puresasl#egg=kazoo [sasl]
