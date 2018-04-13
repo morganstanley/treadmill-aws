@@ -10,5 +10,6 @@ cloud = treadmill_aws.api.cloud
 cloud = treadmill_aws.cli.cloud
 
 [treadmill.cli.admin]
+aws = treadmill_aws.cli.admin.aws
 cloud = treadmill_aws.cli.admin.cloud
 
