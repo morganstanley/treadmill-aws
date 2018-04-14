@@ -1,9 +1,14 @@
-import click
+"""AWS CLI handler."""
+
 import pprint
 import logging
 
-from treadmill_aws.infra import connection
+import click
+
 from treadmill import cli
+from treadmill import context
+
+from treadmill_aws.infra import connection
 from treadmill_aws.aws.manager import HostManager
 
 
@@ -15,7 +20,6 @@ def init():
 
     @click.group()
     @click.option('-d', '--domain',
-                  envvar='TREADMILL_DNS_DOMAIN',
                   help='Domain for hosted zone')
     @click.option('--cert', default='/etc/ipa/ca.crt',
                   help='freeIPA CA Cert Location')
@@ -23,17 +27,16 @@ def init():
     def aws(ctx, cert, domain):
         """Manage AWS instances"""
         if not domain:
-            click.echo('Please specify a domain')
-            exit(1)
+            domain = context.GLOBAL.dns_domain
 
         ctx.obj['DOMAIN'] = domain
         ctx.obj['IPACERT'] = cert
-        ctx.obj['host_manager'] = HostManager()
 
     @aws.group()
     @click.pass_context
-    def host(ctx):
+    def host(_ctx):
         """Configure EC2 Objects"""
+        pass
 
     @host.command(name='create')
     @click.option('--ami', required=True, help='AMI image ID')
@@ -57,7 +60,7 @@ def init():
         """Create Treadmill Host(s)"""
         cert = ctx.obj['IPACERT']
         domain = ctx.obj['DOMAIN']
-        manager = ctx.obj['host_manager']
+        manager = HostManager()
 
         if region:
             connection.Connection.context.region_name = region
@@ -82,7 +85,7 @@ def init():
     def delete_hosts(ctx, hostnames):
         """Delete Treadmill Host(s)"""
         cert = ctx.obj['IPACERT']
-        manager = ctx.obj['host_manager']
+        manager = HostManager()
 
         click.echo(manager.delete_hosts(cert=cert, hostnames=hostnames))
 
