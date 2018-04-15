@@ -6,10 +6,9 @@ import logging
 import click
 
 from treadmill import cli
-from treadmill import context
 
-from treadmill_aws.infra import connection
-from treadmill_aws.aws.manager import HostManager
+from treadmill_aws import awscontext
+from treadmill_aws import hostmanager
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -19,22 +18,12 @@ def init():
     """AWS CLI module"""
 
     @click.group()
-    @click.option('-d', '--domain',
-                  help='Domain for hosted zone')
-    @click.option('--cert', default='/etc/ipa/ca.crt',
-                  help='freeIPA CA Cert Location')
-    @click.pass_context
-    def aws(ctx, cert, domain):
+    def aws():
         """Manage AWS instances"""
-        if not domain:
-            domain = context.GLOBAL.dns_domain
-
-        ctx.obj['DOMAIN'] = domain
-        ctx.obj['IPACERT'] = cert
+        pass
 
     @aws.group()
-    @click.pass_context
-    def host(_ctx):
+    def host():
         """Configure EC2 Objects"""
         pass
 
@@ -44,8 +33,6 @@ def init():
                   help='Number of instances')
     @click.option('--key', required=True, help='Instance SSH key name')
     @click.option('--proxy', required=True, help='Proxy URL')
-    @click.option('--region', envvar='AWS_DEFAULT_REGION',
-                  help='AWS Region')
     @click.option('--role', required=True, default="Node",
                   help='Instance role')
     @click.option('--secgroup', required=True,
@@ -53,55 +40,55 @@ def init():
     @click.option('--size', required=True, default='t2.small',
                   help='Instance EC2 size')
     @click.option('--subnet', required=True, help='AWS Subnet ID')
-    @click.pass_context
     @cli.ON_CLI_EXCEPTIONS
-    def create_host(ctx, ami, count, key, proxy, region, role,
+    def create_host(ami, count, key, proxy, role,
                     secgroup, size, subnet):
         """Create Treadmill Host(s)"""
-        cert = ctx.obj['IPACERT']
-        domain = ctx.obj['DOMAIN']
-        manager = HostManager()
+        ipa_client = awscontext.GLOBAL.ipaclient
+        ec2_conn = awscontext.GLOBAL.ec2
+        ipa_domain = awscontext.GLOBAL.ipa_domain
 
-        if region:
-            connection.Connection.context.region_name = region
-        connection.Connection.context.domain = domain
-
-        click.echo(pprint.pprint(manager.create_host(image_id=ami,
-                                                     cert=cert,
-                                                     count=count,
-                                                     domain=domain,
-                                                     key=key,
-                                                     proxy=proxy,
-                                                     role=role,
-                                                     secgroup_ids=secgroup,
-                                                     instance_type=size,
-                                                     subnet_id=subnet)))
+        hostname = hostmanager.create_host(
+            ipa_client=ipa_client,
+            ec2_conn=ec2_conn,
+            image_id=ami,
+            count=count,
+            domain=ipa_domain,
+            key=key,
+            proxy=proxy,
+            role=role,
+            secgroup_ids=secgroup,
+            instance_type=size,
+            subnet_id=subnet
+        )
+        click.echo(pprint.pprint(hostname))
 
     @host.command(name='delete')
     @click.option('-h', '--hostnames', multiple=True, required=True,
                   help='Hostnames to remove from AWS and IPA')
-    @click.pass_context
     @cli.ON_CLI_EXCEPTIONS
-    def delete_hosts(ctx, hostnames):
+    def delete_hosts(hostnames):
         """Delete Treadmill Host(s)"""
-        cert = ctx.obj['IPACERT']
-        manager = HostManager()
+        ipa_client = awscontext.GLOBAL.ipaclient
+        ec2_conn = awscontext.GLOBAL.ec2
 
-        click.echo(manager.delete_hosts(cert=cert, hostnames=hostnames))
+        hostmanager.delete_hosts(
+            ipa_client=ipa_client,
+            ec2_conn=ec2_conn,
+            hostnames=hostnames
+        )
 
     @host.command(name='list')
     @click.option('-p', '--pattern', help='Whole or partial hostname')
-    @click.pass_context
     @cli.ON_CLI_EXCEPTIONS
-    def get_hosts(ctx, pattern):
+    def list_(pattern):
         """List Treadmill Host(s)"""
-        cert = ctx.obj['IPACERT']
-        manager = ctx.obj['host_manager']
+        ipa_client = awscontext.GLOBAL.ipaclient
 
-        if pattern:
-            click.echo(pprint.pprint(manager.find_hosts(cert=cert,
-                                                        pattern=pattern)))
-        else:
-            click.echo(pprint.pprint(manager.find_hosts(cert=cert)))
+        hostnames = hostmanager.find_hosts(
+            ipa_client=ipa_client,
+            pattern=pattern
+        )
+        pprint.pprint(hostnames)
 
     return aws
