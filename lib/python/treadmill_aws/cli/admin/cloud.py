@@ -1,13 +1,24 @@
-import os
-import click
-from pprint import pprint
-import logging
+"""AWS CLI module."""
 
-from treadmill_aws.infra import constants, connection, vpc, subnet
-from treadmill_aws.infra.setup import ipa, ldap, node, cell
-from treadmill_aws.infra.utils import mutually_exclusive_option, cli_callbacks
-from treadmill_aws.infra.utils import security_group
+import os
+import logging
+from pprint import pprint
+
+import click
+
 from treadmill import cli
+
+from treadmill_aws.infra import constants
+from treadmill_aws.infra import connection
+from treadmill_aws.infra import vpc
+from treadmill_aws.infra import subnet
+from treadmill_aws.infra.setup import ipa
+from treadmill_aws.infra.setup import ldap
+from treadmill_aws.infra.setup import node
+from treadmill_aws.infra.setup import cell
+from treadmill_aws.infra.utils import mutually_exclusive_option
+from treadmill_aws.infra.utils import cli_callbacks
+from treadmill_aws.infra.utils import security_group
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -58,6 +69,9 @@ def init():
     def configure_vpc(ctx, name, region, vpc_cidr_block,
                       manifest):
         """Configure Treadmill VPC"""
+        # TODO: why is it even parameter?
+        del manifest
+
         domain = ctx.obj['DOMAIN']
 
         if region:
@@ -123,6 +137,8 @@ def init():
                        instance_type, tm_release, app_root,
                        ldap_cidr_block, ipa_admin_password, manifest):
         """Configure Treadmill LDAP"""
+        del manifest
+
         domain = ctx.obj['DOMAIN']
         proid = ctx.obj['PROID']
 
@@ -210,6 +226,8 @@ def init():
                        app_root, cidr_block,
                        ipa_admin_password, manifest):
         """Configure Treadmill Cell"""
+        del manifest
+
         domain = ctx.obj['DOMAIN']
         proid = ctx.obj['PROID']
 
@@ -301,6 +319,7 @@ def init():
                          subnet_cidr_block, count, ipa_admin_password,
                          tm_release, instance_type, manifest):
         """Configure Treadmill Domain (IPA)"""
+        del manifest
 
         domain = ctx.obj['DOMAIN']
         proid = ctx.obj['PROID']
@@ -386,6 +405,8 @@ def init():
                        instance_type, tm_release, app_root,
                        ipa_admin_password, with_api, manifest):
         """Configure new Node in Cell"""
+        del manifest
+
         domain = ctx.obj['DOMAIN']
         proid = ctx.obj['PROID']
 
@@ -519,8 +540,7 @@ def init():
         domain = ctx.obj['DOMAIN']
         connection.Connection.context.domain = domain
         if vpc_id:
-            result = pprint(vpc.VPC(instance_id=vpc_id).show())
-            click.echo(result)
+            pprint(vpc.VPC(instance_id=vpc_id).show())
         else:
             _vpcs = vpc.VPC.all()
             result = [{'id': vpc.instance_id, 'name': vpc.name}
@@ -554,11 +574,11 @@ def init():
 
         result = []
 
-        for vpc in vpcs:
-            subnets = vpc.VPC(instance_id=vpc).list_cells()
+        for vpc_ in vpcs:
+            subnets = vpc.VPC(instance_id=vpc_).list_cells()
             if subnets:
                 result.append({
-                    'VpcId': vpc,
+                    'VpcId': vpc_,
                     'Subnets': subnets
                 })
 

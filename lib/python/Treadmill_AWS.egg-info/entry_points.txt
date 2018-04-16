@@ -10,6 +10,16 @@ cloud = treadmill_aws.api.cloud
 cloud = treadmill_aws.cli.cloud
 
 [treadmill.cli.admin]
-aws = treadmill_aws.cli.admin.aws
-cloud = treadmill_aws.cli.admin.cloud
+# aws = treadmill_aws.cli.admin.aws
+# cloud = treadmill_aws.cli.admin.cloud
+ec2 = treadmill_aws.cli.admin.ec2
 
+[treadmill_aws.cli.admin.ec2]
+subnet = treadmill_aws.cli.admin.ec2.subnet
+vpc = treadmill_aws.cli.admin.ec2.vpc
+instance = treadmill_aws.cli.admin.ec2.instance
+
+[treadmill.formatters]
+ec2_subnet = treadmill_aws.formatter:SubnetPrettyFormatter
+ec2_vpc = treadmill_aws.formatter:VpcPrettyFormatter
+ec2_instance = treadmill_aws.formatter:InstancePrettyFormatter

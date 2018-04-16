@@ -1,16 +1,16 @@
 """Treadmill Host REST API."""
 from treadmill import authz
-from treadmill_aws.aws.manager import HostManager
+
+from treadmill_aws import hostmanager
+from treadmill_aws import awscontext
 
 
 class API(object):
     """Treadmill Host REST API."""
 
     def __init__(self):
-        host_manager = HostManager()
 
         def create_hosts(ami,
-                         cert,
                          count,
                          domain,
                          key,
@@ -19,25 +19,43 @@ class API(object):
                          secgroup,
                          size,
                          subnet):
-            """ Create host """
-            host_manager.create_host(image_id=ami,
-                                     cert=cert,
-                                     count=count,
-                                     domain=domain,
-                                     key=key,
-                                     proxy=proxy,
-                                     role=role,
-                                     secgroup_ids=secgroup,
-                                     instance_type=size,
-                                     subnet_id=subnet)
+            """Create host."""
 
-        def delete_hosts(cert, hostnames):
-            """ Delete host """
-            host_manager.delete_hosts(cert=cert, hostnames=hostnames)
+            ipa_client = awscontext.GLOBAL.ipaclient
+            ec2_conn = awscontext.GLOBAL.ec2
 
-        def list_hosts(cert, hostnames=""):
-            """ List host """
-            return host_manager.find_hosts(cert=cert, pattern=hostnames)
+            hostmanager.create_host(
+                ipa_client=ipa_client,
+                ec2_conn=ec2_conn,
+                image_id=ami,
+                count=count,
+                domain=domain,
+                key=key,
+                proxy=proxy,
+                role=role,
+                secgroup_ids=secgroup,
+                instance_type=size,
+                subnet_id=subnet)
+
+        def delete_hosts(hostnames):
+            """Delete host."""
+            ipa_client = awscontext.GLOBAL.ipaclient
+            ec2_conn = awscontext.GLOBAL.ec2
+
+            hostmanager.delete_hosts(
+                ipa_client=ipa_client,
+                ec2_conn=ec2_conn,
+                hostnames=hostnames
+            )
+
+        def list_hosts(hostnames=None):
+            """List hostr."""
+            ipa_client = awscontext.GLOBAL.ipaclient
+
+            return hostmanager.find_hosts(
+                ipa_client=ipa_client,
+                pattern=hostnames
+            )
 
         self.create = create_hosts
         self.delete = delete_hosts
