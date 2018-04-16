@@ -17,7 +17,7 @@ packages:
 hostname: {hostname}
 #
 # Join domain
-run_cmd:
+runcmd:
   - ipa-client-install \
   --no-krb5-offline-password \
   --enable-dns-updates \
