@@ -32,7 +32,6 @@ def init():
     @click.option('--count', required=True, default=1, type=int,
                   help='Number of instances')
     @click.option('--key', required=True, help='Instance SSH key name')
-    @click.option('--proxy', required=True, help='Proxy URL')
     @click.option('--role', required=True, default="Node",
                   help='Instance role')
     @click.option('--secgroup', required=True,
@@ -41,7 +40,7 @@ def init():
                   help='Instance EC2 size')
     @click.option('--subnet', required=True, help='AWS Subnet ID')
     @cli.ON_CLI_EXCEPTIONS
-    def create_host(ami, count, key, proxy, role,
+    def create_host(ami, count, key, role,
                     secgroup, size, subnet):
         """Create Treadmill Host(s)"""
         ipa_client = awscontext.GLOBAL.ipaclient
@@ -55,7 +54,6 @@ def init():
             count=count,
             domain=ipa_domain,
             key=key,
-            proxy=proxy,
             role=role,
             secgroup_ids=secgroup,
             instance_type=size,

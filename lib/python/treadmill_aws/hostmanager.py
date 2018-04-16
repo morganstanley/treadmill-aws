@@ -5,26 +5,27 @@ import time
 from treadmill_aws import ec2client
 
 
-def render_manifest(domain, hostname, otp, proxy):
+def render_manifest(hostname, otp):
     """ Stub function to supply instance user_data during testing. """
-    template = '''#!/bin/bash
-    hostnamectl set-hostname {hostname}
-    echo "export http_proxy={proxy}" \
-        >> /etc/profile.d/http_proxy.sh
-    echo "export NO_PROXY=localhost,169.254.169.254,*.{domain}" \
-        >> /etc/profile.d/http_proxy.sh
-    echo "proxy={proxy}" >> /etc/yum.conf
-    yum install -y ipa-client
-    ipa-client-install \
-    --no-krb5-offline-password \
-    --enable-dns-updates \
-    --password='{otp}' \
-    --mkhomedir \
-    --no-ntp \
-    --unattended'''.format(proxy=proxy,
-                           domain=domain,
-                           hostname=hostname,
-                           otp=otp)
+    template = '''#cloud-config
+#
+# install ipa-client
+packages:
+ - ipa-client
+#
+# configure host
+hostname: {hostname}
+#
+# Join domain
+run_cmd:
+  - ipa-client-install \
+  --no-krb5-offline-password \
+  --enable-dns-updates \
+  --password='{otp}' \
+  --mkhomedir \
+  --no-ntp \
+  --unattended'''.format(hostname=hostname,
+                         otp=otp)
     return template
 
 
@@ -35,7 +36,7 @@ def generate_hostname(domain='domain', role='role'):
 
 
 def create_host(ec2_conn, ipa_client, image_id, count, domain,
-                key, proxy, role, secgroup_ids, instance_type, subnet_id):
+                key, role, secgroup_ids, instance_type, subnet_id):
     """Adds host defined in manifest to IPA, then adds the OTP from the
        IPA reply to the manifest and creates EC2 instance.
     """
@@ -45,10 +46,8 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
         hostname = generate_hostname(domain=domain, role=role)
         ipa_host = ipa_client.enroll_ipa_host(hostname=hostname)
         otp = ipa_host['result']['result']['randompassword']
-        user_data = render_manifest(domain=domain,
-                                    hostname=hostname,
-                                    otp=otp,
-                                    proxy=proxy)
+        user_data = render_manifest(hostname=hostname,
+                                    otp=otp)
 
         ec2client.create_instance(
             ec2_conn,
