@@ -18,7 +18,7 @@ class EC2ClientTest(unittest.TestCase):
 
         rendered_tags = [{'ResourceType': 'instance',
                           'Tags': [{'Value': 'host.foo.com', 'Key': 'Name'},
-                                   {'Value': 'foo', 'Key': 'role'}]}]
+                                   {'Value': 'foo', 'Key': 'Role'}]}]
         print(rendered_tags)
 
         self.assertEqual(ec2client.build_tags(hostname, role), rendered_tags)
@@ -54,7 +54,7 @@ class EC2ClientTest(unittest.TestCase):
             TagSpecifications=[{'ResourceType': 'instance',
                                 'Tags': [{'Key': 'Name',
                                           'Value': 'host.foo.com'},
-                                         {'Key': 'role', 'Value': 'foo'}]}],
+                                         {'Key': 'Role', 'Value': 'foo'}]}],
             UserData='foo'
         )
 
