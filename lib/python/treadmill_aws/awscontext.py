@@ -54,7 +54,7 @@ class AWSContext(object):
         if self._ipaclient:
             return self._ipaclient
 
-        self._ipaclient = ipaclient.IPAClient(self.ipa_domain, self.certs)
+        self._ipaclient = ipaclient.IPAClient(self.ipa_domain, self.ipa_certs)
         return self._ipaclient
 
     @property
@@ -64,6 +64,12 @@ class AWSContext(object):
             self._ipa_domain = context.GLOBAL.dns_domain
 
         return self._ipa_domain
+
+    @ipa_domain.setter
+    def ipa_domain(self, value):
+        """IPA domain, setter.
+        """
+        self._ipa_domain = value
 
 
 GLOBAL = AWSContext()

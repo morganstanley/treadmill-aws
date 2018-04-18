@@ -4,7 +4,7 @@
 def build_tags(hostname, role):
     """Create list of AWS tags from manifest."""
     tags = [{'Key': 'Name', 'Value': hostname.lower()},
-            {'Key': 'role', 'Value': role.lower()}]
+            {'Key': 'Role', 'Value': role.lower()}]
     return [{'ResourceType': 'instance', 'Tags': tags}]
 
 

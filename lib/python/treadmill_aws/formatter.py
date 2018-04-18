@@ -89,7 +89,7 @@ class InstancePrettyFormatter(object):
                     return tag['Value']
             return None
 
-        schema = [
+        details_schema = [
             ('hostname', 'Tags', _hostname_from_tags),
             ('id', 'InstanceId', None),
             ('arch', 'Architecture', None),
@@ -103,8 +103,19 @@ class InstancePrettyFormatter(object):
             ('tags', 'Tags', _fmt_tags()),
         ]
 
-        format_item = tablefmt.make_dict_to_table(schema)
-        format_list = tablefmt.make_list_to_table(schema)
+        list_schema = [
+            ('hostname', 'Tags', _hostname_from_tags),
+            ('id', 'InstanceId', None),
+            ('image', 'ImageId', None),
+            ('type', 'InstanceType', None),
+            ('key', 'KeyName', None),
+            ('vpc', 'VpcId', None),
+            ('subnet', 'SubnetId', None),
+            ('tags', 'Tags', _fmt_tags()),
+        ]
+
+        format_item = tablefmt.make_dict_to_table(details_schema)
+        format_list = tablefmt.make_list_to_table(list_schema)
 
         if isinstance(item, list):
             return format_list(item)
