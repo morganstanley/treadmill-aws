@@ -10,7 +10,9 @@ import click
 
 from treadmill import cli
 
+import treadmill_aws
 from treadmill_aws import awscontext
+from treadmill_aws import ec2client
 
 
 def init():
@@ -28,18 +30,17 @@ def init():
     def _list():
         """List subnets"""
         ec2_conn = awscontext.GLOBAL.ec2
-        subnets = ec2_conn.describe_subnets().get('Subnets', [])
+        subnets = ec2client.list_subnets(ec2_conn)
         cli.out(formatter(subnets))
 
     @subnet.command()
     @click.argument('subnet_id')
     @cli.admin.ON_EXCEPTIONS
+    @treadmill_aws.cli.admin.ec2.ON_EC2_EXCEPTIONS
     def configure(subnet_id):
         """Configure subnet"""
         ec2_conn = awscontext.GLOBAL.ec2
-        subnet = ec2_conn.describe_subnets(
-            SubnetIds=[subnet_id]
-        )['Subnets'][0]
+        subnet = ec2client.get_subnet_by_id(ec2_conn, subnet_id)
         cli.out(formatter(subnet))
 
     del _list

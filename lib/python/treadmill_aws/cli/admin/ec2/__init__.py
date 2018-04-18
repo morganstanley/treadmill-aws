@@ -6,12 +6,20 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import botocore
 import click
 
 from treadmill import cli
 
 import treadmill_aws
 from treadmill_aws import awscontext
+
+EC2_EXCEPTIONS = [
+    (botocore.errorfactory.ClientError, None),
+]
+
+
+ON_EC2_EXCEPTIONS = cli.handle_cli_exceptions(EC2_EXCEPTIONS)
 
 
 def init():

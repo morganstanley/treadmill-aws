@@ -11,6 +11,7 @@ import click
 from treadmill import cli
 
 from treadmill_aws import awscontext
+from treadmill_aws import ec2client
 
 
 def init():
@@ -28,7 +29,7 @@ def init():
     def _list():
         """List vpcs"""
         ec2_conn = awscontext.GLOBAL.ec2
-        vpcs = ec2_conn.describe_vpcs().get('Vpcs', [])
+        vpcs = ec2client.list_vpcs(ec2_conn)
         cli.out(formatter(vpcs))
 
     @vpc.command()
@@ -37,9 +38,7 @@ def init():
     def configure(vpc_id):
         """Configure vpc"""
         ec2_conn = awscontext.GLOBAL.ec2
-        vpc = ec2_conn.describe_vpcs(
-            VpcIds=[vpc_id]
-        )['Vpcs'][0]
+        vpc = ec2client.get_vpc_by_id(ec2_conn, vpc_id)
         cli.out(formatter(vpc))
 
     del _list
