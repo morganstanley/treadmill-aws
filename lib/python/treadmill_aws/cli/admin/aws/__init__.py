@@ -14,12 +14,12 @@ from treadmill import cli
 import treadmill_aws
 from treadmill_aws import awscontext
 
-EC2_EXCEPTIONS = [
+AWS_EXCEPTIONS = [
     (botocore.errorfactory.ClientError, None),
 ]
 
 
-ON_EC2_EXCEPTIONS = cli.handle_cli_exceptions(EC2_EXCEPTIONS)
+ON_AWS_EXCEPTIONS = cli.handle_cli_exceptions(AWS_EXCEPTIONS)
 
 
 def init():
@@ -41,8 +41,8 @@ def init():
                   callback=treadmill_aws.cli.handle_context_opt,
                   is_eager=True,
                   expose_value=False)
-    def ec2():
-        """Manage EC2"""
+    def aws():
+        """Manage AWS"""
         pass
 
-    return ec2
+    return aws

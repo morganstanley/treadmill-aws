@@ -18,7 +18,7 @@ from treadmill_aws import hostmanager
 def init():
 
     """EC2 instance CLI group"""
-    formatter = cli.make_formatter('ec2_instance')
+    formatter = cli.make_formatter('aws_instance')
 
     @click.group()
     def instance():

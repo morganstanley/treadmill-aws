@@ -30,7 +30,7 @@ def _fmt_tags():
 
 
 class SubnetPrettyFormatter(object):
-    """Pretty table formatter for EC2 subnets."""
+    """Pretty table formatter for AWS subnets."""
 
     @staticmethod
     def format(item):
@@ -54,7 +54,7 @@ class SubnetPrettyFormatter(object):
 
 
 class VpcPrettyFormatter(object):
-    """Pretty table formatter for EC2 vpcs."""
+    """Pretty table formatter for AWS vpcs."""
 
     @staticmethod
     def format(item):
@@ -77,7 +77,7 @@ class VpcPrettyFormatter(object):
 
 
 class InstancePrettyFormatter(object):
-    """Pretty table formatter for EC2 instances."""
+    """Pretty table formatter for AWS instances."""
 
     @staticmethod
     def format(item):
@@ -112,6 +112,32 @@ class InstancePrettyFormatter(object):
             ('vpc', 'VpcId', None),
             ('subnet', 'SubnetId', None),
             ('tags', 'Tags', _fmt_tags()),
+        ]
+
+        format_item = tablefmt.make_dict_to_table(details_schema)
+        format_list = tablefmt.make_list_to_table(list_schema)
+
+        if isinstance(item, list):
+            return format_list(item)
+        else:
+            return format_item(item)
+
+
+class RolePrettyFormatter(object):
+    """Pretty table formatter for AWS roles."""
+
+    @staticmethod
+    def format(item):
+        """Return pretty-formatted item."""
+        list_schema = [
+            ('name', 'RoleName', None),
+            ('id', 'RoleId', None),
+            ('path', 'Path', None),
+        ]
+
+        # TODO: add role policy document schema.
+        details_schema = list_schema + [
+            ('arn', 'Arn', None),
         ]
 
         format_item = tablefmt.make_dict_to_table(details_schema)

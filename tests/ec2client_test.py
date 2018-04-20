@@ -5,6 +5,7 @@ import unittest
 import mock
 
 import treadmill_aws
+from treadmill_aws import aws
 from treadmill_aws import ec2client
 
 
@@ -21,7 +22,7 @@ class EC2ClientTest(unittest.TestCase):
                                    {'Value': 'foo', 'Key': 'Role'}]}]
         print(rendered_tags)
 
-        self.assertEqual(ec2client.build_tags(hostname, role), rendered_tags)
+        self.assertEqual(aws.build_tags(hostname, role), rendered_tags)
 
     def test_create_instance(self):
         """ Test create_instance call to AWS- tags, template correct to
