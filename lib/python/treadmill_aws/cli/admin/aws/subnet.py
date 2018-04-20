@@ -1,4 +1,4 @@
-"""Implementation of treadmill admin EC2 subnet.
+"""Implementation of treadmill admin AWS subnet.
 """
 
 from __future__ import absolute_import
@@ -17,8 +17,8 @@ from treadmill_aws import ec2client
 
 def init():
 
-    """EC2 subnet CLI group"""
-    formatter = cli.make_formatter('ec2_subnet')
+    """AWS subnet CLI group"""
+    formatter = cli.make_formatter('aws_subnet')
 
     @click.group()
     def subnet():
@@ -36,7 +36,7 @@ def init():
     @subnet.command()
     @click.argument('subnet_id')
     @cli.admin.ON_EXCEPTIONS
-    @treadmill_aws.cli.admin.ec2.ON_EC2_EXCEPTIONS
+    @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
     def configure(subnet_id):
         """Configure subnet"""
         ec2_conn = awscontext.GLOBAL.ec2

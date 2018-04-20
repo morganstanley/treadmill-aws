@@ -17,7 +17,7 @@ from treadmill_aws import ec2client
 def init():
 
     """EC2 vpc CLI group"""
-    formatter = cli.make_formatter('ec2_vpc')
+    formatter = cli.make_formatter('aws_vpc')
 
     @click.group()
     def vpc():

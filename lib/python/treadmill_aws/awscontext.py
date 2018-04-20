@@ -38,14 +38,17 @@ class AWSContext(object):
     @property
     def ec2(self):
         """Returns EC2 resource manager."""
-        # TODO: need to figure out our SSL/cert story.
-        return self.session.client('ec2', use_ssl=False)
+        return self.session.client('ec2')
 
     @property
     def s3(self):
-        """Returns EC2 resource manager."""
-        # TODO: need to figure out our SSL/cert story.
-        return self.session.client('s3', use_ssl=False)
+        """Returns S3 resource manager."""
+        return self.session.client('s3')
+
+    @property
+    def iam(self):
+        """Returns IAM resource manager."""
+        return self.session.client('iam')
 
     @property
     def ipaclient(self):
