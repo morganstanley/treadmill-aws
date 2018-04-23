@@ -1,35 +1,51 @@
 """ Module defining interface to create/delete/list IPA-joined hosts on AWS.
 """
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 import time
 
 from treadmill_aws import ec2client
 
 
-def render_manifest(hostname, otp):
+def render_manifest(key_value_pairs, url_list=None):
     """ Stub function to supply instance user_data during testing. """
-    template = '''#cloud-config
-#
-# install ipa-client
+    combined_userdata = MIMEMultipart()
+
+    # Generate k:v formatted string from input variables
+    kv_template = ['{key}: {val}'.format(key=key, val=val)
+                   for key, val in key_value_pairs.items()]
+
+    # Format K:V pairs and attach to MIME message body
+    combined_userdata.attach(MIMEText('\n'.join(kv_template), 'cloud-config'))
+
+    # Generate MIME from cloud-init template and attach to MIME message body
+    ipa_join_template = '''# install ipa-client
 packages:
  - ipa-client
-#
-# configure host
-hostname: {hostname}
 #
 # Join domain
 runcmd:
   - ipa-client-install \
   --no-krb5-offline-password \
   --enable-dns-updates \
-  --password='{otp}' \
+  --password=`grep -E '^otp:[[:space:]]' \
+             /var/lib/cloud/instance/cloud-config.txt \
+             | tail -1 | awk '{print $2}'` \
   --mkhomedir \
   --no-ntp \
-  --unattended'''.format(hostname=hostname,
-                         otp=otp)
-    return template
+  --unattended'''
+    combined_userdata.attach(MIMEText(ipa_join_template, 'cloud-config'))
+
+    # Format and attach any URL includes
+    if url_list:
+        combined_userdata.attach(
+            MIMEText('\n'.join(url_list), 'x-include-once-url'))
+
+    # Cast the MIME message to ascii so boto3 can base64 it without errors
+    return combined_userdata.as_string().encode('ascii')
 
 
-def generate_hostname(domain='domain', role='role'):
+def generate_hostname(domain, role):
     """Generates hostname from role, domain and timestamp."""
     timestamp = str(time.time()).replace('.', '')
     return '{}-{}.{}'.format(role.lower(), timestamp, domain)
@@ -46,8 +62,8 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
         hostname = generate_hostname(domain=domain, role=role)
         ipa_host = ipa_client.enroll_ipa_host(hostname=hostname)
         otp = ipa_host['result']['result']['randompassword']
-        user_data = render_manifest(hostname=hostname,
-                                    otp=otp)
+        user_data = render_manifest(key_value_pairs={'hostname': hostname,
+                                                     'otp': otp})
 
         ec2client.create_instance(
             ec2_conn,
