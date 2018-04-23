@@ -3,6 +3,7 @@
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import time
+import yaml
 
 from treadmill_aws import ec2client
 
@@ -11,12 +12,9 @@ def render_manifest(key_value_pairs, url_list=None):
     """ Stub function to supply instance user_data during testing. """
     combined_userdata = MIMEMultipart()
 
-    # Generate k:v formatted string from input variables
-    kv_template = ['{key}: {val}'.format(key=key, val=val)
-                   for key, val in key_value_pairs.items()]
-
     # Format K:V pairs and attach to MIME message body
-    combined_userdata.attach(MIMEText('\n'.join(kv_template), 'cloud-config'))
+    combined_userdata.attach(MIMEText(yaml.dump(key_value_pairs),
+                                      'cloud-config'))
 
     # Generate MIME from cloud-init template and attach to MIME message body
     ipa_join_template = '''# install ipa-client
