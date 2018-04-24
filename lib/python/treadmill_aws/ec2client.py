@@ -187,3 +187,13 @@ def get_vpc_by_tags(ec2_conn, tags):
 def get_vpc_id_by_tags(ec2_conn, tags):
     """Return instance_id matching tags."""
     return get_vpc_by_tags(ec2_conn, tags)['VpcId']
+
+
+def list_images(ec2_conn, filters=None, owners=None):
+    """List images."""
+    if not owners:
+        owners = []
+    elif not filters:
+        filters = []
+    return ec2_conn.describe_images(
+        Owners=owners, Filters=filters).get('Images', [])

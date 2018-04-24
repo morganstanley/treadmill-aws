@@ -147,3 +147,25 @@ class RolePrettyFormatter(object):
             return format_list(item)
         else:
             return format_item(item)
+
+
+class ImagePrettyFormatter(object):
+    """Pretty table formatter for AWS images."""
+
+    @staticmethod
+    def format(item):
+        """Return pretty-formatted item."""
+        schema = [
+            ('name', 'Name', None),
+            ('id', 'ImageId', None),
+            ('created', 'CreationDate', None),
+            ('tags', 'Tags', _fmt_tags()),
+        ]
+
+        format_item = tablefmt.make_dict_to_table(schema)
+        format_list = tablefmt.make_list_to_table(schema)
+
+        if isinstance(item, list):
+            return format_list(item)
+        else:
+            return format_item(item)
