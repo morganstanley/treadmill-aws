@@ -51,6 +51,11 @@ class AWSContext(object):
         return self.session.client('iam')
 
     @property
+    def sts(self):
+        """Returns STS resource manager."""
+        return self.session.client('sts')
+
+    @property
     def ipaclient(self):
         """Lazily creates IPA client.
         """
