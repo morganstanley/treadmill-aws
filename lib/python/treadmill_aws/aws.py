@@ -6,11 +6,6 @@ class NotUniqueError(Exception):
     pass
 
 
-class NotFoundError(Exception):
-    """Error indicating that selected resource was not found."""
-    pass
-
-
 def build_tags_filter(tags):
     """Build tag filter based on dict of tags.
 
