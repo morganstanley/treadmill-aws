@@ -25,8 +25,12 @@ def build_tags_filter(tags):
     return filters
 
 
-def build_tags(hostname, role):
+def build_tags(hostname, role, version=None):
     """Create list of AWS tags from manifest."""
+    if not version:
+        version = ''
+
     tags = [{'Key': 'Name', 'Value': hostname.lower()},
-            {'Key': 'Role', 'Value': role.lower()}]
+            {'Key': 'Role', 'Value': role.lower()},
+            {'Key': 'Version', 'Value': version.lower()}]
     return [{'ResourceType': 'instance', 'Tags': tags}]

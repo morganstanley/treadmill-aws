@@ -16,13 +16,17 @@ class EC2ClientTest(unittest.TestCase):
         """Test that tags are rendered correctly."""
         hostname = 'host.foo.com'
         role = 'foo'
+        version = 'foo'
 
         rendered_tags = [{'ResourceType': 'instance',
                           'Tags': [{'Value': 'host.foo.com', 'Key': 'Name'},
-                                   {'Value': 'foo', 'Key': 'Role'}]}]
+                                   {'Value': 'foo', 'Key': 'Role'},
+                                   {'Value': 'foo', 'Key': 'Version'}]}]
         print(rendered_tags)
 
-        self.assertEqual(aws.build_tags(hostname, role), rendered_tags)
+        self.assertEqual(
+            aws.build_tags(hostname, role, version), rendered_tags
+        )
 
     def test_create_instance(self):
         """ Test create_instance call to AWS- tags, template correct to
@@ -38,6 +42,7 @@ class EC2ClientTest(unittest.TestCase):
             instance_type='t2.micro',
             key='foo',
             role='foo',
+            version='foo',
             secgroup_ids='sg-foo12345',
             subnet_id='subnet-foo12345'
         )
@@ -55,7 +60,8 @@ class EC2ClientTest(unittest.TestCase):
             TagSpecifications=[{'ResourceType': 'instance',
                                 'Tags': [{'Key': 'Name',
                                           'Value': 'host.foo.com'},
-                                         {'Key': 'Role', 'Value': 'foo'}]}],
+                                         {'Key': 'Role', 'Value': 'foo'},
+                                         {'Key': 'Version', 'Value': 'foo'}]}],
             UserData='foo'
         )
 
