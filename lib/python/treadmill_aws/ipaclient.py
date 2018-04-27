@@ -51,7 +51,9 @@ def filter_raw_records(cell_name, raw_records, record_type):
 
 
 class IPAClient():
-    """Interfaces with freeIPA API to register and deregister hosts.
+    """ Interfaces with freeIPA API to add, delete, list and manage
+        IPA hosts, users and groups.
+
     """
 
     def __init__(self, certs, domain):
@@ -128,7 +130,7 @@ class IPAClient():
                    'id': 0}
         return self._post(payload=payload).json()
 
-    def del_dns_record(self, record_type, record_name, record_value):
+    def delete_dns_record(self, record_type, record_name, record_value):
         """Delete DNS record from IPA server.
         """
         payload = {'method': 'dnsrecord_del',
@@ -151,4 +153,50 @@ class IPAClient():
                        'params': [[self.domain],
                                   {'version': _API_VERSION}],
                        'id': 0}
+        return self._post(payload=payload).json()
+
+    def add_user(self, user_name, first_name, last_name, user_type):
+        """Add new user to IPA server.
+        """
+        payload = {'method': 'user_add',
+                   'params': [[user_name],
+                              {'givenname': first_name,
+                               'sn': last_name,
+                               'random': True,
+                               'userclass': user_type,
+                               'version': _API_VERSION}],
+                   'id': 0}
+        return self._post(payload=payload).json()
+
+    def delete_user(self, user_name):
+        """Remove user from IPA server.
+        """
+        payload = {'method': 'user_del',
+                   'params': [[user_name],
+                              {'version': _API_VERSION}],
+                   'id': 0}
+        return self._post(payload=payload).json()
+
+    def list_users(self, pattern=''):
+        """Retrieve user records from IPA server.
+        """
+        if pattern:
+            payload = {'method': 'user_find',
+                       'params': [[pattern],
+                                  {'version': _API_VERSION}],
+                       'id': 0}
+        else:
+            payload = {'method': 'user_find',
+                       'params': [[],
+                                  {'version': _API_VERSION}],
+                       'id': 0}
+        return self._post(payload=payload).json()
+
+    def show_user(self, user_name):
+        """Show details about IPA user.
+        """
+        payload = {'method': 'user_show',
+                   'params': [[user_name],
+                              {'version': _API_VERSION}],
+                   'id': 0}
         return self._post(payload=payload).json()

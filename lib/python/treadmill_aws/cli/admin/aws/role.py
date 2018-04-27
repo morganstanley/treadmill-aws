@@ -1,4 +1,4 @@
-"""Implementation of treadmill admin AWS role.
+"""Implementation of treadmill admin AWS role management.
 """
 
 from __future__ import absolute_import
@@ -12,6 +12,7 @@ from treadmill import cli
 
 from treadmill_aws import awscontext
 from treadmill_aws import iamclient
+from treadmill_aws import rolemanager
 
 
 def init():
@@ -28,19 +29,42 @@ def init():
     def _list():
         """List roles"""
         iam_conn = awscontext.GLOBAL.iam
-        roles = iamclient.list_roles(iam_conn)
+        roles = iamclient.list_roles(iam_conn=iam_conn)
         cli.out(formatter(roles))
 
-    @role.command()
-    @click.argument('role_name')
+    @role.command(name='configure')
+    @click.option('--rname', required=True, help='Role Name')
+    @click.option('--utype', required=True, help='Role Type')
+    @click.option('--policy_doc', required=True,
+                  type=click.Path(exists=True,
+                                  readable=True),
+                  help='Path to policy JSON file')
     @cli.admin.ON_EXCEPTIONS
-    def configure(role_name):
+    def configure(rname, utype, policy_doc):
         """Configure role"""
         iam_conn = awscontext.GLOBAL.iam
-        role = iamclient.get_role(iam_conn, role_name)
-        cli.out(formatter(role))
+
+        role = rolemanager.configure_role(iam_conn=iam_conn,
+                                          role_name=rname,
+                                          role_type=utype,
+                                          policy_document=policy_doc)
+
+        click.echo(role)
+
+    @role.command(name='delete')
+    @click.argument('name')
+    @cli.ON_CLI_EXCEPTIONS
+    def delete(name):
+        """Delete role."""
+        iam_conn = awscontext.GLOBAL.iam
+
+        rolemanager.delete_role(iam_conn=iam_conn,
+                                role_name=name)
+
+        click.echo(name)
 
     del _list
     del configure
+    del delete
 
     return role

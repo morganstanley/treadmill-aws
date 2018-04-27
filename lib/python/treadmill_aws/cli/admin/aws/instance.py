@@ -19,7 +19,6 @@ from treadmill_aws import cli as aws_cli
 
 
 def init():
-
     """EC2 instance CLI group"""
     formatter = cli.make_formatter('aws_instance')
 
