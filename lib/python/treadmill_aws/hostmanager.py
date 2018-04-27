@@ -17,7 +17,7 @@ def render_manifest(key_value_pairs, url_list=None):
                                       'cloud-config'))
 
     # Generate MIME from cloud-init template and attach to MIME message body
-    ipa_join_template = '''# install ipa-client
+    domain_join_template = '''# install ipa-client
 packages:
  - ipa-client
 #
@@ -32,7 +32,7 @@ runcmd:
   --mkhomedir \
   --no-ntp \
   --unattended'''
-    combined_userdata.attach(MIMEText(ipa_join_template, 'cloud-config'))
+    combined_userdata.attach(MIMEText(domain_join_template, 'cloud-config'))
 
     # Format and attach any URL includes
     if url_list:
@@ -58,7 +58,7 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
 
     for _ in range(count):
         hostname = generate_hostname(domain=domain, role=role)
-        ipa_host = ipa_client.enroll_ipa_host(hostname=hostname)
+        ipa_host = ipa_client.enroll_host(hostname=hostname)
         otp = ipa_host['result']['result']['randompassword']
         user_data = render_manifest(key_value_pairs={'hostname': hostname,
                                                      'otp': otp})
@@ -82,7 +82,7 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
 def delete_hosts(ec2_conn, ipa_client, hostnames):
     """ Unenrolls hosts from IPA and AWS """
     for hostname in hostnames:
-        ipa_client.unenroll_ipa_host(hostname=hostname)
+        ipa_client.unenroll_host(hostname=hostname)
         ec2client.delete_instance(ec2_conn, hostname=hostname)
 
 
@@ -93,6 +93,6 @@ def find_hosts(ipa_client, pattern=None):
     if pattern is None:
         pattern = ''
 
-    return ipa_client.get_ipa_hosts(
+    return ipa_client.get_hosts(
         pattern=pattern
     )
