@@ -4,10 +4,10 @@ from . import aws
 
 
 def create_instance(ec2_conn, hostname, user_data, image_id, instance_type,
-                    key, role, secgroup_ids, subnet_id):
+                    key, role, secgroup_ids, subnet_id, version=None):
     """Add new instance."""
-    tags = aws.build_tags(hostname=hostname, role=role)
-    ec2_conn.run_instances(
+    tags = aws.build_tags(hostname=hostname, role=role, version=version)
+    return ec2_conn.run_instances(
         TagSpecifications=tags,
         ImageId=image_id,
         MinCount=1,
@@ -18,7 +18,7 @@ def create_instance(ec2_conn, hostname, user_data, image_id, instance_type,
         NetworkInterfaces=[{
             'DeviceIndex': 0,
             'SubnetId': subnet_id,
-            'Groups': [secgroup_ids]}])
+            'Groups': [secgroup_ids]}]).get('Instances', [])
 
 
 def delete_instance(ec2_conn, hostname):
@@ -35,8 +35,22 @@ def get_instance_by_hostname(ec2_conn, hostname):
     """Returns list of AWS instances that match hostname.
     """
     # What is the point of filter by running state?
-    filters = [{'Name': 'tag:Name', 'Values': [hostname]},
-               {'Name': 'instance-state-name', 'Values': ['running']}]
+    filters = [
+        {
+            'Name': 'tag:Name',
+            'Values': [hostname]
+        },
+        {
+            'Name': 'instance-state-name',
+            'Values': [
+                'running',
+                'pending',
+                'shutting-down',
+                'stopping',
+                'stopped'
+            ]
+        }
+    ]
 
     instances = list_instances(ec2_conn, filters=filters)
     if not instances:
@@ -189,6 +203,22 @@ def get_vpc_id_by_tags(ec2_conn, tags):
     return get_vpc_by_tags(ec2_conn, tags)['VpcId']
 
 
+def create_image(
+        ec2_conn, image_name, cloud_init, base_image_id,
+        image_instance_type, image_instance_key, image_instance_role,
+        image_instance_secgroup_ids, image_subnet_id, image_version
+):
+    """Creates AWS AMI."""
+
+    instance = create_instance(
+        ec2_conn, image_name, cloud_init, base_image_id,
+        image_instance_type, image_instance_key, image_instance_role,
+        image_instance_secgroup_ids, image_subnet_id, image_version
+    )
+
+    return instance[0]['InstanceId']
+
+
 def list_images(ec2_conn, filters=None, owners=None):
     """List images."""
     if not owners:
@@ -197,3 +227,27 @@ def list_images(ec2_conn, filters=None, owners=None):
         filters = []
     return ec2_conn.describe_images(
         Owners=owners, Filters=filters).get('Images', [])
+
+
+def list_images_by_tags(ec2_conn, tags, owners=None):
+    """Return list of images matching all tags."""
+    return list_images(
+        ec2_conn,
+        filters=aws.build_tags_filter(tags),
+        owners=owners
+    )
+
+
+def get_image_by_id(ec2_conn, image_id):
+    """Returns list of AWS AMIs that match AMI id.
+    """
+    image = ec2_conn.describe_images(
+        ImageIds=[image_id]
+    )['Images']
+
+    if not image:
+        raise aws.NotFoundError()
+
+    assert len(image) == 1, \
+        "There are more AMIs with the same AMI id."
+    return image[0]
