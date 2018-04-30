@@ -1,6 +1,4 @@
-boto3==1.4.4
-boto==2.46.1
-polling
+boto3>=1.4.4,<2
 
-# treadmill>=3.7,<4
-git+https://github.com/Morgan-Stanley/treadmill.git@master#egg=treadmill
+# Treadmill>=3.7,<4
+git+https://github.com/ceache/treadmill.git@update#egg=Treadmill
