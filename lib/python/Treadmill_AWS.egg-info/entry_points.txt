@@ -18,6 +18,7 @@ vpc = treadmill_aws.cli.admin.aws.vpc
 instance = treadmill_aws.cli.admin.aws.instance
 role = treadmill_aws.cli.admin.aws.role
 image = treadmill_aws.cli.admin.aws.image
+secgroup = treadmill_aws.cli.admin.aws.secgroup
 
 [treadmill.formatters]
 aws_subnet = treadmill_aws.formatter:SubnetPrettyFormatter
@@ -25,3 +26,4 @@ aws_vpc = treadmill_aws.formatter:VpcPrettyFormatter
 aws_instance = treadmill_aws.formatter:InstancePrettyFormatter
 aws_role = treadmill_aws.formatter:RolePrettyFormatter
 aws_image = treadmill_aws.formatter:ImagePrettyFormatter
+aws_secgroup = treadmill_aws.formatter:SecgroupPrettyFormatter

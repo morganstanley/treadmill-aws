@@ -13,12 +13,16 @@ from treadmill import cli
 import treadmill_aws
 from treadmill_aws import awscontext
 from treadmill_aws import ec2client
+from treadmill_aws import metadata
+
+from treadmill_aws.cli import options
 
 
 def init():
 
     """AWS subnet CLI group"""
     formatter = cli.make_formatter('aws_subnet')
+    subnet_args = {}
 
     @click.group()
     def subnet():
@@ -34,13 +38,24 @@ def init():
         cli.out(formatter(subnets))
 
     @subnet.command()
-    @click.argument('subnet_id')
+    @options.make_subnet_opts(subnet_args)
     @cli.admin.ON_EXCEPTIONS
     @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
-    def configure(subnet_id):
+    def configure():
         """Configure subnet"""
         ec2_conn = awscontext.GLOBAL.ec2
-        subnet = ec2client.get_subnet_by_id(ec2_conn, subnet_id)
+        if subnet_args.get('tags', []):
+            subnet = ec2client.get_subnet_by_tags(
+                ec2_conn,
+                subnet_args['tags']
+            )
+        else:
+            subnet_id = subnet_args.get('id', metadata.subnet_id())
+            subnet = ec2client.get_subnet_by_id(
+                ec2_conn,
+                subnet_id
+            )
+
         cli.out(formatter(subnet))
 
     del _list

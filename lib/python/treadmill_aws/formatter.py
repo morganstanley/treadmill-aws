@@ -89,7 +89,7 @@ class InstancePrettyFormatter(object):
                     return tag['Value']
             return None
 
-        details_schema = [
+        item_schema = [
             ('hostname', 'Tags', _hostname_from_tags),
             ('id', 'InstanceId', None),
             ('arch', 'Architecture', None),
@@ -114,7 +114,7 @@ class InstancePrettyFormatter(object):
             ('tags', 'Tags', _fmt_tags()),
         ]
 
-        format_item = tablefmt.make_dict_to_table(details_schema)
+        format_item = tablefmt.make_dict_to_table(item_schema)
         format_list = tablefmt.make_list_to_table(list_schema)
 
         if isinstance(item, list):
@@ -136,11 +136,11 @@ class RolePrettyFormatter(object):
         ]
 
         # TODO: add role policy document schema.
-        details_schema = list_schema + [
+        item_schema = list_schema + [
             ('arn', 'Arn', None),
         ]
 
-        format_item = tablefmt.make_dict_to_table(details_schema)
+        format_item = tablefmt.make_dict_to_table(item_schema)
         format_list = tablefmt.make_list_to_table(list_schema)
 
         if isinstance(item, list):
@@ -155,15 +155,51 @@ class ImagePrettyFormatter(object):
     @staticmethod
     def format(item):
         """Return pretty-formatted item."""
-        schema = [
-            ('name', 'Name', None),
+        list_schema = [
             ('id', 'ImageId', None),
+            ('name', 'Name', None),
+            ('owner', 'OwnerId', None),
             ('created', 'CreationDate', None),
+            ('public', 'Public', lambda v: 'yes' if v else 'no'),
+            ('state', 'State', None),
+        ]
+
+        item_schema = list_schema + [
             ('tags', 'Tags', _fmt_tags()),
         ]
 
-        format_item = tablefmt.make_dict_to_table(schema)
-        format_list = tablefmt.make_list_to_table(schema)
+        format_item = tablefmt.make_dict_to_table(item_schema)
+        format_list = tablefmt.make_list_to_table(list_schema)
+
+        if isinstance(item, list):
+            return format_list(item)
+        else:
+            return format_item(item)
+
+
+class SecgroupPrettyFormatter(object):
+    """Pretty table formatter for AWS security groups."""
+
+    @staticmethod
+    def format(item):
+        """Return pretty-formatted item."""
+        list_schema = [
+            ('id', 'GroupId', None),
+            ('owner', 'OwnerId', None),
+            ('vpc', 'VpcId', None),
+            ('tags', 'Tags', _fmt_tags()),
+        ]
+
+        # TODO: add ip ingress/egress permissions to the output.
+        item_schema = [
+            ('id', 'GroupId', None),
+            ('owner', 'OwnerId', None),
+            ('vpc', 'VpcId', None),
+            ('tags', 'Tags', _fmt_tags()),
+        ]
+
+        format_item = tablefmt.make_dict_to_table(item_schema)
+        format_list = tablefmt.make_list_to_table(list_schema)
 
         if isinstance(item, list):
             return format_list(item)

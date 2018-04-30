@@ -18,13 +18,22 @@ def build_tags_filter(tags):
     It if is a list, it is "or".
     """
     filters = []
-    for name, values in tags.items():
+
+    assert isinstance(tags, (list, dict)), 'tags must be either list or dict.'
+    if isinstance(tags, list):
+        tags_dict = {tag['name']: tag['value'] for tag in tags}
+    else:
+        tags_dict = tags
+
+    for name, values in tags_dict.items():
         if isinstance(values, str):
             values = [values]
         filters.append({'Name': 'tag:{}'.format(name), 'Values': values})
     return filters
 
 
+# TODO: the name of the function is misleading. It is related to instance tags,
+#       this should be reflected in the name of the function.
 def build_tags(hostname, role):
     """Create list of AWS tags from manifest."""
     tags = [{'Key': 'Name', 'Value': hostname.lower()},

@@ -123,7 +123,7 @@ def list_subnets(ec2_conn, filters=None):
 
 
 def list_subnets_by_tags(ec2_conn, tags):
-    """Return list of instances matching all tags."""
+    """Return list of subnets  matching all tags."""
     return list_subnets(
         ec2_conn,
         filters=aws.build_tags_filter(tags)
@@ -131,7 +131,7 @@ def list_subnets_by_tags(ec2_conn, tags):
 
 
 def get_subnet_by_tags(ec2_conn, tags):
-    """Return instance_id matching tags."""
+    """Return subnet by matching tags."""
     subnets = list_subnets_by_tags(ec2_conn, tags)
     if not subnets:
         raise aws.NotFoundError('Subnet with tags %r does not exist' % tags)
@@ -144,7 +144,7 @@ def get_subnet_by_tags(ec2_conn, tags):
 
 
 def get_subnet_id_by_tags(ec2_conn, tags):
-    """Return instance_id matching tags."""
+    """Return subnet id matching tags."""
     return get_subnet_by_tags(ec2_conn, tags)['SubnetId']
 
 
@@ -164,7 +164,7 @@ def list_vpcs(ec2_conn, filters=None):
 
 
 def list_vpcs_by_tags(ec2_conn, tags):
-    """Return list of instances matching all tags."""
+    """Return list of vpcs matching all tags."""
     return list_vpcs(
         ec2_conn,
         filters=aws.build_tags_filter(tags)
@@ -172,7 +172,7 @@ def list_vpcs_by_tags(ec2_conn, tags):
 
 
 def get_vpc_by_tags(ec2_conn, tags):
-    """Return instance_id matching tags."""
+    """Return vpc matching tags."""
     vpcs = list_vpcs_by_tags(ec2_conn, tags)
     if not vpcs:
         raise aws.NotFoundError('vpc with tags %r does not exist' % tags)
@@ -189,11 +189,102 @@ def get_vpc_id_by_tags(ec2_conn, tags):
     return get_vpc_by_tags(ec2_conn, tags)['VpcId']
 
 
+def get_secgroup_by_id(ec2_conn, secgroup_id):
+    """Return secgroup by id, None if not found."""
+    secgroups = ec2_conn.describe_security_groups(
+        GroupIds=[secgroup_id]
+    )['SecurityGroups']
+    return secgroups[0]
+
+
+def list_secgroups(ec2_conn, filters=None):
+    """List security groups."""
+    if not filters:
+        filters = []
+    return ec2_conn.describe_security_groups(
+        Filters=filters
+    ).get('SecurityGroups', [])
+
+
+def list_secgroups_by_tags(ec2_conn, tags):
+    """Return list of security groups matching all tags."""
+    return list_secgroups(
+        ec2_conn,
+        filters=aws.build_tags_filter(tags)
+    )
+
+
+def get_secgroup_by_tags(ec2_conn, tags):
+    """Return secruity group by matching tags."""
+    secgroups = list_secgroups_by_tags(ec2_conn, tags)
+    if not secgroups:
+        raise aws.NotFoundError(
+            'Security group with tags %r does not exist' % tags
+        )
+
+    secgroup = secgroups.pop(0)
+    if secgroups:
+        raise aws.NotUniqueError()
+
+    return secgroup
+
+
+def get_secgroup_id_by_tags(ec2_conn, tags):
+    """Return security group id matching tags."""
+    return get_secgroup_by_tags(ec2_conn, tags)['GroupId']
+
+
 def list_images(ec2_conn, filters=None, owners=None):
     """List images."""
     if not owners:
         owners = []
-    elif not filters:
+
+    if not filters:
         filters = []
+
     return ec2_conn.describe_images(
         Owners=owners, Filters=filters).get('Images', [])
+
+
+def list_images_by_tags(ec2_conn, tags, owners=None):
+    """Return list of images matching all tags."""
+    return list_images(
+        ec2_conn,
+        filters=aws.build_tags_filter(tags),
+        owners=owners
+    )
+
+
+def get_image_by_id(ec2_conn, image_id):
+    """Return image by id, None if not found."""
+    images = ec2_conn.describe_images(
+        ImageIds=[image_id]
+    )['Images']
+    return images[0]
+
+
+def get_image_by_name(ec2_conn, image_name, owners=None):
+    """Return image by name, None if not found."""
+    if not owners:
+        owners = []
+
+    images = ec2_conn.describe_images(
+        Owners=owners,
+        Filters=[{'Name': 'name', 'Values': [image_name]}],
+    )['Images']
+    return images[0]
+
+
+def get_image_by_tags(ec2_conn, tags, owners=None):
+    """Return image by matching tags."""
+    images = list_images_by_tags(ec2_conn, tags, owners=owners)
+    if not images:
+        raise aws.NotFoundError(
+            'AMI image with tags %r does not exist' % tags
+        )
+
+    image = images.pop(0)
+    if images:
+        raise aws.NotUniqueError()
+
+    return image
