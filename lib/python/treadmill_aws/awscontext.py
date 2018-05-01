@@ -62,7 +62,8 @@ class AWSContext(object):
         if self._ipaclient:
             return self._ipaclient
 
-        self._ipaclient = ipaclient.IPAClient(self.ipa_domain, self.ipa_certs)
+        self._ipaclient = ipaclient.IPAClient(certs=self.ipa_certs,
+                                              domain=self.ipa_domain)
         return self._ipaclient
 
     @property

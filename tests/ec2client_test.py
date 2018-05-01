@@ -20,7 +20,6 @@ class EC2ClientTest(unittest.TestCase):
         rendered_tags = [{'ResourceType': 'instance',
                           'Tags': [{'Value': 'host.foo.com', 'Key': 'Name'},
                                    {'Value': 'foo', 'Key': 'Role'}]}]
-        print(rendered_tags)
 
         self.assertEqual(aws.build_tags(hostname, role), rendered_tags)
 
