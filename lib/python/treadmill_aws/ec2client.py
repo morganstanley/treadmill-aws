@@ -3,98 +3,70 @@
 from . import aws
 
 
-def create_instance(ec2_conn, hostname, user_data, image_id, instance_type,
-                    key, role, secgroup_ids, subnet_id):
-    """Add new instance."""
-    tags = aws.build_tags(hostname=hostname, role=role)
-    ec2_conn.run_instances(
-        TagSpecifications=tags,
-        ImageId=image_id,
-        MinCount=1,
-        MaxCount=1,
-        InstanceType=instance_type,
-        KeyName=key,
-        UserData=user_data,
-        NetworkInterfaces=[{
+def create_instance(ec2_conn, user_data, image_id, instance_type,
+                    key, tags, secgroup_ids, subnet_id,
+                    instance_profile_name=None):
+    """Create new instance."""
+    args = {
+        'TagSpecifications': tags,
+        'ImageId': image_id,
+        'MinCount': 1,
+        'MaxCount': 1,
+        'InstanceType': instance_type,
+        'KeyName': key,
+        'UserData': user_data,
+        'NetworkInterfaces': [{
             'DeviceIndex': 0,
             'SubnetId': subnet_id,
-            'Groups': [secgroup_ids]}])
+            'Groups': [secgroup_ids]
+        }]
+    }
+
+    if instance_profile_name:
+        args['IamInstanceProfile'] = {
+            'Name': instance_profile_name
+        }
+
+    ec2_conn.run_instances(**args)
 
 
-def delete_instance(ec2_conn, hostname):
-    """Delete instances matching hostname."""
-    instance = get_instance_by_hostname(ec2_conn, hostname)
-    if instance:
-        ec2_conn.terminate_instances(
-            InstanceIds=[instance['InstanceId']],
-            DryRun=False
-        )
+def list_instances(ec2_conn, ids=None, tags=None, hostnames=None, state=None):
+    """List EC2 instances based on search criteria."""
+    instances = []
+    filters = []
 
+    if not ids:
+        ids = []
 
-def get_instance_by_hostname(ec2_conn, hostname):
-    """Returns list of AWS instances that match hostname.
-    """
-    # What is the point of filter by running state?
-    filters = [{'Name': 'tag:Name', 'Values': [hostname]},
-               {'Name': 'instance-state-name', 'Values': ['running']}]
+    if tags:
+        filters.extend(aws.build_tags_filter(tags))
 
-    instances = list_instances(ec2_conn, filters=filters)
-    if not instances:
-        raise aws.NotFoundError()
+    if hostnames:
+        filters.append({'Name': 'tag:Name', 'Values': hostnames})
 
-    # TODO: need to check that hostname constraint returned one instance.
-    assert len(instances) == 1
-    return instances[0]
+    if not state:
+        filters.append({'Name': 'instance-state-name', 'Values': ['running']})
+    else:
+        filters.append({'Name': 'instance-state-name', 'Values': state})
 
-
-def get_instance_by_id(ec2_conn, instance_id):
-    """Returns list of AWS instances that match instance id.
-    """
     reservations = ec2_conn.describe_instances(
-        InstanceIds=[instance_id]
+        InstanceIds=ids,
+        Filters=filters
     )['Reservations']
-    instances = []
-    for reservation in reservations:
-        instances.extend(reservation['Instances'])
 
-    if not instances:
-        raise aws.NotFoundError()
-
-    # TODO: need to check that only single instance is returned.
-    assert len(instances) == 1
-    return instances[0]
-
-
-def list_instances(ec2_conn, match_hostname=None, filters=None):
-    """Return list of instances matching filter.
-    """
-    instances = []
-    if not filters:
-        filters = []
-    if match_hostname:
-        filters.append({'Name': 'tag:Name', 'Values': [match_hostname]})
-
-    reservations = ec2_conn.describe_instances(Filters=filters)['Reservations']
     for reservation in reservations:
         instances.extend(reservation['Instances'])
     return instances
 
 
-def list_instances_by_tags(ec2_conn, tags):
-    """Return list of instances matching all tags."""
-    return list_instances(
-        ec2_conn,
-        match_hostname=None,
-        filters=aws.build_tags_filter(tags)
+def get_instance(ec2_conn, ids=None, tags=None, hostnames=None, state=None):
+    """Get single instance matching criteria.
+
+    If more than one image match, raise exception NonUniqueError.
+    """
+    instances = list_instances(
+        ec2_conn, ids=ids, tags=tags, hostnames=hostnames, state=state
     )
-
-
-def get_instance_by_tags(ec2_conn, tags):
-    """Return instance_id matching tags."""
-    instances = list_instances_by_tags(ec2_conn, tags)
-    if not instances:
-        raise aws.NotFoundError('Instance with tags %r does not exist' % tags)
-
     instance = instances.pop(0)
     if instances:
         raise aws.NotUniqueError()
@@ -102,40 +74,115 @@ def get_instance_by_tags(ec2_conn, tags):
     return instance
 
 
-def get_instance_id_by_tags(ec2_conn, tags):
-    """Return instance_id matching tags."""
-    return get_instance_by_tags(ec2_conn, tags)['InstanceId']
-
-
-def get_subnet_by_id(ec2_conn, subnet_id):
-    """Return subnet by id, None if not found."""
-    subnets = ec2_conn.describe_subnets(
-        SubnetIds=[subnet_id]
-    )['Subnets']
-    return subnets[0]
-
-
-def list_subnets(ec2_conn, filters=None):
-    """List subnets."""
-    if not filters:
-        filters = []
-    return ec2_conn.describe_subnets(Filters=filters).get('Subnets', [])
-
-
-def list_subnets_by_tags(ec2_conn, tags):
-    """Return list of subnets  matching all tags."""
-    return list_subnets(
-        ec2_conn,
-        filters=aws.build_tags_filter(tags)
+def delete_instances(ec2_conn, ids=None, tags=None, hostnames=None,
+                     state=None):
+    """Delete instances matching criteria."""
+    instances = list_instances(
+        ec2_conn, ids=ids, tags=tags, hostnames=hostnames, state=state
     )
 
+    instance_ids = [i['InstanceId'] for i in instances]
+    if instance_ids:
+        ec2_conn.terminate_instances(
+            InstanceIds=instance_ids,
+            DryRun=False
+        )
 
-def get_subnet_by_tags(ec2_conn, tags):
-    """Return subnet by matching tags."""
-    subnets = list_subnets_by_tags(ec2_conn, tags)
-    if not subnets:
-        raise aws.NotFoundError('Subnet with tags %r does not exist' % tags)
 
+def list_images(ec2_conn, ids=None, tags=None, owners=None, name=None):
+    """List images."""
+    if not owners:
+        owners = []
+
+    filters = []
+    if tags:
+        filters.extend(aws.build_tags_filter(tags))
+
+    if name:
+        filters.append({'Name': 'name', 'Values': [name]})
+
+    if not ids:
+        ids = []
+
+    return ec2_conn.describe_images(
+        ImageIds=ids,
+        Filters=filters,
+        Owners=owners
+    ).get('Images', [])
+
+
+def get_image(ec2_conn, ids=None, tags=None, owners=None, name=None):
+    """Get single image matching criteria.
+
+    If more than one image match, raise exception NonUniqueError.
+    """
+    images = list_images(
+        ec2_conn, ids=ids, tags=tags, owners=owners, name=name
+    )
+    image = images.pop(0)
+    if images:
+        raise aws.NotUniqueError()
+
+    return image
+
+
+def list_secgroups(ec2_conn, ids=None, tags=None, names=None):
+    """List security groups."""
+    filters = []
+    if tags:
+        filters.extend(aws.build_tags_filter(tags))
+
+    if not ids:
+        ids = []
+
+    if not names:
+        names = []
+
+    return ec2_conn.describe_security_groups(
+        GroupIds=ids,
+        Filters=filters,
+        GroupNames=names,
+    ).get('SecurityGroups', [])
+
+
+def get_secgroup(ec2_conn, ids=None, tags=None, names=None):
+    """Get single security group matching criteria.
+
+    If more than one image match, raise exception NonUniqueError.
+    """
+    groups = list_secgroups(
+        ec2_conn, ids=ids, tags=tags, names=names
+    )
+    group = groups.pop(0)
+    if groups:
+        raise aws.NotUniqueError()
+
+    return group
+
+
+def list_subnets(ec2_conn, ids=None, tags=None):
+    """List subnets."""
+    filters = []
+    if tags:
+        filters.extend(aws.build_tags_filter(tags))
+
+    if not ids:
+        ids = []
+
+    return ec2_conn.describe_subnets(
+        SubnetIds=ids,
+        Filters=filters,
+    ).get('Subnets', [])
+
+
+def get_subnet(ec2_conn, ids=None, tags=None):
+    """Get single subnet matching criteria.
+
+    If more than one image match, raise exception NonUniqueError.
+    """
+    subnets = list_subnets(
+        ec2_conn, ids=ids, tags=tags
+    )
     subnet = subnets.pop(0)
     if subnets:
         raise aws.NotUniqueError()
@@ -143,148 +190,31 @@ def get_subnet_by_tags(ec2_conn, tags):
     return subnet
 
 
-def get_subnet_id_by_tags(ec2_conn, tags):
-    """Return subnet id matching tags."""
-    return get_subnet_by_tags(ec2_conn, tags)['SubnetId']
+def list_vpcs(ec2_conn, ids=None, tags=None):
+    """List VPCs."""
+    filters = []
+    if tags:
+        filters.extend(aws.build_tags_filter(tags))
+
+    if not ids:
+        ids = []
+
+    return ec2_conn.describe_vpcs(
+        VpcIds=ids,
+        Filters=filters,
+    ).get('Vpcs', [])
 
 
-def get_vpc_by_id(ec2_conn, vpc_id):
-    """Return vpc by id, None if not found."""
-    vpcs = ec2_conn.describe_vpcs(
-        VpcIds=[vpc_id]
-    )['Vpcs']
-    return vpcs[0]
+def get_vpc(ec2_conn, ids=None, tags=None):
+    """Get single VPC matching criteria.
 
-
-def list_vpcs(ec2_conn, filters=None):
-    """List vpcs."""
-    if not filters:
-        filters = []
-    return ec2_conn.describe_vpcs(Filters=filters).get('Vpcs', [])
-
-
-def list_vpcs_by_tags(ec2_conn, tags):
-    """Return list of vpcs matching all tags."""
-    return list_vpcs(
-        ec2_conn,
-        filters=aws.build_tags_filter(tags)
+    If more than one image match, raise exception NonUniqueError.
+    """
+    vpcs = list_vpcs(
+        ec2_conn, ids=ids, tags=tags
     )
-
-
-def get_vpc_by_tags(ec2_conn, tags):
-    """Return vpc matching tags."""
-    vpcs = list_vpcs_by_tags(ec2_conn, tags)
-    if not vpcs:
-        raise aws.NotFoundError('vpc with tags %r does not exist' % tags)
-
     vpc = vpcs.pop(0)
     if vpcs:
         raise aws.NotUniqueError()
 
     return vpc
-
-
-def get_vpc_id_by_tags(ec2_conn, tags):
-    """Return instance_id matching tags."""
-    return get_vpc_by_tags(ec2_conn, tags)['VpcId']
-
-
-def get_secgroup_by_id(ec2_conn, secgroup_id):
-    """Return secgroup by id, None if not found."""
-    secgroups = ec2_conn.describe_security_groups(
-        GroupIds=[secgroup_id]
-    )['SecurityGroups']
-    return secgroups[0]
-
-
-def list_secgroups(ec2_conn, filters=None):
-    """List security groups."""
-    if not filters:
-        filters = []
-    return ec2_conn.describe_security_groups(
-        Filters=filters
-    ).get('SecurityGroups', [])
-
-
-def list_secgroups_by_tags(ec2_conn, tags):
-    """Return list of security groups matching all tags."""
-    return list_secgroups(
-        ec2_conn,
-        filters=aws.build_tags_filter(tags)
-    )
-
-
-def get_secgroup_by_tags(ec2_conn, tags):
-    """Return secruity group by matching tags."""
-    secgroups = list_secgroups_by_tags(ec2_conn, tags)
-    if not secgroups:
-        raise aws.NotFoundError(
-            'Security group with tags %r does not exist' % tags
-        )
-
-    secgroup = secgroups.pop(0)
-    if secgroups:
-        raise aws.NotUniqueError()
-
-    return secgroup
-
-
-def get_secgroup_id_by_tags(ec2_conn, tags):
-    """Return security group id matching tags."""
-    return get_secgroup_by_tags(ec2_conn, tags)['GroupId']
-
-
-def list_images(ec2_conn, filters=None, owners=None):
-    """List images."""
-    if not owners:
-        owners = []
-
-    if not filters:
-        filters = []
-
-    return ec2_conn.describe_images(
-        Owners=owners, Filters=filters).get('Images', [])
-
-
-def list_images_by_tags(ec2_conn, tags, owners=None):
-    """Return list of images matching all tags."""
-    return list_images(
-        ec2_conn,
-        filters=aws.build_tags_filter(tags),
-        owners=owners
-    )
-
-
-def get_image_by_id(ec2_conn, image_id):
-    """Return image by id, None if not found."""
-    images = ec2_conn.describe_images(
-        ImageIds=[image_id]
-    )['Images']
-    return images[0]
-
-
-def get_image_by_name(ec2_conn, image_name, owners=None):
-    """Return image by name, None if not found."""
-    if not owners:
-        owners = []
-
-    images = ec2_conn.describe_images(
-        Owners=owners,
-        Filters=[{'Name': 'name', 'Values': [image_name]}],
-    )['Images']
-    return images[0]
-
-
-def get_image_by_tags(ec2_conn, tags, owners=None):
-    """Return image by matching tags."""
-    images = list_images_by_tags(ec2_conn, tags, owners=owners)
-    if not images:
-        raise aws.NotFoundError(
-            'AMI image with tags %r does not exist' % tags
-        )
-
-    image = images.pop(0)
-    if images:
-        raise aws.NotUniqueError()
-
-    return image

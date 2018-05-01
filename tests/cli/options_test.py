@@ -6,7 +6,7 @@ import unittest
 import click
 from click.testing import CliRunner
 
-from treadmill_aws.cli import options
+from treadmill_aws import cli as aws_cli
 
 
 class ImageOptionsTest(unittest.TestCase):
@@ -22,7 +22,7 @@ class ImageOptionsTest(unittest.TestCase):
         """Test image options construction."""
 
         @click.command()
-        @click.argument('args', callback=options.parse_image())
+        @click.argument('args', type=aws_cli.IMAGE)
         def test(args):
             """Test cli."""
             print(json.dumps(args))
@@ -31,14 +31,14 @@ class ImageOptionsTest(unittest.TestCase):
         result = runner.invoke(test, ['ami-1234'])
         obj = json.loads(result.output)
 
-        self.assertEqual(obj['id'], 'ami-1234')
+        self.assertEqual(obj['ids'], ['ami-1234'])
         self.assertFalse(obj['tags'])
 
     def test_image_name(self):
         """Test image name options construction."""
 
         @click.command()
-        @click.argument('args', callback=options.parse_image())
+        @click.argument('args', type=aws_cli.IMAGE)
         def test(args):
             """Test cli."""
             print(json.dumps(args))
@@ -49,7 +49,7 @@ class ImageOptionsTest(unittest.TestCase):
 
         self.assertEqual(obj['name'], 'somename')
         self.assertFalse(obj['tags'])
-        self.assertNotIn('id', obj)
+        self.assertNotIn('ids', obj)
 
 
 class SubnetOptionsTest(unittest.TestCase):
@@ -65,7 +65,7 @@ class SubnetOptionsTest(unittest.TestCase):
         """Test image options construction."""
 
         @click.command()
-        @click.argument('args', callback=options.parse_subnet())
+        @click.argument('args', type=aws_cli.SUBNET)
         def test(args):
             """Test cli."""
             print(json.dumps(args))
@@ -74,14 +74,14 @@ class SubnetOptionsTest(unittest.TestCase):
         result = runner.invoke(test, ['subnet-1234'])
         obj = json.loads(result.output)
 
-        self.assertEqual(obj['id'], 'subnet-1234')
+        self.assertEqual(obj['ids'], ['subnet-1234'])
         self.assertFalse(obj['tags'])
 
     def test_tags(self):
         """Test image options construction."""
 
         @click.command()
-        @click.argument('args', callback=options.parse_subnet())
+        @click.argument('args', type=aws_cli.SUBNET)
         def test(args):
             """Test cli."""
             print(json.dumps(args))
@@ -107,7 +107,7 @@ class SecgroupOptionsTest(unittest.TestCase):
         """Test image options construction."""
 
         @click.command()
-        @click.argument('args', callback=options.parse_security_group())
+        @click.argument('args', type=aws_cli.SECGROUP)
         def test(args):
             """Test cli."""
             print(json.dumps(args))
@@ -116,14 +116,14 @@ class SecgroupOptionsTest(unittest.TestCase):
         result = runner.invoke(test, ['sg-1234'])
         obj = json.loads(result.output)
 
-        self.assertEqual(obj['id'], 'sg-1234')
+        self.assertEqual(obj['ids'], ['sg-1234'])
         self.assertFalse(obj['tags'])
 
     def test_tags(self):
         """Test image options construction."""
 
         @click.command()
-        @click.argument('args', callback=options.parse_security_group())
+        @click.argument('args', type=aws_cli.SECGROUP)
         def test(args):
             """Test cli."""
             print(json.dumps(args))

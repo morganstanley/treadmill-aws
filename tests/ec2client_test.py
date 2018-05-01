@@ -5,23 +5,13 @@ import unittest
 import mock
 
 import treadmill_aws
-from treadmill_aws import aws
 from treadmill_aws import ec2client
 
 
+# pylint: disable=protected-access
+
 class EC2ClientTest(unittest.TestCase):
     """Tests EC2 client interface"""
-
-    def test_build_tag_render(self):
-        """Test that tags are rendered correctly."""
-        hostname = 'host.foo.com'
-        role = 'foo'
-
-        rendered_tags = [{'ResourceType': 'instance',
-                          'Tags': [{'Value': 'host.foo.com', 'Key': 'Name'},
-                                   {'Value': 'foo', 'Key': 'Role'}]}]
-
-        self.assertEqual(aws.build_tags(hostname, role), rendered_tags)
 
     def test_create_instance(self):
         """ Test create_instance call to AWS- tags, template correct to
@@ -31,12 +21,11 @@ class EC2ClientTest(unittest.TestCase):
         ec2_conn = mock.MagicMock()
         ec2client.create_instance(
             ec2_conn,
-            hostname='host.foo.com',
             user_data='foo',
             image_id='ami-foo12345',
             instance_type='t2.micro',
             key='foo',
-            role='foo',
+            tags=[],
             secgroup_ids='sg-foo12345',
             subnet_id='subnet-foo12345'
         )
@@ -51,24 +40,21 @@ class EC2ClientTest(unittest.TestCase):
             NetworkInterfaces=[{'Groups': ['sg-foo12345'],
                                 'SubnetId': 'subnet-foo12345',
                                 'DeviceIndex': 0}],
-            TagSpecifications=[{'ResourceType': 'instance',
-                                'Tags': [{'Key': 'Name',
-                                          'Value': 'host.foo.com'},
-                                         {'Key': 'Role', 'Value': 'foo'}]}],
-            UserData='foo'
+            TagSpecifications=[],
+            UserData='foo',
         )
 
-    @mock.patch('treadmill_aws.ec2client.get_instance_by_hostname',
+    @mock.patch('treadmill_aws.ec2client.list_instances',
                 mock.Mock())
     def test_delete_single_host(self):
         """ Test delete_instance call to AWS with single hostname
         """
         ec2_conn = mock.MagicMock()
-        treadmill_aws.ec2client.get_instance_by_hostname.return_value = {
+        treadmill_aws.ec2client.list_instances.return_value = [{
             'InstanceId': 'i-0123456789'
-        }
+        }]
 
-        ec2client.delete_instance(ec2_conn, hostname='host1.foo.com')
+        ec2client.delete_instances(ec2_conn, hostnames=['host1.foo.com'])
 
         self.assertEqual(ec2_conn.terminate_instances.call_count, 1)
         ec2_conn.terminate_instances.assert_called_with(
@@ -76,17 +62,17 @@ class EC2ClientTest(unittest.TestCase):
             DryRun=False
         )
 
-    @mock.patch('treadmill_aws.ec2client.get_instance_by_hostname',
+    @mock.patch('treadmill_aws.ec2client.list_instances',
                 mock.Mock(return_value=[]))
     def test_delete_nonexistant_host(self):
         """ Test delete_instance call to AWS with nonexistant hostname
         """
         ec2_conn = mock.MagicMock()
-        ec2client.delete_instance(ec2_conn, hostname='host1.foo.com')
+        ec2client.delete_instances(ec2_conn, hostnames=['host1.foo.com'])
         self.assertEqual(ec2_conn.terminate_instances.call_count, 0)
 
     def test_get_matching_hostname(self):
-        """ Test get_instance_by_hostname call to AWS with full hostname
+        """ Test list_instances call to AWS with full hostname
         """
         ec2_conn = mock.MagicMock()
         ec2_conn.describe_instances = mock.MagicMock()
@@ -100,16 +86,16 @@ class EC2ClientTest(unittest.TestCase):
             ]
         }
 
-        result = ec2client.get_instance_by_hostname(
+        result = ec2client.get_instance(
             ec2_conn,
-            hostname='host1.foo.com'
+            hostnames=['host1.foo.com']
         )
 
         self.assertEqual(ec2_conn.describe_instances.call_count, 1)
         self.assertEqual(result, {'InstanceId': 'host1.foo.com'})
 
     def test_get_multiple_matches(self):
-        """ Test get_instance_by_hostname call to AWS with full hostname
+        """ Test list_instances call to AWS with full hostname
         """
         ec2_conn = mock.MagicMock()
         ec2_conn.describe_instances = mock.MagicMock()
@@ -123,7 +109,7 @@ class EC2ClientTest(unittest.TestCase):
 
         result = ec2client.list_instances(
             ec2_conn,
-            match_hostname='foo.com'
+            hostnames=['foo.com'],
         )
 
         self.assertEqual(ec2_conn.describe_instances.call_count, 1)
@@ -133,7 +119,7 @@ class EC2ClientTest(unittest.TestCase):
         )
 
     def test_get_all_matches(self):
-        """ Test get_instance_by_hostname call to AWS with full hostname
+        """ Test list_instances call to AWS with full hostname
         """
         ec2_conn = mock.MagicMock()
         ec2_conn.describe_instances = mock.MagicMock()
@@ -146,7 +132,7 @@ class EC2ClientTest(unittest.TestCase):
 
         ec2_conn.describe_instances.return_value = search_results
 
-        result = ec2client.list_instances(ec2_conn, match_hostname='')
+        result = ec2client.list_instances(ec2_conn, hostnames=None)
 
         self.assertEqual(ec2_conn.describe_instances.call_count, 1)
         self.assertEqual(

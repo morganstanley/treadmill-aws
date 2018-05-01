@@ -30,12 +30,3 @@ def build_tags_filter(tags):
             values = [values]
         filters.append({'Name': 'tag:{}'.format(name), 'Values': values})
     return filters
-
-
-# TODO: the name of the function is misleading. It is related to instance tags,
-#       this should be reflected in the name of the function.
-def build_tags(hostname, role):
-    """Create list of AWS tags from manifest."""
-    tags = [{'Key': 'Name', 'Value': hostname.lower()},
-            {'Key': 'Role', 'Value': role.lower()}]
-    return [{'ResourceType': 'instance', 'Tags': tags}]

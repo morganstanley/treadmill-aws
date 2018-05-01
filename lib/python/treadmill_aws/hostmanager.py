@@ -8,6 +8,13 @@ import yaml
 from treadmill_aws import ec2client
 
 
+def _instance_tags(hostname, role):
+    """Create list of AWS tags from manifest."""
+    tags = [{'Key': 'Name', 'Value': hostname.lower()},
+            {'Key': 'Role', 'Value': role.lower()}]
+    return [{'ResourceType': 'instance', 'Tags': tags}]
+
+
 def render_manifest(key_value_pairs, url_list=None):
     """ Stub function to supply instance user_data during testing. """
     combined_userdata = MIMEMultipart()
@@ -43,36 +50,45 @@ runcmd:
     return combined_userdata.as_string().encode('ascii')
 
 
-def generate_hostname(domain, role):
+def generate_hostname(domain, image):
     """Generates hostname from role, domain and timestamp."""
     timestamp = str(time.time()).replace('.', '')
-    return '{}-{}.{}'.format(role.lower(), timestamp, domain)
+    return '{}-{}.{}'.format(image.lower(), timestamp, domain)
 
 
 def create_host(ec2_conn, ipa_client, image_id, count, domain,
-                key, role, secgroup_ids, instance_type, subnet_id):
+                key, secgroup_ids, instance_type, subnet_id,
+                role=None,
+                instance_profile=None):
     """Adds host defined in manifest to IPA, then adds the OTP from the
        IPA reply to the manifest and creates EC2 instance.
     """
+    if role is None:
+        role = 'generic'
+
     hosts = []
 
     for _ in range(count):
-        hostname = generate_hostname(domain=domain, role=role)
+        hostname = generate_hostname(domain=domain, image=image_id)
         ipa_host = ipa_client.enroll_host(hostname=hostname)
         otp = ipa_host['result']['result']['randompassword']
-        user_data = render_manifest(key_value_pairs={'hostname': hostname,
-                                                     'otp': otp})
+        user_data = render_manifest(
+            key_value_pairs={
+                'hostname': hostname,
+                'otp': otp
+            }
+        )
 
         ec2client.create_instance(
             ec2_conn,
-            hostname=hostname,
             user_data=user_data,
             image_id=image_id,
             instance_type=instance_type,
             key=key,
-            role=role,
+            tags=_instance_tags(hostname, role),
             secgroup_ids=secgroup_ids,
-            subnet_id=subnet_id
+            subnet_id=subnet_id,
+            instance_profile_name=instance_profile
         )
         hosts.append(hostname)
 
@@ -83,7 +99,8 @@ def delete_hosts(ec2_conn, ipa_client, hostnames):
     """ Unenrolls hosts from IPA and AWS """
     for hostname in hostnames:
         ipa_client.unenroll_host(hostname=hostname)
-        ec2client.delete_instance(ec2_conn, hostname=hostname)
+
+    ec2client.delete_instances(ec2_conn, hostnames=hostnames)
 
 
 def find_hosts(ipa_client, pattern=None):
