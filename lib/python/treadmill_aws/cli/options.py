@@ -1,140 +1,74 @@
 """Helpers to construct options handler for AWS resources."""
 
 import collections
-import functools
-
-import click
-
-
-def _opt_tag(resource, opt_handler_clbk):
-    """Return tag option."""
-    return click.option(
-        '--{}-tag'.format(resource),
-        required=False,
-        expose_value=False,
-        type=(str, str),
-        callback=opt_handler_clbk,
-        multiple=True,
-        help='{} tag.'.format(resource.capitalize())
-    )
+import csv
+import re
 
 
-def _opt(resource, attr, opt_handler_clbk):
-    """Return resource option for given tag/attribute."""
-    return click.option(
-        '--{}-{}'.format(resource, attr),
-        required=False,
-        expose_value=False,
-        callback=opt_handler_clbk,
-        help='{} {}.'.format(resource.capitalize(), attr)
-    )
+# Regex matching subnet-id
+_SUBNET_ID_RE = r'^subnet-[0-9a-fA-F]+$'
+
+# Regex matching subnet-id
+_SECURITY_GROUP_ID_RE = r'^sg-[0-9a-fA-F]+$'
+
+# Regex matching subnet-id
+_AMI_ID_RE = r'^ami-[0-9a-fA-F]+$'
+
+# Regex matching key=value tags.
+_TAGS_RE = r'^([^=]+=[^=]+)(,[^=]+=[^=]+)*$'
 
 
-def _init_arg(arg):
-    """Initialize argument with defaults."""
-    assert isinstance(arg, dict), 'Invalid parameter type, expect dict.'
-    if 'id' not in arg:
-        arg['id'] = None
-    if 'tags' not in arg:
-        arg['tags'] = collections.defaultdict(list)
+def parse(regex_id, default=None):
+    """Parse argument given entity id regex."""
 
+    def _default_handler(arg, value):
+        """Default handler, add to the name tag."""
+        arg['tags']['Name'].append(value)
 
-def _make_opt_handler(arg, resource, attrs=None, special_tags=None):
-    """Make option handler for given resource."""
+    if not default:
+        default = _default_handler
 
-    if special_tags is None:
-        special_tags = ['Name']
-
-    if attrs is None:
-        attrs = ['id']
-
-    def _handle_context_opt(ctx, param, value):
+    def _handle_opt(ctx, _param, value):
         """Handle subnet options."""
         if not value or ctx.resilient_parsing:
-            return
+            return {}
 
         if value == '-':
-            return
+            return {}
 
-        _init_arg(arg)
+        arg = {'tags': collections.defaultdict(list)}
 
-        opt = param.name
-        if opt == '{}_tag'.format(resource):
-            for tag_name, tag_value in value:
-                arg['tags'][tag_name].append(tag_value)
+        for line in csv.reader([value]):
+            for item in line:
+                if re.match(regex_id, item):
+                    arg['id'] = item
+                elif re.match(_TAGS_RE, item):
+                    tag_name, tag_value = item.split('=', 1)
+                    arg['tags'][tag_name].append(tag_value)
+                else:
+                    if default:
+                        default(arg, value)
 
-        for attr in attrs:
-            if opt == '{}_{}'.format(resource.lower(), attr.lower()):
-                arg[attr] = value
+        arg['tags'] = dict(arg['tags'])
+        return arg
 
-        for tag in special_tags:
-            if opt == '{}_{}'.format(resource.lower(), tag.lower()):
-                arg['tags'][tag].append(value)
-
-    return _handle_context_opt
-
-
-def make_subnet_opts(arg):
-    """Make subnet CLI options decorator."""
-
-    opt_handler_clbk = _make_opt_handler(arg, 'subnet')
-
-    def decorated(func):
-        """Decorator which adds subnet CLI options."""
-
-        @_opt('subnet', 'id', opt_handler_clbk)
-        @_opt('subnet', 'name', opt_handler_clbk)
-        @_opt_tag('subnet', opt_handler_clbk)
-        def wrapped_function(*args, **kwargs):
-            """CLI handler."""
-            return func(*args, **kwargs)
-
-        func.provide_automatic_options = False
-        return functools.update_wrapper(wrapped_function, func)
-
-    return decorated
+    return _handle_opt
 
 
-def make_secgroup_opts(arg):
-    """Make security group CLI options decorator."""
-
-    opt_handler_clbk = _make_opt_handler(arg, 'secgroup')
-
-    def decorated(func):
-        """Decorator which adds subnet CLI options."""
-
-        @_opt('secgroup', 'id', opt_handler_clbk)
-        @_opt('secgroup', 'name', opt_handler_clbk)
-        @_opt_tag('secgroup', opt_handler_clbk)
-        def wrapped_function(*args, **kwargs):
-            """CLI handler."""
-            return func(*args, **kwargs)
-
-        func.provide_automatic_options = False
-        return functools.update_wrapper(wrapped_function, func)
-
-    return decorated
+def parse_subnet():
+    """Parse subnet CLI options."""
+    return parse(_SUBNET_ID_RE)
 
 
-def make_image_opts(arg):
-    """Make image CLI options decorator."""
+def parse_security_group():
+    """Parse subnet CLI options."""
+    return parse(_SECURITY_GROUP_ID_RE)
 
-    opt_handler_clbk = _make_opt_handler(
-        arg, 'image', attrs=['id', 'name', 'owner'], special_tags=[]
-    )
 
-    def decorated(func):
-        """Decorator which adds image CLI options."""
+def parse_image():
+    """Parse image CLI options."""
+    def _default_handler(arg, value):
+        """Handle default argument for image, storing name."""
+        arg['name'] = value
 
-        @_opt('image', 'id', opt_handler_clbk)
-        @_opt('image', 'name', opt_handler_clbk)
-        @_opt('image', 'owner', opt_handler_clbk)
-        @_opt_tag('image', opt_handler_clbk)
-        def wrapped_function(*args, **kwargs):
-            """CLI handler."""
-            return func(*args, **kwargs)
-
-        func.provide_automatic_options = False
-        return functools.update_wrapper(wrapped_function, func)
-
-    return decorated
+    return parse(_AMI_ID_RE, default=_default_handler)

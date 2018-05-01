@@ -22,7 +22,6 @@ def init():
 
     """AWS subnet CLI group"""
     formatter = cli.make_formatter('aws_subnet')
-    subnet_args = {}
 
     @click.group()
     def subnet():
@@ -38,25 +37,29 @@ def init():
         cli.out(formatter(subnets))
 
     @subnet.command()
-    @options.make_subnet_opts(subnet_args)
+    @click.argument(
+        'subnet',
+        required=False,
+        callback=options.parse_subnet()
+    )
     @cli.admin.ON_EXCEPTIONS
     @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
-    def configure():
+    def configure(subnet):
         """Configure subnet"""
         ec2_conn = awscontext.GLOBAL.ec2
-        if subnet_args.get('tags', []):
-            subnet = ec2client.get_subnet_by_tags(
+        if subnet.get('tags', []):
+            subnet_obj = ec2client.get_subnet_by_tags(
                 ec2_conn,
-                subnet_args['tags']
+                subnet['tags']
             )
         else:
-            subnet_id = subnet_args.get('id', metadata.subnet_id())
-            subnet = ec2client.get_subnet_by_id(
+            subnet_id = subnet.get('id', metadata.subnet_id())
+            subnet_obj = ec2client.get_subnet_by_id(
                 ec2_conn,
                 subnet_id
             )
 
-        cli.out(formatter(subnet))
+        cli.out(formatter(subnet_obj))
 
     del _list
     del configure
