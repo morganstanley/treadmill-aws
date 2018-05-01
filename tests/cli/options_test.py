@@ -1,5 +1,6 @@
 """Test for click AWS options parsing."""
 
+import json
 import unittest
 
 import click
@@ -9,7 +10,7 @@ from treadmill_aws.cli import options
 
 
 class ImageOptionsTest(unittest.TestCase):
-    """Tests EC2 client interface"""
+    """Tests parsing image options"""
 
     def setUp(self):
         pass
@@ -20,42 +21,35 @@ class ImageOptionsTest(unittest.TestCase):
     def test_id_opt(self):
         """Test image options construction."""
 
-        args = dict()
-
         @click.command()
-        @options.make_image_opts(args)
-        def image():
+        @click.argument('args', callback=options.parse_image())
+        def test(args):
             """Test cli."""
-            pass
+            print(json.dumps(args))
 
         runner = CliRunner()
-        result = runner.invoke(image, ['--image-id', 'ami-1234'])
+        result = runner.invoke(test, ['ami-1234'])
+        obj = json.loads(result.output)
 
-        self.assertEqual(result.output, '')
-        self.assertEqual(args['id'], 'ami-1234')
-        self.assertFalse(args['tags'])
+        self.assertEqual(obj['id'], 'ami-1234')
+        self.assertFalse(obj['tags'])
 
-    def test_name_owner(self):
-        """Test image options construction."""
-
-        args = dict()
+    def test_image_name(self):
+        """Test image name options construction."""
 
         @click.command()
-        @options.make_image_opts(args)
-        def image():
+        @click.argument('args', callback=options.parse_image())
+        def test(args):
             """Test cli."""
-            pass
+            print(json.dumps(args))
 
         runner = CliRunner()
-        result = runner.invoke(
-            image, ['--image-name', 'xxx', '--image-owner', 'yyy']
-        )
+        result = runner.invoke(test, ['somename'])
+        obj = json.loads(result.output)
 
-        self.assertEqual(result.output, '')
-        self.assertIsNone(args.get('id'))
-        self.assertEqual(args['name'], 'xxx')
-        self.assertEqual(args['owner'], 'yyy')
-        self.assertFalse(args['tags'])
+        self.assertEqual(obj['name'], 'somename')
+        self.assertFalse(obj['tags'])
+        self.assertNotIn('id', obj)
 
 
 class SubnetOptionsTest(unittest.TestCase):
@@ -70,40 +64,34 @@ class SubnetOptionsTest(unittest.TestCase):
     def test_id_opt(self):
         """Test image options construction."""
 
-        args = dict()
-
         @click.command()
-        @options.make_subnet_opts(args)
-        def subnet():
+        @click.argument('args', callback=options.parse_subnet())
+        def test(args):
             """Test cli."""
-            pass
+            print(json.dumps(args))
 
         runner = CliRunner()
-        result = runner.invoke(subnet, ['--subnet-id', 'subnet-1234'])
+        result = runner.invoke(test, ['subnet-1234'])
+        obj = json.loads(result.output)
 
-        self.assertEqual(result.output, '')
-        self.assertEqual(args['id'], 'subnet-1234')
-        self.assertFalse(args['tags'])
+        self.assertEqual(obj['id'], 'subnet-1234')
+        self.assertFalse(obj['tags'])
 
     def test_tags(self):
         """Test image options construction."""
 
-        args = dict()
-
         @click.command()
-        @options.make_subnet_opts(args)
-        def subnet():
+        @click.argument('args', callback=options.parse_subnet())
+        def test(args):
             """Test cli."""
-            pass
+            print(json.dumps(args))
 
         runner = CliRunner()
-        result = runner.invoke(
-            subnet, ['--subnet-name', 'xxx']
-        )
+        result = runner.invoke(test, ['Name=xxx,Version=yyy'])
+        obj = json.loads(result.output)
 
-        self.assertEqual(result.output, '')
-        self.assertIsNone(args.get('id'))
-        self.assertEqual(args['tags'], {'Name': ['xxx']})
+        self.assertEqual(obj['tags']['Name'], ['xxx'])
+        self.assertEqual(obj['tags']['Version'], ['yyy'])
 
 
 class SecgroupOptionsTest(unittest.TestCase):
@@ -118,37 +106,31 @@ class SecgroupOptionsTest(unittest.TestCase):
     def test_id_opt(self):
         """Test image options construction."""
 
-        args = dict()
-
         @click.command()
-        @options.make_secgroup_opts(args)
-        def secgroup():
+        @click.argument('args', callback=options.parse_security_group())
+        def test(args):
             """Test cli."""
-            pass
+            print(json.dumps(args))
 
         runner = CliRunner()
-        result = runner.invoke(secgroup, ['--secgroup-id', 'secgroup-1234'])
+        result = runner.invoke(test, ['sg-1234'])
+        obj = json.loads(result.output)
 
-        self.assertEqual(result.output, '')
-        self.assertEqual(args['id'], 'secgroup-1234')
-        self.assertFalse(args['tags'])
+        self.assertEqual(obj['id'], 'sg-1234')
+        self.assertFalse(obj['tags'])
 
     def test_tags(self):
         """Test image options construction."""
 
-        args = dict()
-
         @click.command()
-        @options.make_secgroup_opts(args)
-        def secgroup():
+        @click.argument('args', callback=options.parse_security_group())
+        def test(args):
             """Test cli."""
-            pass
+            print(json.dumps(args))
 
         runner = CliRunner()
-        result = runner.invoke(
-            secgroup, ['--secgroup-name', 'xxx']
-        )
+        result = runner.invoke(test, ['Name=xxx,Version=yyy'])
+        obj = json.loads(result.output)
 
-        self.assertEqual(result.output, '')
-        self.assertIsNone(args.get('id'))
-        self.assertEqual(args['tags'], {'Name': ['xxx']})
+        self.assertEqual(obj['tags']['Name'], ['xxx'])
+        self.assertEqual(obj['tags']['Version'], ['yyy'])

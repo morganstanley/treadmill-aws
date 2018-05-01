@@ -22,7 +22,6 @@ def init():
 
     """AWS security group CLI group"""
     formatter = cli.make_formatter('aws_secgroup')
-    secgroup_args = {}
 
     @click.group()
     def secgroup():
@@ -38,19 +37,23 @@ def init():
         cli.out(formatter(secgroups))
 
     @secgroup.command()
-    @options.make_secgroup_opts(secgroup_args)
+    @click.argument(
+        'secgrp',
+        required=False,
+        callback=options.parse_security_group()
+    )
     @cli.admin.ON_EXCEPTIONS
     @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
-    def configure():
+    def configure(secgrp):
         """Configure security group."""
         ec2_conn = awscontext.GLOBAL.ec2
-        if secgroup_args.get('tags', []):
+        if secgrp.get('tags', []):
             secgroup = ec2client.get_secgroup_by_tags(
                 ec2_conn,
-                secgroup_args['tags']
+                secgrp['tags']
             )
         else:
-            secgroup_id = secgroup_args.get('id', metadata.secgroup_id())
+            secgroup_id = secgrp.get('id', metadata.secgroup_id())
             secgroup = ec2client.get_secgroup_by_id(
                 ec2_conn,
                 secgroup_id
