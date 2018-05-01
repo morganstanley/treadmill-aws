@@ -6,21 +6,21 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import gzip
 import click
 
 from treadmill import cli
 
 from treadmill_aws import awscontext
 from treadmill_aws import ec2client
-from treadmill_aws import metadata
-from treadmill_aws.cli import options
 
 
 def init():
 
     """EC2 image CLI group"""
     formatter = cli.make_formatter('aws_image')
-    image_args = {}
+
+    account = awscontext.GLOBAL.sts.get_caller_identity().get('Account')
 
     @click.group()
     def image():
@@ -32,57 +32,80 @@ def init():
     def _list():
         """List images"""
         ec2_conn = awscontext.GLOBAL.ec2
-        account = awscontext.GLOBAL.sts.get_caller_identity().get('Account')
         images = ec2client.list_images(ec2_conn, owners=[account])
         cli.out(formatter(images))
 
-    @image.command()
-    @options.make_image_opts(image_args)
-    def configure():
-        """Configure AMI image."""
-        ec2_conn = awscontext.GLOBAL.ec2
-
-        # TODO: may need better switch for public/private images.
-        owners = []
-        if 'owner' not in image_args:
-            account = awscontext.GLOBAL.sts.get_caller_identity().get(
-                'Account'
-            )
-            owners.append(account)
-        else:
-            owners.append(image_args['owner'])
-
-        if image_args.get('tags', []):
-            image = ec2client.get_image_by_tags(
-                ec2_conn,
-                image_args['tags'],
-                owners=owners
-            )
-        elif image_args.get('name'):
-            image_name = image_args['name']
-            image = ec2client.get_image_by_name(
-                ec2_conn,
-                image_name,
-                owners=owners
-            )
-        else:
-            image_id = image_args.get('id', metadata.image_id())
-            image = ec2client.get_image_by_id(
-                ec2_conn,
-                image_id
-            )
-
-        cli.out(formatter(image))
-
 #   This is a create API dummy skelleton
-    @image.command(name='create')
-    @click.argument('image_id')
+    @image.command(
+        name='create'
+    )
+    @click.option(
+        '--userdata', required=True,
+        help='EC2 Userdata <path>'
+    )
+    @click.option(
+        '--base-image-id', required=True,
+        help='EC2 AMI ID'
+    )
+    @click.option(
+        '--image-name', required=True,
+        help='EC2 AMI Name Tag'
+    )
+    @click.option(
+        '--image-version', required=True,
+        help='EC2 AMI Version Tag'
+    )
+    @click.option(
+        '--image-instance-type', required=True,
+        help='EC2 Instance Type'
+    )
+    @click.option(
+        '--image-instance-key', required=True,
+        help='EC2 SSH Key'
+    )
+    @click.option(
+        '--image-instance-role', required=True,
+        help='EC2 Instance Role'
+    )
+    @click.option(
+        '--image-instance-secgroup-ids', required=True,
+        help='EC2 Instance SecurityGroups'
+    )
+    @click.option(
+        '--image-subnet-id', required=True,
+        help='EC2 Instance Subnet'
+    )
     @cli.admin.ON_EXCEPTIONS
-    def create(image_id):
+    def create(
+            userdata, base_image_id, image_name, image_version,
+            image_instance_type, image_instance_key, image_instance_role,
+            image_instance_secgroup_ids, image_subnet_id
+    ):
         """Create image"""
         ec2_conn = awscontext.GLOBAL.ec2
-        image = ec2client.get_image_by_id(ec2_conn, image_id)
-        cli.out(formatter(image))
+
+        with gzip.open(userdata, 'rb') as f:
+            cloud_init = f.read()
+
+        base_image = ec2client.get_image_by_id(ec2_conn, base_image_id)
+
+        tags = {'Name': image_name, 'Version': image_version}
+
+        images_by_tags = ec2client.list_images_by_tags(
+            ec2_conn, tags, owners=[account]
+        )
+
+        assert not images_by_tags, \
+            "EC2 AMI with the Name: %s and Version: %s tags already exist" \
+            % (image_name, image_version)
+
+        instance_id = ec2client.create_image(
+            ec2_conn, image_name, cloud_init, base_image_id,
+            image_instance_type, image_instance_key, image_instance_role,
+            image_instance_secgroup_ids, image_subnet_id, image_version
+        )
+
+        print("\nA new Treadmill image will be derived from %s" % instance_id)
 
     del _list
     del create

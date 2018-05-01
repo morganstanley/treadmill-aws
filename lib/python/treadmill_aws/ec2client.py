@@ -4,10 +4,10 @@ from . import aws
 
 
 def create_instance(ec2_conn, hostname, user_data, image_id, instance_type,
-                    key, role, secgroup_ids, subnet_id):
+                    key, role, secgroup_ids, subnet_id, version=None):
     """Add new instance."""
-    tags = aws.build_tags(hostname=hostname, role=role)
-    ec2_conn.run_instances(
+    tags = aws.build_tags(hostname=hostname, role=role, version=version)
+    return ec2_conn.run_instances(
         TagSpecifications=tags,
         ImageId=image_id,
         MinCount=1,
@@ -18,7 +18,7 @@ def create_instance(ec2_conn, hostname, user_data, image_id, instance_type,
         NetworkInterfaces=[{
             'DeviceIndex': 0,
             'SubnetId': subnet_id,
-            'Groups': [secgroup_ids]}])
+            'Groups': [secgroup_ids]}]).get('Instances', [])
 
 
 def delete_instance(ec2_conn, hostname):
@@ -35,8 +35,22 @@ def get_instance_by_hostname(ec2_conn, hostname):
     """Returns list of AWS instances that match hostname.
     """
     # What is the point of filter by running state?
-    filters = [{'Name': 'tag:Name', 'Values': [hostname]},
-               {'Name': 'instance-state-name', 'Values': ['running']}]
+    filters = [
+        {
+            'Name': 'tag:Name',
+            'Values': [hostname]
+        },
+        {
+            'Name': 'instance-state-name',
+            'Values': [
+                'running',
+                'pending',
+                'shutting-down',
+                'stopping',
+                'stopped'
+            ]
+        }
+    ]
 
     instances = list_instances(ec2_conn, filters=filters)
     if not instances:
@@ -232,6 +246,22 @@ def get_secgroup_by_tags(ec2_conn, tags):
 def get_secgroup_id_by_tags(ec2_conn, tags):
     """Return security group id matching tags."""
     return get_secgroup_by_tags(ec2_conn, tags)['GroupId']
+
+
+def create_image(
+        ec2_conn, image_name, cloud_init, base_image_id,
+        image_instance_type, image_instance_key, image_instance_role,
+        image_instance_secgroup_ids, image_subnet_id, image_version
+):
+    """Creates AWS AMI."""
+
+    instance = create_instance(
+        ec2_conn, image_name, cloud_init, base_image_id,
+        image_instance_type, image_instance_key, image_instance_role,
+        image_instance_secgroup_ids, image_subnet_id, image_version
+    )
+
+    return instance[0]['InstanceId']
 
 
 def list_images(ec2_conn, filters=None, owners=None):
