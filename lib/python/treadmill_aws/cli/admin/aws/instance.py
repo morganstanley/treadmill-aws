@@ -13,6 +13,33 @@ from treadmill import cli
 from treadmill_aws import awscontext
 from treadmill_aws import ec2client
 from treadmill_aws import hostmanager
+from treadmill_aws import metadata
+from treadmill_aws import cli as aws_cli
+
+
+# TODO: these seem like common functions that belong to ec2client or some
+#       high level helper module.
+def _image_id(ec2_conn, sts_conn, image, account):
+    """Resolve CLI image arguments to image id."""
+    if not image:
+        image = {'ids': [metadata.image_id()]}
+    if not account:
+        account = sts_conn.get_caller_identity().get('Account')
+    return ec2client.get_image(ec2_conn, owners=[account], **image)['ImageId']
+
+
+def _subnet_id(ec2_conn, subnet):
+    """Resolve subnet CLI arguments to subnet id."""
+    if not subnet:
+        subnet = {'ids': [metadata.subnet_id()]}
+    return ec2client.get_subnet(ec2_conn, **subnet)['SubnetId']
+
+
+def _secgroup_id(ec2_conn, secgroup):
+    """Resolve secgroup id from secgroup CLI arguments."""
+    if not secgroup:
+        secgroup = {'ids': [metadata.secgroup_id()]}
+    return ec2client.get_secgroup(ec2_conn, **secgroup)['GroupId']
 
 
 def init():
@@ -34,51 +61,92 @@ def init():
         cli.out(formatter(instances))
 
     @instance.command()
-    @click.option('--instance-id', help='EC2 instancs id')
-    @click.argument('hostname')
+    @click.argument('instance', required=False, type=aws_cli.INSTANCE)
     @cli.admin.ON_EXCEPTIONS
-    def configure(instance_id, hostname):
+    def configure(instance):
         """Configure instance"""
+        if not instance:
+            instance = {'ids': [metadata.instance_id()]}
+
         ec2_conn = awscontext.GLOBAL.ec2
-        if instance_id:
-            instance = ec2client.get_instance_by_id(ec2_conn, instance_id)
-        else:
-            instance = ec2client.get_instance_by_hostname(ec2_conn, hostname)
-        if instance:
-            cli.out(formatter(instance))
-        else:
-            # TODO: need to raise not found exception and let it be handled.
-            click.echo('Not found', err=True)
+        instance_obj = ec2client.list_instances(ec2_conn, **instance)
+        cli.out(formatter(instance_obj))
 
     @instance.command()
-    @click.option('--ami', required=True, help='AMI image ID')
-    @click.option('--count', required=True, default=1, type=int,
-                  help='Number of instances')
-    @click.option('--key', required=True, help='Instance SSH key name')
-    @click.option('--role', required=True, help='Instance role')
-    @click.option('--secgroup', required=True,
-                  help='Instance security group ID')
-    @click.option('--size', required=True, default='t2.small',
-                  help='Instance EC2 size')
-    @click.option('--subnet', required=True, help='AWS Subnet ID')
+    @click.option(
+        '--image',
+        required=False,
+        help='Image',
+        type=aws_cli.IMAGE
+    )
+    @click.option(
+        '--image-account',
+        required=False,
+        help='AWS image account.',
+    )
+    @click.option(
+        '--secgroup',
+        required=False,
+        type=aws_cli.SECGROUP,
+        help='Security group'
+    )
+    @click.option(
+        '--subnet',
+        required=False,
+        type=aws_cli.SUBNET,
+        help='Subnet'
+    )
+    @click.option(
+        '--role',
+        required=False,
+        help='Instance role',
+        default='generic'
+    )
+    @click.option(
+        '--key',
+        required=False,
+        help='Instance SSH key name'
+    )
+    @click.option(
+        '--size',
+        required=True,
+        default='t2.small',
+        help='Instance EC2 size'
+    )
+    @click.option(
+        '--count',
+        required=True,
+        default=1,
+        type=int,
+        help='Number of instances'
+    )
     @cli.ON_CLI_EXCEPTIONS
-    def create(ami, count, key, role, secgroup, size, subnet):
+    def create(image, image_account, count, key, role, secgroup, size, subnet):
         """Create instance(s)"""
         ipa_client = awscontext.GLOBAL.ipaclient
         ec2_conn = awscontext.GLOBAL.ec2
+        sts_conn = awscontext.GLOBAL.sts
+
         ipa_domain = awscontext.GLOBAL.ipa_domain
+
+        image_id = _image_id(ec2_conn, sts_conn, image, image_account)
+        secgroup_id = _secgroup_id(ec2_conn, secgroup)
+        subnet_id = _subnet_id(ec2_conn, subnet)
+
+        if not key:
+            key = metadata.instance_keys()[0]
 
         hostnames = hostmanager.create_host(
             ipa_client=ipa_client,
             ec2_conn=ec2_conn,
-            image_id=ami,
+            image_id=image_id,
             count=count,
             domain=ipa_domain,
             key=key,
-            role=role,
-            secgroup_ids=secgroup,
+            secgroup_ids=secgroup_id,
             instance_type=size,
-            subnet_id=subnet
+            subnet_id=subnet_id,
+            role=role,
         )
         for hostname in hostnames:
             click.echo(hostname)

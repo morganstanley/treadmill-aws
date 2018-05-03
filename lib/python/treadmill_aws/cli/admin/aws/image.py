@@ -13,7 +13,7 @@ from treadmill import cli
 from treadmill_aws import awscontext
 from treadmill_aws import ec2client
 from treadmill_aws import metadata
-from treadmill_aws.cli import options
+from treadmill_aws import cli as aws_cli
 
 
 def init():
@@ -36,18 +36,22 @@ def init():
         cli.out(formatter(images))
 
     @image.command()
-    @click.option('--owner', required=False,
-                  help='Image owner, defaults to current account.')
+    @click.option(
+        '--owner', required=False,
+        help='Image owner, defaults to current account.'
+    )
     @click.argument(
         'image',
         required=False,
-        callback=options.parse_image()
+        type=aws_cli.IMAGE
     )
     def configure(owner, image):
         """Configure AMI image."""
+        if not image:
+            image = {'ids': [metadata.image_id()]}
+
         ec2_conn = awscontext.GLOBAL.ec2
 
-        # TODO: may need better switch for public/private images.
         owners = []
         if not owner:
             account = awscontext.GLOBAL.sts.get_caller_identity().get(
@@ -57,26 +61,7 @@ def init():
         else:
             owners.append(owner)
 
-        if image.get('tags', []):
-            image_obj = ec2client.get_image_by_tags(
-                ec2_conn,
-                image['tags'],
-                owners=owners
-            )
-        elif image.get('name'):
-            image_name = image['name']
-            image_obj = ec2client.get_image_by_name(
-                ec2_conn,
-                image_name,
-                owners=owners
-            )
-        else:
-            image_id = image.get('id', metadata.image_id())
-            image_obj = ec2client.get_image_by_id(
-                ec2_conn,
-                image_id
-            )
-
+        image_obj = ec2client.get_image(ec2_conn, owners=owners, **image)
         cli.out(formatter(image_obj))
 
     # This is a create API dummy skelleton

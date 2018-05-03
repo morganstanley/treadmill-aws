@@ -15,7 +15,7 @@ from treadmill_aws import awscontext
 from treadmill_aws import ec2client
 from treadmill_aws import metadata
 
-from treadmill_aws.cli import options
+from treadmill_aws import cli as aws_cli
 
 
 def init():
@@ -37,29 +37,17 @@ def init():
         cli.out(formatter(secgroups))
 
     @secgroup.command()
-    @click.argument(
-        'secgrp',
-        required=False,
-        callback=options.parse_security_group()
-    )
+    @click.argument('secgrp', required=False, type=aws_cli.SECGROUP)
     @cli.admin.ON_EXCEPTIONS
     @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
     def configure(secgrp):
         """Configure security group."""
         ec2_conn = awscontext.GLOBAL.ec2
-        if secgrp.get('tags', []):
-            secgroup = ec2client.get_secgroup_by_tags(
-                ec2_conn,
-                secgrp['tags']
-            )
-        else:
-            secgroup_id = secgrp.get('id', metadata.secgroup_id())
-            secgroup = ec2client.get_secgroup_by_id(
-                ec2_conn,
-                secgroup_id
-            )
+        if not secgrp:
+            secgrp = {'ids': [metadata.secgroup_id()]}
 
-        cli.out(formatter(secgroup))
+        grp_obj = ec2client.get_secgroup(ec2_conn, **secgrp)
+        cli.out(formatter(grp_obj))
 
     del _list
     del configure

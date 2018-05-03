@@ -162,3 +162,18 @@ def secgroup_id():
 def image_id():
     """Return ami id of current instance."""
     return GLOBAL.metadata.get('ami-id')
+
+
+def instance_id():
+    """Return instance id of current instance."""
+    return GLOBAL.metadata.get('instance-id')
+
+
+def instance_keys():
+    """Return instance SSH key name."""
+    public_keys = GLOBAL.metadata.get('public-keys')
+    names = []
+    for key in public_keys:
+        idx, name = key.split('=')
+        names.append(name)
+    return names

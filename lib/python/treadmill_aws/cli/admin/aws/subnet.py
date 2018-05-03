@@ -15,7 +15,7 @@ from treadmill_aws import awscontext
 from treadmill_aws import ec2client
 from treadmill_aws import metadata
 
-from treadmill_aws.cli import options
+from treadmill_aws import cli as aws_cli
 
 
 def init():
@@ -37,28 +37,16 @@ def init():
         cli.out(formatter(subnets))
 
     @subnet.command()
-    @click.argument(
-        'subnet',
-        required=False,
-        callback=options.parse_subnet()
-    )
+    @click.argument('subnet', required=False, type=aws_cli.SUBNET)
     @cli.admin.ON_EXCEPTIONS
     @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
     def configure(subnet):
         """Configure subnet"""
         ec2_conn = awscontext.GLOBAL.ec2
-        if subnet.get('tags', []):
-            subnet_obj = ec2client.get_subnet_by_tags(
-                ec2_conn,
-                subnet['tags']
-            )
-        else:
-            subnet_id = subnet.get('id', metadata.subnet_id())
-            subnet_obj = ec2client.get_subnet_by_id(
-                ec2_conn,
-                subnet_id
-            )
+        if not subnet:
+            subnet = {'ids': [metadata.subnet_id()]}
 
+        subnet_obj = ec2client.get_subnet(ec2_conn, **subnet)
         cli.out(formatter(subnet_obj))
 
     del _list

@@ -12,6 +12,8 @@ from treadmill import cli
 
 from treadmill_aws import awscontext
 from treadmill_aws import ec2client
+from treadmill_aws import metadata
+from treadmill_aws import cli as aws_cli
 
 
 def init():
@@ -33,13 +35,15 @@ def init():
         cli.out(formatter(vpcs))
 
     @vpc.command()
-    @click.argument('vpc_id')
+    @click.argument('vpc', type=aws_cli.VPC, required=False)
     @cli.admin.ON_EXCEPTIONS
-    def configure(vpc_id):
+    def configure(vpc):
         """Configure vpc"""
         ec2_conn = awscontext.GLOBAL.ec2
-        vpc = ec2client.get_vpc_by_id(ec2_conn, vpc_id)
-        cli.out(formatter(vpc))
+        if not vpc:
+            vpc = {'ids': [metadata.vpc_id()]}
+        vpc_obj = ec2client.get_vpc(ec2_conn, **vpc)
+        cli.out(formatter(vpc_obj))
 
     del _list
     del configure
