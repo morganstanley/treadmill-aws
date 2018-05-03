@@ -5,16 +5,32 @@
 # https://gist.github.com/iMilnb => meta2dict
 
 import json
+import socket
 
 import requests
 
 from six.moves import http_client
 
 
+def _connect():
+    """Check if metadata is up."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(0)
+
+    try:
+        sock.connect(('169.254.169.254', 80))
+        sock.close()
+        return True
+    except socket.error:
+        return False
+
+
 def load(dynamic=False):
     """Load metadata into object."""
-    metaurl = 'http://169.254.169.254/latest'
+    if not _connect():
+        return {}
 
+    metaurl = 'http://169.254.169.254/latest'
     metadata = {'meta-data': {}, 'user-data': {}}
     if dynamic:
         metadata['dynamic'] = {}
@@ -70,7 +86,7 @@ class Metadata(object):
 
         self._data = load()
         self._loaded = True
-        return self._data.get('meta-data', None)
+        return self._data.get('meta-data', {})
 
     @property
     def userdata(self):
@@ -80,7 +96,7 @@ class Metadata(object):
 
         self._data = load()
         self._loaded = True
-        return self._data.get('user-data', None)
+        return self._data.get('user-data', {})
 
     @property
     def dynamic(self):
@@ -90,7 +106,7 @@ class Metadata(object):
 
         self._data = load(dynamic=True)
         self._loaded = True
-        return self._data.get('user-data', None)
+        return self._data.get('user-data', {})
 
 
 GLOBAL = Metadata()

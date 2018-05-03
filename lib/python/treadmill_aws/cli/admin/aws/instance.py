@@ -10,36 +10,12 @@ import click
 
 from treadmill import cli
 
+import treadmill_aws
 from treadmill_aws import awscontext
 from treadmill_aws import ec2client
 from treadmill_aws import hostmanager
 from treadmill_aws import metadata
 from treadmill_aws import cli as aws_cli
-
-
-# TODO: these seem like common functions that belong to ec2client or some
-#       high level helper module.
-def _image_id(ec2_conn, sts_conn, image, account):
-    """Resolve CLI image arguments to image id."""
-    if not image:
-        image = {'ids': [metadata.image_id()]}
-    if not account:
-        account = sts_conn.get_caller_identity().get('Account')
-    return ec2client.get_image(ec2_conn, owners=[account], **image)['ImageId']
-
-
-def _subnet_id(ec2_conn, subnet):
-    """Resolve subnet CLI arguments to subnet id."""
-    if not subnet:
-        subnet = {'ids': [metadata.subnet_id()]}
-    return ec2client.get_subnet(ec2_conn, **subnet)['SubnetId']
-
-
-def _secgroup_id(ec2_conn, secgroup):
-    """Resolve secgroup id from secgroup CLI arguments."""
-    if not secgroup:
-        secgroup = {'ids': [metadata.secgroup_id()]}
-    return ec2client.get_secgroup(ec2_conn, **secgroup)['GroupId']
 
 
 def init():
@@ -53,7 +29,7 @@ def init():
         pass
 
     @instance.command(name='list')
-    @cli.admin.ON_EXCEPTIONS
+    @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
     def _list():
         """List instances"""
         ec2_conn = awscontext.GLOBAL.ec2
@@ -62,14 +38,14 @@ def init():
 
     @instance.command()
     @click.argument('instance', required=False, type=aws_cli.INSTANCE)
-    @cli.admin.ON_EXCEPTIONS
+    @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
     def configure(instance):
         """Configure instance"""
         if not instance:
             instance = {'ids': [metadata.instance_id()]}
 
         ec2_conn = awscontext.GLOBAL.ec2
-        instance_obj = ec2client.list_instances(ec2_conn, **instance)
+        instance_obj = ec2client.get_instance(ec2_conn, **instance)
         cli.out(formatter(instance_obj))
 
     @instance.command()
@@ -120,7 +96,7 @@ def init():
         type=int,
         help='Number of instances'
     )
-    @cli.ON_CLI_EXCEPTIONS
+    @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
     def create(image, image_account, count, key, role, secgroup, size, subnet):
         """Create instance(s)"""
         ipa_client = awscontext.GLOBAL.ipaclient
@@ -129,9 +105,10 @@ def init():
 
         ipa_domain = awscontext.GLOBAL.ipa_domain
 
-        image_id = _image_id(ec2_conn, sts_conn, image, image_account)
-        secgroup_id = _secgroup_id(ec2_conn, secgroup)
-        subnet_id = _subnet_id(ec2_conn, subnet)
+        image_id = aws_cli.admin.image_id(
+            ec2_conn, sts_conn, image, image_account)
+        secgroup_id = aws_cli.admin.secgroup_id(ec2_conn, secgroup)
+        subnet_id = aws_cli.admin.subnet_id(ec2_conn, subnet)
 
         if not key:
             key = metadata.instance_keys()[0]
@@ -153,7 +130,7 @@ def init():
 
     @instance.command(name='delete')
     @click.argument('hostname')
-    @cli.ON_CLI_EXCEPTIONS
+    @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
     def delete(hostname):
         """Delete instance."""
         ipa_client = awscontext.GLOBAL.ipaclient

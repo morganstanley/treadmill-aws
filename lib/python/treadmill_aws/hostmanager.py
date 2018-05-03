@@ -88,7 +88,7 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
             tags=_instance_tags(hostname, role),
             secgroup_ids=secgroup_ids,
             subnet_id=subnet_id,
-            instance_profile_name=instance_profile
+            instance_profile=instance_profile
         )
         hosts.append(hostname)
 
