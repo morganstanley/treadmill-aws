@@ -5,7 +5,7 @@ from . import aws
 
 def create_instance(ec2_conn, user_data, image_id, instance_type,
                     key, tags, secgroup_ids, subnet_id,
-                    instance_profile_name=None):
+                    instance_profile=None):
     """Create new instance."""
     args = {
         'TagSpecifications': tags,
@@ -22,12 +22,19 @@ def create_instance(ec2_conn, user_data, image_id, instance_type,
         }]
     }
 
-    if instance_profile_name:
-        args['IamInstanceProfile'] = {
-            'Name': instance_profile_name
-        }
+    print(args)
+    if instance_profile:
+        if instance_profile.startswith('arn:aws:iam::'):
+            args['IamInstanceProfile'] = {
+                'Arn': instance_profile
+            }
+        else:
+            args['IamInstanceProfile'] = {
+                'Name': instance_profile
+            }
 
-    ec2_conn.run_instances(**args)
+    resp = ec2_conn.run_instances(**args)
+    print(resp)
 
 
 def list_instances(ec2_conn, ids=None, tags=None, hostnames=None, state=None):

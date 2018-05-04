@@ -16,6 +16,7 @@ class AWSContext(object):
         '_ipa_domain',
         '_session',
         '_ipaclient',
+        'aws_profile',
     )
 
     def __init__(self):
@@ -24,6 +25,7 @@ class AWSContext(object):
         self._ipa_domain = None
         self.ipa_certs = None
         self.region_name = None
+        self.aws_profile = None
 
     @property
     def session(self):
@@ -32,7 +34,10 @@ class AWSContext(object):
         if self._session:
             return self._session
 
-        self._session = boto3.Session(region_name=self.region_name)
+        self._session = boto3.Session(
+            region_name=self.region_name,
+            profile_name=self.aws_profile,
+        )
         return self._session
 
     @property

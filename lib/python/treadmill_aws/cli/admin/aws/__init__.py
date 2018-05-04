@@ -18,8 +18,13 @@ AWS_EXCEPTIONS = [
     (botocore.errorfactory.ClientError, None),
 ]
 
-
-ON_AWS_EXCEPTIONS = cli.handle_cli_exceptions(AWS_EXCEPTIONS)
+try:
+    ON_AWS_EXCEPTIONS = cli.handle_cli_exceptions(AWS_EXCEPTIONS)
+except:
+    # TODO: depends which version of treadmill is used, the signature changed.
+    #       until versions in github and internal are reconciled, need to use
+    #       this hack.
+    ON_AWS_EXCEPTIONS = cli.handle_exceptions(AWS_EXCEPTIONS)
 
 
 def init():
@@ -28,6 +33,11 @@ def init():
     @click.group(cls=cli.make_commands(__name__))
     @click.option('--aws-region', required=False,
                   envvar='AWS_REGION',
+                  callback=treadmill_aws.cli.handle_context_opt,
+                  is_eager=True,
+                  expose_value=False)
+    @click.option('--aws-profile', required=False,
+                  envvar='AWS_PROFILE',
                   callback=treadmill_aws.cli.handle_context_opt,
                   is_eager=True,
                   expose_value=False)

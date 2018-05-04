@@ -56,6 +56,9 @@ def handle_context_opt(ctx, param, value):
     if opt == 'aws_region':
         awscontext.GLOBAL.region_name = value
 
+    if opt == 'aws_profile':
+        awscontext.GLOBAL.aws_profile = value
+
     if opt == 'ipa_certs':
         awscontext.GLOBAL.ipa_certs = value
 
