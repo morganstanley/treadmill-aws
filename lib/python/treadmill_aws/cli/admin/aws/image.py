@@ -136,10 +136,11 @@ def init():
                     content = gzip.decompress(content)
 
                 cloud_init.add(content.decode())
-                cloud_init.add_cloud_config({
-                    'image_description': '',
-                    'image_name': image,
-                })
+
+        cloud_init.add_cloud_config({
+            'image_description': '',
+            'image_name': image,
+        })
 
         base_image_id = aws_cli.admin.image_id(
             ec2_conn, sts_conn, base_image, account=base_image_account)
@@ -147,7 +148,7 @@ def init():
         subnet_id = aws_cli.admin.subnet_id(ec2_conn, subnet)
         tags = []
 
-        ec2client.create_instance(
+        instance = ec2client.create_instance(
             ec2_conn,
             user_data=cloud_init.userdata(),
             image_id=base_image_id,
@@ -158,6 +159,7 @@ def init():
             subnet_id=subnet_id,
             instance_profile=instance_profile,
         )
+        print(instance)
 
     del _list
     del configure
