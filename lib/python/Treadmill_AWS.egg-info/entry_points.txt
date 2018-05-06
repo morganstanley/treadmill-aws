@@ -1,10 +1,16 @@
 # vim:syntax=cfg
 
 [treadmill.rest.api]
+aws-image = treadmill_aws.rest.api.image
 
 [treadmill.api]
+aws-image = treadmill_aws.api.image
 
 [treadmill.cli]
+aws = treadmill_aws.cli.aws
+
+[treadmill_aws.cli.aws]
+image = treadmill_aws.cli.aws.image
 
 [treadmill.cli.admin]
 aws = treadmill_aws.cli.admin.aws
