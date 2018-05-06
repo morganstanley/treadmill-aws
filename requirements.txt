@@ -1,4 +1,4 @@
 boto3>=1.4.4,<2
 
 # Treadmill>=3.7,<4
-git+https://github.com/ceache/treadmill.git@update#egg=Treadmill
+git+https://github.com/Morgan-Stanley/treadmill.git@master#egg=Treadmill
