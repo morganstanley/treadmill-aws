@@ -1,5 +1,7 @@
 """ AWS client connectors and helper functions """
 
+import json
+
 from . import aws
 
 
@@ -22,7 +24,6 @@ def create_instance(ec2_conn, user_data, image_id, instance_type,
         }]
     }
 
-    print(args)
     if instance_profile:
         if instance_profile.startswith('arn:aws:iam::'):
             args['IamInstanceProfile'] = {
@@ -33,8 +34,8 @@ def create_instance(ec2_conn, user_data, image_id, instance_type,
                 'Name': instance_profile
             }
 
-    resp = ec2_conn.run_instances(**args)
-    print(resp)
+    response = ec2_conn.run_instances(**args)
+    return response
 
 
 def list_instances(ec2_conn, ids=None, tags=None, hostnames=None, state=None):

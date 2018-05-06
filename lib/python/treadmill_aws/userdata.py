@@ -109,7 +109,7 @@ class CloudInit(object):
 
     def userdata(self):
         """Return cloud-init compressed and encoded."""
-        return base64.standard_b64encode(gzip.compress(self.as_bytes()))
+        return gzip.compress(self.as_bytes())
 
     def as_str(self):
         """Render as string."""
@@ -142,15 +142,12 @@ class CloudInit(object):
 
         return combined_message.as_bytes()
 
-    def add(self, payload, name=None, content_type=None):
+    def add(self, content):
         """Add payload."""
-        if not content_type:
-            content_type = _guess_content_type(payload)
-        if not name:
-            name = '-'
-
-        self.content_by_mimetype[content_type].append((name, payload))
+        for name, content_type, payload in _iterate_cloud_init(content):
+            self.content_by_mimetype[content_type].append((name, payload))
 
     def add_cloud_config(self, obj):
         """Add object as cloud-config payload."""
-        self.add('#cloud-config\n\n{}'.format(yaml.dump(obj)))
+        content = '#cloud-config\n\n{}'.format(yaml.dump(obj))
+        self.content_by_mimetype['text/cloud-config'].append(('-', content))
