@@ -5,18 +5,17 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import base64
-import sys
-import os
+import collections
 import gzip
 import logging
-import collections
-import yaml
+import os
+import sys
 
 import email
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+import yaml
 
 _LOGGER = logging.getLogger(__name__)
 
