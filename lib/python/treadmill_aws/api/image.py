@@ -1,7 +1,7 @@
-"""Treadmill AWS image API."""
-from treadmill import authz
+"""Treadmill AWS image API.
+"""
 
-from treadmill import schema
+from treadmill import authz
 
 from treadmill_aws import ec2client
 from treadmill_aws import awscontext
@@ -24,19 +24,19 @@ class API(object):
             images = ec2client.list_images(ec2_conn, owners=[account], **image)
             return images
 
-        def get(rsrc_id):
+        def get(_rsrc_id):
             """Get AWS image configuration."""
             return {}
 
-        def create(rsrc_id, rsrc):
+        def create(_rsrc_id, _rsrc):
             """Create (configure) AWS image."""
             return {}
 
-        def update(rsrc_id, rsrc):
+        def update(_rsrc_id, _rsrc):
             """Update AWS image configuration."""
             return {}
 
-        def delete(rsrc_id):
+        def delete(_rsrc_id):
             """Delete AWS image."""
             return None
 

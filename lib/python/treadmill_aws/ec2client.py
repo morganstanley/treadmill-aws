@@ -1,6 +1,5 @@
-""" AWS client connectors and helper functions """
-
-import json
+"""AWS client connectors and helper functions.
+"""
 
 from . import aws
 

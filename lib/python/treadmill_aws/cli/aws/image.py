@@ -11,7 +11,6 @@ from __future__ import absolute_import
 import logging
 
 import click
-from six.moves import urllib_parse
 
 from treadmill import cli
 from treadmill import context
