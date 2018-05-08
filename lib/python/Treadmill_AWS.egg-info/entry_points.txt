@@ -30,3 +30,6 @@ aws_instance = treadmill_aws.formatter:InstancePrettyFormatter
 aws_role = treadmill_aws.formatter:RolePrettyFormatter
 aws_image = treadmill_aws.formatter:ImagePrettyFormatter
 aws_secgroup = treadmill_aws.formatter:SecgroupPrettyFormatter
+
+[treadmill.sproc]
+awscredential = treadmill_aws.sproc.awscredential
