@@ -30,6 +30,8 @@ packages:
 #
 # Join domain
 runcmd:
+  - systemctl restart dbus
+  - systemctl restart systemd-logind NetworkManager
   - ipa-client-install \
   --no-krb5-offline-password \
   --enable-dns-updates \
