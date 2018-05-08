@@ -126,6 +126,10 @@ def get_image(ec2_conn, ids=None, tags=None, owners=None, name=None):
     images = list_images(
         ec2_conn, ids=ids, tags=tags, owners=owners, name=name
     )
+
+    if not images:
+        raise aws.NotUniqueError()
+
     image = images.pop(0)
     if images:
         raise aws.NotUniqueError()
