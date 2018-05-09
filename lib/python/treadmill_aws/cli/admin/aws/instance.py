@@ -96,8 +96,17 @@ def init():
         type=int,
         help='Number of instances'
     )
+    @click.option(
+        '--disk-size',
+        required=True,
+        default=10,
+        help='Root parition size',
+        callback=aws_cli.convert_disk_size_to_int
+    )
     @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
-    def create(image, image_account, count, key, role, secgroup, size, subnet):
+    def create(
+            image, image_account, count, disk,
+            key, role, secgroup, size, subnet):
         """Create instance(s)"""
         ipa_client = awscontext.GLOBAL.ipaclient
         ec2_conn = awscontext.GLOBAL.ec2
@@ -118,6 +127,7 @@ def init():
             ec2_conn=ec2_conn,
             image_id=image_id,
             count=count,
+            disk=disk,
             domain=ipa_domain,
             key=key,
             secgroup_ids=secgroup_id,

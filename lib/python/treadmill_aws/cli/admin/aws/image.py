@@ -158,6 +158,7 @@ def init():
             secgroup_ids=secgroup_id,
             subnet_id=subnet_id,
             instance_profile=instance_profile,
+            disk=10
         )
         print(instance)
 

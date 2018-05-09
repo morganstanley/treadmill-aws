@@ -27,7 +27,8 @@ class EC2ClientTest(unittest.TestCase):
             key='foo',
             tags=[],
             secgroup_ids='sg-foo12345',
-            subnet_id='subnet-foo12345'
+            subnet_id='subnet-foo12345',
+            disk=1
         )
 
         self.assertEqual(ec2_conn.run_instances.call_count, 1)
@@ -42,6 +43,8 @@ class EC2ClientTest(unittest.TestCase):
                                 'DeviceIndex': 0}],
             TagSpecifications=[],
             UserData='foo',
+            BlockDeviceMappings=[{'DeviceName': '/dev/xvda',
+                                  'Ebs': {'VolumeSize': 1}}]
         )
 
     @mock.patch('treadmill_aws.ec2client.list_instances',
