@@ -18,7 +18,7 @@ AWS_EXCEPTIONS = [
     (botocore.errorfactory.ClientError, None),
 ]
 
-ON_AWS_EXCEPTIONS = cli.handle_cli_exceptions(AWS_EXCEPTIONS)
+ON_AWS_EXCEPTIONS = cli.handle_exceptions(AWS_EXCEPTIONS)
 
 
 def init():
