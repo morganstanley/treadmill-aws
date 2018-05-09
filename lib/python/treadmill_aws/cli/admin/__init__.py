@@ -6,7 +6,7 @@ from treadmill_aws import metadata
 
 def image_id(ec2_conn, sts_conn, image, account):
     """Resolve CLI image arguments to image id."""
-    if not image:
+    if not image and metadata.image_id():
         image = {'ids': [metadata.image_id()]}
     if not account:
         account = sts_conn.get_caller_identity().get('Account')
@@ -15,13 +15,13 @@ def image_id(ec2_conn, sts_conn, image, account):
 
 def subnet_id(ec2_conn, subnet):
     """Resolve subnet CLI arguments to subnet id."""
-    if not subnet:
+    if not subnet and metadata.subnet_id():
         subnet = {'ids': [metadata.subnet_id()]}
     return ec2client.get_subnet(ec2_conn, **subnet)['SubnetId']
 
 
 def secgroup_id(ec2_conn, secgroup):
     """Resolve secgroup id from secgroup CLI arguments."""
-    if not secgroup:
+    if not secgroup and metadata.secgroup_id():
         secgroup = {'ids': [metadata.secgroup_id()]}
     return ec2client.get_secgroup(ec2_conn, **secgroup)['GroupId']

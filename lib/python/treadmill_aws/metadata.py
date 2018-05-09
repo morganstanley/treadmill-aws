@@ -15,7 +15,7 @@ from six.moves import http_client
 def _connect():
     """Check if metadata is up."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(0)
+    sock.settimeout(1)
 
     try:
         sock.connect(('169.254.169.254', 80))
