@@ -5,7 +5,7 @@ from . import aws
 
 
 def create_instance(ec2_conn, user_data, image_id, instance_type,
-                    key, tags, secgroup_ids, subnet_id,
+                    key, tags, secgroup_ids, subnet_id, disk,
                     instance_profile=None):
     """Create new instance."""
     args = {
@@ -20,7 +20,10 @@ def create_instance(ec2_conn, user_data, image_id, instance_type,
             'DeviceIndex': 0,
             'SubnetId': subnet_id,
             'Groups': [secgroup_ids]
-        }]
+        }],
+        'BlockDeviceMappings': [{
+            'DeviceName': '/dev/xvda',
+            'Ebs': {'VolumeSize': disk}}]
     }
 
     if instance_profile:

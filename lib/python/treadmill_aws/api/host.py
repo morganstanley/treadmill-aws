@@ -12,6 +12,7 @@ class API(object):
 
         def create_hosts(ami,
                          count,
+                         disk,
                          domain,
                          key,
                          role,
@@ -33,7 +34,8 @@ class API(object):
                 role=role,
                 secgroup_ids=secgroup,
                 instance_type=size,
-                subnet_id=subnet)
+                subnet_id=subnet,
+                disk=disk)
 
         def delete_hosts(hostnames):
             """Delete host."""

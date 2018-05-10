@@ -68,6 +68,24 @@ def handle_context_opt(ctx, param, value):
     return value
 
 
+# Suppress pylint warnings concerning unused Click arguments
+# pylint: disable=W0613
+def convert_disk_size_to_int(ctx, param, value):
+    """Convert friendly cli option to int
+    """
+    if isinstance(value, int):
+        if value > 0:
+            return value
+        else:
+            raise ValueError('Disk must be greater than 0 GB')
+
+    size = re.search(r'\d+', value)
+    if size:
+        return int(size.group())
+    else:
+        raise ValueError("Can't interpret %r" % value)
+
+
 class _Resource(click.ParamType):
     """Custom input type AWS resources."""
 
