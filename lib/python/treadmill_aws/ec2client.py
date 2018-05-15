@@ -22,7 +22,7 @@ def create_instance(ec2_conn, user_data, image_id, instance_type,
             'Groups': [secgroup_ids]
         }],
         'BlockDeviceMappings': [{
-            'DeviceName': '/dev/xvda',
+            'DeviceName': '/dev/sda1',
             'Ebs': {'VolumeSize': disk}}]
     }
 
