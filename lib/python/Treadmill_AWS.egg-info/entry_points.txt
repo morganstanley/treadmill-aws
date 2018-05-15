@@ -33,3 +33,4 @@ aws_secgroup = treadmill_aws.formatter:SecgroupPrettyFormatter
 
 [treadmill.sproc]
 ipakeytab = treadmill_aws.sproc.ipakeytab
+awscredential = treadmill_aws.sproc.awscredential
