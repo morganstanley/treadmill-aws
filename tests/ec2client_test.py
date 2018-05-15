@@ -43,7 +43,7 @@ class EC2ClientTest(unittest.TestCase):
                                 'DeviceIndex': 0}],
             TagSpecifications=[],
             UserData='foo',
-            BlockDeviceMappings=[{'DeviceName': '/dev/xvda',
+            BlockDeviceMappings=[{'DeviceName': '/dev/sda1',
                                   'Ebs': {'VolumeSize': 1}}]
         )
 

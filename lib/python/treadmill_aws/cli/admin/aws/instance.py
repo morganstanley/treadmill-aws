@@ -105,7 +105,7 @@ def init():
     )
     @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
     def create(
-            image, image_account, count, disk,
+            image, image_account, count, disk_size,
             key, role, secgroup, size, subnet):
         """Create instance(s)"""
         ipa_client = awscontext.GLOBAL.ipaclient
@@ -127,7 +127,7 @@ def init():
             ec2_conn=ec2_conn,
             image_id=image_id,
             count=count,
-            disk=disk,
+            disk=disk_size,
             domain=ipa_domain,
             key=key,
             secgroup_ids=secgroup_id,
