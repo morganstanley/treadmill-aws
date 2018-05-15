@@ -162,6 +162,30 @@ def init():
         )
         print(instance)
 
+    @image.command(name='share')
+    @click.option(
+        '--account',
+        required=True,
+        help='Account ID.'
+    )
+    @click.argument('image', required=True, type=str)
+    @cli.admin.ON_EXCEPTIONS
+    def share(account, image):
+        """Share Image"""
+        ec2_conn = awscontext.GLOBAL.ec2
+        ec2client.get_image(ec2_conn, ids=[image])
+
+        share_image = ec2_conn.modify_image_attribute(
+            ImageId=image,
+            Attribute='launchPermission',
+            OperationType='add',
+            UserIds=[
+                account
+            ]
+        )
+
+        print('%s has been shared with %s' % (image, account))
+
     del _list
     del configure
     del create
