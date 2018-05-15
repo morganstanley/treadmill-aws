@@ -70,6 +70,18 @@ def handle_context_opt(ctx, param, value):
 
 # Suppress pylint warnings concerning unused Click arguments
 # pylint: disable=W0613
+def sanitize_user_name(ctx, param, value):
+    """Check usernames for length and invalid characters.
+    """
+    if len(value) > 255:
+        raise Exception('Username Too Long')
+
+    if not re.match(r'^[a-zA-Z0-9_\+=,\.@-]+$', value):
+        raise Exception('Invalid Characters in Username')
+
+    return value.lower()
+
+
 def convert_disk_size_to_int(ctx, param, value):
     """Convert friendly cli option to int
     """

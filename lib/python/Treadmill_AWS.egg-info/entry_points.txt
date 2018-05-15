@@ -22,6 +22,7 @@ instance = treadmill_aws.cli.admin.aws.instance
 role = treadmill_aws.cli.admin.aws.role
 image = treadmill_aws.cli.admin.aws.image
 secgroup = treadmill_aws.cli.admin.aws.secgroup
+user = treadmill_aws.cli.admin.aws.user
 
 [treadmill.formatters]
 aws_subnet = treadmill_aws.formatter:SubnetPrettyFormatter
