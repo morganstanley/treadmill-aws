@@ -32,7 +32,7 @@ class DNSMonitorHelperTests(unittest.TestCase):
             protocol='tcp',
             app_name='fooapi')
 
-        mock_ipaclient.get_ipa_dns.assert_called_with(
+        mock_ipaclient.get_dns_record.assert_called_with(
             idnsname='_ssh._tcp.fooapi.foo.com')
 
     def test_generate_srv_record(self):
@@ -99,8 +99,8 @@ class DNSMonitorHelperTests(unittest.TestCase):
                                     ipaclient=mock_ipaclient,
                                     zk_records=sample_dns_records)
 
-        assert mock_ipaclient.add_ipa_dns.call_count == 0
-        assert mock_ipaclient.del_ipa_dns.call_count == 0
+        assert mock_ipaclient.add_dns_record.call_count == 0
+        assert mock_ipaclient.delete_dns_record.call_count == 0
 
         mock_ipaclient.reset_mock()
 
@@ -112,8 +112,8 @@ class DNSMonitorHelperTests(unittest.TestCase):
                                     ipaclient=mock_ipaclient,
                                     zk_records=sample_dns_records)
 
-        assert mock_ipaclient.add_ipa_dns.call_count == 1
-        assert mock_ipaclient.del_ipa_dns.call_count == 0
+        assert mock_ipaclient.add_dns_record.call_count == 1
+        assert mock_ipaclient.delete_dns_record.call_count == 0
 
         mock_ipaclient.reset_mock()
 
@@ -125,8 +125,8 @@ class DNSMonitorHelperTests(unittest.TestCase):
                                     ipaclient=mock_ipaclient,
                                     zk_records=[])
 
-        assert mock_ipaclient.add_ipa_dns.call_count == 0
-        assert mock_ipaclient.del_ipa_dns.call_count == 1
+        assert mock_ipaclient.add_dns_record.call_count == 0
+        assert mock_ipaclient.delete_dns_record.call_count == 1
 
 
 class DNSMonitorTests(unittest.TestCase):
@@ -147,7 +147,7 @@ class DNSMonitorTests(unittest.TestCase):
 
             client._on_created('/foo/endpoints/proid/appname#001:tcp:ssh')
 
-        mock_ipaclient.add_ipa_dns.assert_called_with(
+        mock_ipaclient.add_dns_record.assert_called_with(
             record_name='_ssh._tcp.appname.subnet123',
             record_type='srvrecord',
             record_value='10 10 5000 host1.foo.com.')

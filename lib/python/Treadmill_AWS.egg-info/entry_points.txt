@@ -34,5 +34,6 @@ aws_secgroup = treadmill_aws.formatter:SecgroupPrettyFormatter
 aws_user = treadmill_aws.formatter:UserPrettyFormatter
 
 [treadmill.sproc]
-ipakeytab = treadmill_aws.sproc.ipakeytab
 awscredential = treadmill_aws.sproc.awscredential
+dnsmonitor = treadmill_aws.sproc.dnsmonitor
+ipakeytab = treadmill_aws.sproc.ipakeytab
