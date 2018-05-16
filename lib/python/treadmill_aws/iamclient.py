@@ -10,7 +10,7 @@ def create_user(iam_conn, user_name):
         response = iam_conn.create_user(Path='/',
                                         UserName=user_name)
         return response['User']
-    except iam_conn.exceptions.EntityAlreadyExists as err:
+    except iam_conn.exceptions.EntityAlreadyExistsException as err:
         raise exc.FoundError(str(err))
 
 
@@ -19,7 +19,7 @@ def delete_user(iam_conn, user_name):
     """
     try:
         return iam_conn.delete_user(UserName=user_name)
-    except iam_conn.exceptions.NoSuchEntity as err:
+    except iam_conn.exceptions.NoSuchEntityException as err:
         raise exc.NotFoundError(str(err))
 
 
@@ -38,7 +38,7 @@ def get_user(iam_conn, user_name):
     """
     try:
         return iam_conn.get_user(UserName=user_name)['User']
-    except iam_conn.exceptions.NoSuchEntity as err:
+    except iam_conn.exceptions.NoSuchEntityException as err:
         raise exc.NotFoundError(str(err))
 
 
@@ -52,7 +52,7 @@ def create_role(iam_conn, role_name, policy_document):
             AssumeRolePolicyDocument=policy_document
         )
         return response['Role']
-    except iam_conn.exceptions.EntityAlreadyExists as err:
+    except iam_conn.exceptions.EntityAlreadyExistsException as err:
         raise exc.FoundError(str(err))
 
 
@@ -61,7 +61,7 @@ def delete_role(iam_conn, role_name):
     """
     try:
         return iam_conn.delete_role(RoleName=role_name)
-    except iam_conn.exceptions.NoSuchEntity as err:
+    except iam_conn.exceptions.NoSuchEntityException as err:
         raise exc.NotFoundError(str(err))
 
 
@@ -78,5 +78,5 @@ def get_role(iam_conn, role_name):
     """Return role by name."""
     try:
         return iam_conn.get_role(RoleName=role_name)['Role']
-    except iam_conn.exceptions.NoSuchEntity as err:
+    except iam_conn.exceptions.NoSuchEntityException as err:
         raise exc.NotFoundError(str(err))
