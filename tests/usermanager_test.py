@@ -25,6 +25,18 @@ class UsermanagerTest(unittest.TestCase):
             'ipa-server.mydomain.x'
         self.ipaclient = ipaclient.IPAClient('certs', 'domain')
 
+    class FakeResponse(object):
+        """Fake IPA response object.
+        """
+        text = 'foo'
+        status_code = 200
+
+        def json(self=None):
+            """Fake JSON response.
+            """
+            return {'error': None,
+                    'result': {'result': {'foo': 'bar'}}}
+
     @mock.patch('subprocess.check_call',
                 return_value=mock.MagicMock())
     @mock.patch('requests.post',
@@ -32,9 +44,7 @@ class UsermanagerTest(unittest.TestCase):
     def test_create_ipa_user(self, resp_mock, subproc_mock):
         """Test create_ipa_user.
         """
-        # IPA always return 200
-        resp_mock.return_value.status_code = 200
-        resp_mock.return_value.text = 'foo'
+        resp_mock.return_value = self.FakeResponse
 
         result = usermanager.create_ipa_user(
             ipa_client=self.ipaclient,
@@ -58,8 +68,7 @@ class UsermanagerTest(unittest.TestCase):
     def test_create_ipa_user_no_creds(self, resp_mock, subproc_mock):
         """Test create_ipa_user with invalid creds.
         """
-        # IPA always return 200
-        resp_mock.return_value.status_code = 200
+        resp_mock.return_value = self.FakeResponse
         resp_mock.return_value.text = \
             'Unable to verify your Kerberos credentials'
 
