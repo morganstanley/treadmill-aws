@@ -50,8 +50,99 @@ def filter_raw_records(cell_name, raw_records, record_type):
     return dns_records
 
 
+# From IPA documentation:
+#
+# https://github.com/freeipa/freeipa/blob/master/ipalib/errors.py
+#
+# The public errors are arranging into five main blocks of error code ranges:
+#     =============  ========================================
+#      Error codes                 Exceptions
+#     =============  ========================================
+#     1000 - 1999    `AuthenticationError` and its subclasses
+#     2000 - 2999    `AuthorizationError` and its subclasses
+#     3000 - 3999    `InvocationError` and its subclasses
+#     4000 - 4999    `ExecutionError` and its subclasses
+#     5000 - 5999    `GenericError` and its subclasses
+#     =============  ========================================
+#
+# We will copy ranges with similar exception hierarchy, with explicit support
+# for code 4002 (DuplicateEntry) and 4001 (NotFound)
+
+class IPAError(Exception):
+    """IPA Client exceptions."""
+    pass
+
+
+class AuthenticationError(IPAError):
+    """IPA Client authentication errors."""
+    pass
+
+
+class AuthorizationError(IPAError):
+    """IPA Client authorization errors."""
+    pass
+
+
+class InvocationError(IPAError):
+    """IPA Client invocation errors."""
+    pass
+
+
+class ExecutionError(IPAError):
+    """IPA Client execution errors."""
+    pass
+
+
+class NotFoundError(ExecutionError):
+    """Entry not found error."""
+    pass
+
+
+class AlreadyExistsError(ExecutionError):
+    """Entry already exists."""
+    pass
+
+
+class GenericError(IPAError):
+    """IPA generic error."""
+    pass
+
+
+def check_response(response):
+    """Check responce does not contain errors."""
+    # FreeIPA returns an HTML document rather than JSON if creds not valid:
+    if 'Unable to verify your Kerberos credentials' in response.text:
+        raise AuthenticationError('Invalid Kerberos Credentials')
+
+    response_obj = response.json()
+    if 'error' not in response_obj:
+        return
+
+    err = response_obj['error']
+    code = err['code']
+    if 1000 <= code <= 1999:
+        raise AuthenticationError(err['message'])
+    if 2000 <= code <= 2999:
+        raise AuthorizationError(err['message'])
+    if 3000 <= code <= 3999:
+        raise InvocationError(err['message'])
+    if code == 4001:
+        raise NotFoundError(err['message'])
+    if code == 4002:
+        raise AlreadyExistsError(err['message'])
+    if 4000 <= code <= 4999:
+        raise ExecutionError(err['message'])
+    if 5000 <= code <= 5999:
+        raise GenericError(err['message'])
+
+    raise IPAError('Unknown error.')
+
+
+# TODO: Error handling is very inconsistent, need to be rewritten.
 class IPAClient():
-    """Interfaces with freeIPA API to register and deregister hosts.
+    """ Interfaces with freeIPA API to add, delete, list and manage
+        IPA hosts, users and groups.
+
     """
 
     def __init__(self, certs, domain):
@@ -75,13 +166,7 @@ class IPAClient():
                                  headers=self.referer,
                                  verify=self.certs)
 
-        # FreeIPA returns an HTML document rather than JSON if creds not valid:
-        if 'Unable to verify your Kerberos credentials' in response.text:
-            raise Exception('Invalid Kerberos Credentials')
-
-        if response.json()['error']:
-            raise KeyError(response.json()['error']['message'])
-
+        check_response(response)
         return response
 
     def enroll_host(self, hostname):
@@ -128,7 +213,7 @@ class IPAClient():
                    'id': 0}
         return self._post(payload=payload).json()
 
-    def del_dns_record(self, record_type, record_name, record_value):
+    def delete_dns_record(self, record_type, record_name, record_value):
         """Delete DNS record from IPA server.
         """
         payload = {'method': 'dnsrecord_del',
@@ -152,3 +237,53 @@ class IPAClient():
                                   {'version': _API_VERSION}],
                        'id': 0}
         return self._post(payload=payload).json()
+
+    def add_user(self, user_name, first_name, last_name, user_type):
+        """Add new user to IPA server.
+        """
+        payload = {'method': 'user_add',
+                   'params': [[user_name],
+                              {'givenname': first_name,
+                               'sn': last_name,
+                               'userclass': user_type,
+                               'version': _API_VERSION}],
+                   'id': 0}
+        response = self._post(payload=payload)
+        return response.json()['result']['result']
+
+    def delete_user(self, user_name):
+        """Remove user from IPA server.
+        """
+        payload = {'method': 'user_del',
+                   'params': [[user_name],
+                              {'version': _API_VERSION}],
+                   'id': 0}
+        return self._post(payload=payload).json()
+
+    def list_users(self, pattern=None):
+        """Retrieve user records from IPA server.
+        """
+        # TODO: is this really needed?
+        if pattern is None:
+            pattern = ''
+
+        if pattern:
+            payload = {'method': 'user_find',
+                       'params': [[pattern],
+                                  {'version': _API_VERSION}],
+                       'id': 0}
+        else:
+            payload = {'method': 'user_find',
+                       'params': [[],
+                                  {'version': _API_VERSION}],
+                       'id': 0}
+        return self._post(payload=payload).json()['result']['result']
+
+    def show_user(self, user_name):
+        """Show details about IPA user.
+        """
+        payload = {'method': 'user_show',
+                   'params': [[user_name],
+                              {'version': _API_VERSION}],
+                   'id': 0}
+        return self._post(payload=payload).json()['result']['result']

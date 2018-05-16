@@ -1,20 +1,17 @@
-""" IPA Client tests """
-# Suppress pylint warnings concerning access to protected member _post
-# pylint: disable=W0212
-# Suppress pylint warnings concerning imports of mocked classes
-# pylint: disable=W0611
-
+""" Test ipaclient functions
+"""
 import unittest
 
 import dns.resolver
 import mock
-import requests
 
-import treadmill_aws
-from treadmill_aws import aws
 from treadmill_aws import ipaclient
 
 
+# Suppress pylint warnings concerning access to protected member _post
+# pylint: disable=W0212
+# Suppress pylint warnings concerning imports of mocked classes
+# pylint: disable=W0611
 class IPAHelperTests(unittest.TestCase):
     """Test IPAClient helper functions.
     """
@@ -229,12 +226,13 @@ class IPAClientTest(unittest.TestCase):
                                  'version': '2.28'}],
                      'id': 0})
 
-    def test_del_dns_record_payload(self):
+    def test_delete_dns_record_payload(self):
         """Test that del_dns_record formats payload correctly.
         """
-        self.test_client.del_dns_record(record_type='srvrecord',
-                                        record_name='_tcp._ssh.cellname',
-                                        record_value='10 10 10 host.foo.com')
+        self.test_client.delete_dns_record(
+            record_type='srvrecord',
+            record_name='_tcp._ssh.cellname',
+            record_value='10 10 10 host.foo.com')
         self.test_client._post.assert_called_with(
             payload={'method': 'dnsrecord_del',
                      'params': [['foo.com', '_tcp._ssh.cellname'],
@@ -258,6 +256,61 @@ class IPAClientTest(unittest.TestCase):
             payload={'id': 0,
                      'method': 'dnsrecord_find',
                      'params': [['foo.com'],
+                                {'version': '2.28'}]})
+
+    def test_add_user(self):
+        """ Test that add_user formats payload correctly """
+
+        self.test_client.add_user(user_name='user1',
+                                  first_name='foo',
+                                  last_name='proid',
+                                  user_type='proid')
+
+        self.test_client._post.assert_called_with(
+            payload={'method': 'user_add',
+                     'params': [['user1'],
+                                {'givenname': 'foo',
+                                 'sn': 'proid',
+                                 'userclass': 'proid',
+                                 'version': '2.28'}],
+                     'id': 0})
+
+    def test_delete_user(self):
+        """ Test that del_user formats payload correctly """
+
+        self.test_client.delete_user(user_name='user1')
+
+        self.test_client._post.assert_called_with(
+            payload={'method': 'user_del',
+                     'params': [['user1'],
+                                {'version': '2.28'}],
+                     'id': 0})
+
+    def test_list_users(self):
+        """ Test that get_user formats payload correctly """
+        # With pattern
+        self.test_client.list_users(pattern='foo')
+        self.test_client._post.assert_called_with(
+            payload={'id': 0,
+                     'method': 'user_find',
+                     'params': [['foo'],
+                                {'version': '2.28'}]})
+
+        # Without pattern
+        self.test_client.list_users()
+        self.test_client._post.assert_called_with(
+            payload={'id': 0,
+                     'method': 'user_find',
+                     'params': [[],
+                                {'version': '2.28'}]})
+
+    def test_show_user(self):
+        """ Test that show_user formats payload correctly """
+        self.test_client.show_user(user_name='foo')
+        self.test_client._post.assert_called_with(
+            payload={'id': 0,
+                     'method': 'user_show',
+                     'params': [['foo'],
                                 {'version': '2.28'}]})
 
 

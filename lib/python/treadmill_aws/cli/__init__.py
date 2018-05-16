@@ -13,6 +13,7 @@ import re
 import click
 
 from treadmill import cli
+from treadmill import utils
 
 from treadmill_aws import awscontext
 
@@ -68,22 +69,28 @@ def handle_context_opt(ctx, param, value):
     return value
 
 
-# Suppress pylint warnings concerning unused Click arguments
-# pylint: disable=W0613
+def sanitize_user_name(ctx, param, value):
+    """Check usernames for length and invalid characters.
+    """
+    del ctx
+    del param
+
+    if len(value) > 255:
+        raise click.BadParameter('Username length > 255.')
+
+    if not re.match(r'^[a-zA-Z0-9_\+=,\.@-]+$', value):
+        raise click.BadParameter('Invalid characters in username')
+
+    return value.lower()
+
+
 def convert_disk_size_to_int(ctx, param, value):
     """Convert friendly cli option to int
     """
-    if isinstance(value, int):
-        if value > 0:
-            return value
-        else:
-            raise ValueError('Disk must be greater than 0 GB')
-
-    size = re.search(r'\d+', value)
-    if size:
-        return int(size.group())
-    else:
-        raise ValueError("Can't interpret %r" % value)
+    del ctx
+    del param
+    size_in_bytes = utils.size_to_bytes(value)
+    return size_in_bytes // 1024 // 1024
 
 
 class _Resource(click.ParamType):
