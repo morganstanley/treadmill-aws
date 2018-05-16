@@ -249,14 +249,16 @@ class IPAClientTest(unittest.TestCase):
             payload={'id': 0,
                      'method': 'dnsrecord_find',
                      'params': [['foo.com', '_tcp._ssh.cellname'],
-                                {'version': '2.28'}]})
+                                {'version': '2.28',
+                                 'sizelimit': 0}]})
         # Without idnsname
         self.test_client.get_dns_record()
         self.test_client._post.assert_called_with(
             payload={'id': 0,
                      'method': 'dnsrecord_find',
                      'params': [['foo.com'],
-                                {'version': '2.28'}]})
+                                {'version': '2.28',
+                                 'sizelimit': 0}]})
 
     def test_add_user(self):
         """ Test that add_user formats payload correctly """
@@ -294,7 +296,8 @@ class IPAClientTest(unittest.TestCase):
             payload={'id': 0,
                      'method': 'user_find',
                      'params': [['foo'],
-                                {'version': '2.28'}]})
+                                {'version': '2.28',
+                                 'sizelimit': 0}]})
 
         # Without pattern
         self.test_client.list_users()
@@ -302,7 +305,8 @@ class IPAClientTest(unittest.TestCase):
             payload={'id': 0,
                      'method': 'user_find',
                      'params': [[],
-                                {'version': '2.28'}]})
+                                {'version': '2.28',
+                                 'sizelimit': 0}]})
 
     def test_show_user(self):
         """ Test that show_user formats payload correctly """

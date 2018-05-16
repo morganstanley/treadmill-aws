@@ -115,6 +115,12 @@ def check_response(response):
         raise AuthenticationError('Invalid Kerberos Credentials')
 
     response_obj = response.json()
+
+    # Only search results contain 'truncated' key:
+    if 'truncated' in response_obj['result']:
+        if response_obj['result']['truncated']:
+            raise IPAError('IPA results truncated.')
+
     if not response_obj['error']:
         return
 
@@ -194,7 +200,8 @@ class IPAClient():
         """
         payload = {'method': 'host_find',
                    'params': [[pattern],
-                              {'version': _API_VERSION}],
+                              {'version': _API_VERSION,
+                               'sizelimit': 0}],
                    'id': 0}
         resp = self._post(payload=payload).json()
 
@@ -229,12 +236,14 @@ class IPAClient():
         if idnsname:
             payload = {'method': 'dnsrecord_find',
                        'params': [[self.domain, idnsname],
-                                  {'version': _API_VERSION}],
+                                  {'version': _API_VERSION,
+                                   'sizelimit': 0}],
                        'id': 0}
         else:
             payload = {'method': 'dnsrecord_find',
                        'params': [[self.domain],
-                                  {'version': _API_VERSION}],
+                                  {'version': _API_VERSION,
+                                   'sizelimit': 0}],
                        'id': 0}
         return self._post(payload=payload).json()
 
@@ -270,12 +279,14 @@ class IPAClient():
         if pattern:
             payload = {'method': 'user_find',
                        'params': [[pattern],
-                                  {'version': _API_VERSION}],
+                                  {'version': _API_VERSION,
+                                   'sizelimit': 0}],
                        'id': 0}
         else:
             payload = {'method': 'user_find',
                        'params': [[],
-                                  {'version': _API_VERSION}],
+                                  {'version': _API_VERSION,
+                                   'sizelimit': 0}],
                        'id': 0}
         return self._post(payload=payload).json()['result']['result']
 
