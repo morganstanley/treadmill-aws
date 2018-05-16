@@ -109,13 +109,13 @@ class GenericError(IPAError):
 
 
 def check_response(response):
-    """Check responce does not contain errors."""
+    """Check response does not contain errors."""
     # FreeIPA returns an HTML document rather than JSON if creds not valid:
     if 'Unable to verify your Kerberos credentials' in response.text:
         raise AuthenticationError('Invalid Kerberos Credentials')
 
     response_obj = response.json()
-    if 'error' not in response_obj:
+    if not response_obj['error']:
         return
 
     err = response_obj['error']
