@@ -23,7 +23,7 @@ def find_app_dns(ipaclient, server, protocol, app_name):
 
     _LOGGER.debug('Generated idnsname: %s', idnsname)
 
-    return ipaclient.get_ipa_dns(idnsname=idnsname)
+    return ipaclient.get_dns_record(idnsname=idnsname)
 
 
 def generate_srv_record(cell_name, server, app_name, protocol, endpoints):
@@ -82,7 +82,7 @@ def mirror_zookeeper(cell_name, ipaclient, zk_records):
        records & deletes any old records by comparing each list against
        the other's index.
     """
-    raw_records = ipaclient.get_ipa_dns()
+    raw_records = ipaclient.get_dns_record()
     ipa_records = filter_raw_records(cell_name=cell_name,
                                      raw_records=raw_records,
                                      record_type='srvrecord')
@@ -94,17 +94,17 @@ def mirror_zookeeper(cell_name, ipaclient, zk_records):
     for z_rec in zk_records:
         if z_rec['record'] not in ipa_record_list:
             _LOGGER.debug('Add record: %s', z_rec)
-            ipaclient.add_ipa_dns(record_type='srvrecord',
-                                  record_name=z_rec['idnsname'],
-                                  record_value=z_rec['record'])
+            ipaclient.add_dns_record(record_type='srvrecord',
+                                     record_name=z_rec['idnsname'],
+                                     record_value=z_rec['record'])
 
     # Delete bad records in IPA DNS
     for i_rec in ipa_records:
         if i_rec['record'] not in zk_record_list:
             _LOGGER.debug('Delete record: %s', i_rec)
-            ipaclient.del_ipa_dns(record_type='srvrecord',
-                                  record_name=i_rec['idnsname'],
-                                  record_value=i_rec['record'])
+            ipaclient.delete_dns_record(record_type='srvrecord',
+                                        record_name=i_rec['idnsname'],
+                                        record_value=i_rec['record'])
 
 
 class DNSMonitor():
@@ -139,9 +139,9 @@ class DNSMonitor():
                                          endpoints=endpoints)
 
         # Submit DNS record to freeIPA
-        self.ipaclient.add_ipa_dns(record_type='srvrecord',
-                                   record_name=dns_record['idnsname'],
-                                   record_value=dns_record['record'])
+        self.ipaclient.add_dns_record(record_type='srvrecord',
+                                      record_name=dns_record['idnsname'],
+                                      record_value=dns_record['record'])
         _LOGGER.info('Record added: %s', path)
 
     def _on_deleted(self, path):
