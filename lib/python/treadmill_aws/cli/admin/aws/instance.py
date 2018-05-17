@@ -98,8 +98,8 @@ def init():
     @click.option(
         '--disk-size',
         required=True,
-        default=10,
-        help='Root parition size',
+        default='10G',
+        help='Root parition size, e.g. 100G',
         callback=aws_cli.convert_disk_size_to_int
     )
     @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
