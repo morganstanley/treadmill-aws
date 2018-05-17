@@ -101,6 +101,7 @@ class UsermanagerTest(unittest.TestCase):
                 'code': 4002,
                 'message': 'error',
             },
+            'result': []
         }
         resp_mock.return_value.json = json_mock
 
