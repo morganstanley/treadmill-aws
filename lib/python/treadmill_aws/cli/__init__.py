@@ -90,7 +90,7 @@ def convert_disk_size_to_int(ctx, param, value):
     del ctx
     del param
     size_in_bytes = utils.size_to_bytes(value)
-    return size_in_bytes // 1024 // 1024
+    return size_in_bytes // 1024 // 1024 // 1024
 
 
 class _Resource(click.ParamType):
