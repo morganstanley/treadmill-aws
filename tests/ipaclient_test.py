@@ -16,6 +16,17 @@ class IPAHelperTests(unittest.TestCase):
     """Test IPAClient helper functions.
     """
 
+    class FakeIPAResponse(object):
+        """Fake IPA JSON-RPC response object.
+        """
+        text = ''
+        _json = {}
+
+        def json(self=None):
+            """Fake JSON response.
+            """
+            return self._json
+
     fake_multi_records = {'error': None,
                           'id': 0,
                           'principal': 'admin@FOO.COM',
@@ -63,12 +74,21 @@ class IPAHelperTests(unittest.TestCase):
                              'truncated': False},
                   'version': '4.5.0'}
 
+    truncated_records = {'error': None,
+                         'id': 0,
+                         'principal': 'admin@FOO.COM',
+                         'result': {'count': 0,
+                                    'result': [],
+                                    'summary': None,
+                                    'truncated': True},
+                         'version': '4.5.0'}
+
     def test_get_ipa_server_from_dns(self):
         """Test IPA server resolution from DNS.
         """
 
-        class FakeResponse(object):
-            """Fake requests.response object.
+        class FakeDNSResponse(object):
+            """Fake dns.resolver.query object.
             """
 
             def __init__(self, host):
@@ -81,15 +101,15 @@ class IPAHelperTests(unittest.TestCase):
 
         # Test single DNS response
         dns.resolver.query = mock.MagicMock(
-            return_value=[FakeResponse('ipa1.foo.com')])
+            return_value=[FakeDNSResponse('ipa1.foo.com')])
 
         result = ipaclient.get_ipa_server_from_dns('foo.com')
         assert result == 'ipa1.foo.com.'
 
         # Test multiple DNS responses
         dns.resolver.query = mock.MagicMock(
-            return_value=[FakeResponse('ipa1.foo.com'),
-                          FakeResponse('ipa2.foo.com')])
+            return_value=[FakeDNSResponse('ipa1.foo.com'),
+                          FakeDNSResponse('ipa2.foo.com')])
 
         result = ipaclient.get_ipa_server_from_dns('foo.com')
         assert result in ['ipa1.foo.com.', 'ipa2.foo.com.']
@@ -143,6 +163,17 @@ class IPAHelperTests(unittest.TestCase):
                                               raw_records=self.no_records,
                                               record_type='srvrecord')
         assert result == []
+
+    def test_check_response(self):
+        """Test error handling of JSON IPA record output.
+        """
+
+        # Test truncated result handling
+        truncated_response = self.FakeIPAResponse()
+        truncated_response._json = self.truncated_records
+
+        with self.assertRaises(ipaclient.IPAError):
+            ipaclient.check_response(truncated_response)
 
 
 class IPAClientTest(unittest.TestCase):

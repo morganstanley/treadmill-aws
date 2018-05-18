@@ -116,9 +116,9 @@ def check_response(response):
 
     response_obj = response.json()
 
-    # Only search results contain 'truncated' key:
-    if 'truncated' in response_obj['result']:
-        if response_obj['result']['truncated']:
+    if response_obj['result']:
+        # Only search results contain 'truncated' key:
+        if response_obj['result'].get('truncated', False):
             raise IPAError('IPA results truncated.')
 
     if not response_obj['error']:

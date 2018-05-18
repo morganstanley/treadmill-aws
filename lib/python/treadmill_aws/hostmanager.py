@@ -6,6 +6,7 @@ import time
 import yaml
 
 from treadmill_aws import ec2client
+from treadmill_aws import ipaclient
 
 
 def _instance_tags(hostname, role):
@@ -100,7 +101,10 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
 def delete_hosts(ec2_conn, ipa_client, hostnames):
     """ Unenrolls hosts from IPA and AWS """
     for hostname in hostnames:
-        ipa_client.unenroll_host(hostname=hostname)
+        try:
+            ipa_client.unenroll_host(hostname=hostname)
+        except (KeyError, ipaclient.NotFoundError):
+            pass
 
     ec2client.delete_instances(ec2_conn, hostnames=hostnames)
 
