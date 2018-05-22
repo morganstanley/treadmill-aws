@@ -24,9 +24,8 @@ def sync_servers():
         masterapi.create_bucket(context.GLOBAL.zk.conn, building, None)
         masterapi.cell_insert_bucket(context.GLOBAL.zk.conn, building)
         masterapi.create_bucket(context.GLOBAL.zk.conn, rack, building)
-        masterapi.create_server(context.GLOBAL.zk.conn, servername, rack)
-        masterapi.update_server_attrs(context.GLOBAL.zk.conn, servername,
-                                      partition=partition)
+        masterapi.create_server(context.GLOBAL.zk.conn, servername, rack,
+                                partition=partition)
 
 
 def init():
