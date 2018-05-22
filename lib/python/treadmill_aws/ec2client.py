@@ -1,6 +1,7 @@
 """AWS client connectors and helper functions.
 """
 
+from treadmill import exc
 from . import aws
 
 
@@ -129,6 +130,10 @@ def get_image(ec2_conn, ids=None, tags=None, owners=None, name=None):
     images = list_images(
         ec2_conn, ids=ids, tags=tags, owners=owners, name=name
     )
+
+    if not images:
+        raise exc.NotFoundError('No {} found.'.format(ids))
+
     image = images.pop(0)
     if images:
         raise aws.NotUniqueError()
