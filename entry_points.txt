@@ -1,19 +1,24 @@
 # vim:syntax=cfg
 
+[treadmill.profiles]
+aws = treadmill_aws.plugins.profile
+
 [treadmill.rest.api]
 aws-image = treadmill_aws.rest.api.image
 
 [treadmill.api]
 aws-image = treadmill_aws.api.image
 
+
 [treadmill.cli]
 aws = treadmill_aws.cli.aws
 
-[treadmill_aws.cli.aws]
-image = treadmill_aws.cli.aws.image
-
 [treadmill.cli.admin]
 aws = treadmill_aws.cli.admin.aws
+
+
+[treadmill_aws.cli.aws]
+image = treadmill_aws.cli.aws.image
 
 [treadmill_aws.cli.admin.aws]
 subnet = treadmill_aws.cli.admin.aws.subnet
@@ -24,6 +29,7 @@ image = treadmill_aws.cli.admin.aws.image
 secgroup = treadmill_aws.cli.admin.aws.secgroup
 user = treadmill_aws.cli.admin.aws.user
 
+
 [treadmill.formatters]
 aws_subnet = treadmill_aws.formatter:SubnetPrettyFormatter
 aws_vpc = treadmill_aws.formatter:VpcPrettyFormatter
@@ -33,7 +39,13 @@ aws_image = treadmill_aws.formatter:ImagePrettyFormatter
 aws_secgroup = treadmill_aws.formatter:SecgroupPrettyFormatter
 aws_user = treadmill_aws.formatter:UserPrettyFormatter
 
+
 [treadmill.sproc]
 awscredential = treadmill_aws.sproc.awscredential
 dnsmonitor = treadmill_aws.sproc.dnsmonitor
 ipakeytab = treadmill_aws.sproc.ipakeytab
+
+
+[treadmill.bootstrap]
+aliases.aws = treadmill_aws.bootstrap.aws_aliases
+node.aws = treadmill_aws.bootstrap.node.aws
