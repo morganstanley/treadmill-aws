@@ -49,3 +49,11 @@ ipakeytab = treadmill_aws.sproc.ipakeytab
 [treadmill.bootstrap]
 aliases.aws = treadmill_aws.bootstrap.aws_aliases
 node.aws = treadmill_aws.bootstrap.node.aws
+
+
+[treadmill.connection.manager]
+zookeeper = treadmill_aws.plugins.zookeeper
+
+
+[treadmill.api.instance.plugins]
+aws-proid-env = treadmill_aws.plugins.api.instance
