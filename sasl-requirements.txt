@@ -1,0 +1,1 @@
+git+https://github.com/ceache/kazoo.git@puresasl#egg=kazoo[sasl]==2.4.0.dev0
