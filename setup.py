@@ -25,4 +25,7 @@ def _read_requires(filename):
 setuptools.setup(
     version='1.0',
     install_requires=_read_requires('requirements.txt'),
+    extras_require={
+        'zk-sasl': _read_requires('sasl-requirements.txt'),
+    }
 )

@@ -52,7 +52,7 @@ node.aws = treadmill_aws.bootstrap.node.aws
 
 
 [treadmill.connection.manager]
-zookeeper = treadmill_aws.plugins.zookeeper
+zookeeper = treadmill_aws.plugins.zookeeper [zk-sasl]
 
 
 [treadmill.api.instance.plugins]
