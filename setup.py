@@ -23,6 +23,7 @@ def _read_requires(filename):
 
 
 setuptools.setup(
+    name='Treadmill_AWS',
     version='1.0',
     install_requires=_read_requires('requirements.txt'),
     extras_require={
