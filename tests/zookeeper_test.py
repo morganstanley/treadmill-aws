@@ -4,53 +4,57 @@
 import unittest
 
 import mock
+import pkg_resources
 
-from treadmill_aws.plugins import zookeeper
+from treadmill_aws.plugins import zookeeper as zksasl
 
 
+@unittest.skipUnless('sasl' in pkg_resources.get_distribution('kazoo').extras,
+                     'Kazoo does not have SASL support')
 class ZookeeperTest(unittest.TestCase):
-    """Tests Zookeeper plugin."""
+    """Tests Zookeeper plugin.
+    """
+    @mock.patch('treadmill.zkutils.ZkClient.__init__')
+    def test_connect_without_connargs(self, zkclient_mock):
+        """Test connect.
+        """
+        zk = zksasl.SASLZkClient(
+            hosts='zkservice@123:21'
+        )
 
-    @mock.patch('kazoo.client.KazooClient')
-    def test_connect_without_connargs(self, kazoo_clien_mock):
-        """Test connect."""
-        zkurl = 'zookeeper://zkservice@123:21'
-
-        zookeeper.connect(zkurl, {})
-
-        kazoo_clien_mock.assert_called_once_with(
+        zkclient_mock.assert_called_once_with(
             hosts='123:21',
             sasl_data={
                 'service': 'zkservice',
                 'mechanisms': ['GSSAPI']
-            })
+            }
+        )
 
-    @mock.patch('kazoo.client.KazooClient')
-    def test_connect_with_connargs(self, kazoo_clien_mock):
+    @mock.patch('treadmill.zkutils.ZkClient.__init__')
+    def test_connect_with_connargs(self, zkclient_mock):
         """Test connect with args.
         """
-        zkurl = 'zookeeper://foobar:123'
-        connargs = {
-            'hosts': 'foobar:123',
-            'sasl_data': {
-                'service': 'foo',
-                'mechanisms': 'bar'
-            }
-        }
-
-        zookeeper.connect(zkurl, connargs)
-
-        kazoo_clien_mock.assert_called_once_with(
-            hosts='foobar:123',
+        zk = zksasl.SASLZkClient(
+            hosts='lala@foobar:123',
             sasl_data={
                 'service': 'foo',
-                'mechanisms': 'bar'
-            })
+                'mechanisms': ['bar']
+            }
+        )
+
+        zkclient_mock.assert_called_once_with(
+            hosts='foobar:123',
+            sasl_data={
+                'service': 'lala',
+                'mechanisms': ['bar']
+            }
+        )
 
     @mock.patch('kazoo.security.make_acl')
     def test_make_user_acl(self, make_acl_mock):
         """Test constucting user acl."""
-        zookeeper.make_user_acl('foo', 'rw')
+        zk = zksasl.SASLZkClient()
+        zk.make_user_acl('foo', 'rw')
 
         make_acl_mock.assert_called_once_with(
             scheme='sasl', credential='foo', read=True,
@@ -60,7 +64,8 @@ class ZookeeperTest(unittest.TestCase):
     @mock.patch('kazoo.security.make_acl')
     def test_make_role_acl(self, make_acl_mock):
         """Test constructing role acl for valid role."""
-        zookeeper.make_role_acl('servers', 'ra')
+        zk = zksasl.SASLZkClient()
+        zk.make_role_acl('servers', 'ra')
 
         make_acl_mock.assert_called_once_with(
             scheme='sasl', credential='role/servers', read=True,
@@ -69,13 +74,15 @@ class ZookeeperTest(unittest.TestCase):
 
     def test_make_role_acl_bad_role(self):
         """Test acl with invalid role."""
+        zk = zksasl.SASLZkClient()
         with self.assertRaises(AssertionError):
-            zookeeper.make_role_acl('foo', 'rwc')
+            zk.make_role_acl('foo', 'rwc')
 
     @mock.patch('kazoo.security.make_acl')
     def test_make_host_acl(self, make_acl_mock):
         """Test host acl."""
-        zookeeper.make_host_acl('foo@123', 'rdwca')
+        zk = zksasl.SASLZkClient()
+        zk.make_host_acl('foo@123', 'rdwca')
 
         make_acl_mock.assert_called_once_with(
             scheme='sasl', credential='host/foo@123', read=True,

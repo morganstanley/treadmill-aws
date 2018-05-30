@@ -51,8 +51,8 @@ aliases.aws = treadmill_aws.bootstrap.aws_aliases
 node.aws = treadmill_aws.bootstrap.node.aws
 
 
-[treadmill.connection.manager]
-zookeeper = treadmill_aws.plugins.zookeeper [zk-sasl]
+[treadmill.zookeeper.client]
+zookeeper.sasl = treadmill_aws.plugins.zookeeper:SASLZkClient [zk-sasl]
 
 
 [treadmill.api.instance.plugins]
