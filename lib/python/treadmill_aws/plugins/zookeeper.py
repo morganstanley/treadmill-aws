@@ -6,66 +6,89 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import logging
+
 import kazoo.client
 import kazoo.security
 
+from treadmill import zkutils
+
 _ROLES = ['servers', 'admins', 'readers']
+_DEFAULT_ZK_SERVICE = 'zookeeper'
+
+_LOGGER = logging.getLogger('__name__')
 
 
-def connect(zkurl, connargs):
-    """Connect to zookeeper.
+class SASLZkClient(zkutils.ZkClient):
+    """ZkClient implementation using SASL base authentication.
     """
-    assert zkurl.startswith('zookeeper://'), 'Invalid zkurl'
 
-    zkurl = zkurl[len('zookeeper://'):]
-    if '@' in zkurl:
-        zkservice, _, zkhosts = zkurl.partition('@')
-    else:
-        zkhosts = zkurl
+    def __init__(self, **connargs):
+        """Foo
+        """
+        if 'hosts' in connargs and '@' in connargs['hosts']:
+            zkservice, _, zkhosts = connargs['hosts'].partition('@')
+            connargs['hosts'] = zkhosts
+        else:
+            zkservice = _DEFAULT_ZK_SERVICE
 
-    # Allow connargs to override the hosts from the zkurl.
-    if 'hosts' not in connargs:
-        connargs['hosts'] = zkhosts
+        if 'sasl_data' not in connargs:
+            connargs['sasl_data'] = {
+                'service': zkservice,
+                'mechanisms': ['GSSAPI']
+            }
+        else:
+            connargs['sasl_data']['service'] = zkservice
 
-    # Allow connargs to override sasl_data from zkurl.
-    if 'sasl_data' not in connargs:
-        connargs['sasl_data'] = {
-            'service': zkservice,
-            'mechanisms': ['GSSAPI']
-        }
+        _LOGGER.debug('SASL Kerberos connection to Zookeeper: %r', connargs)
+        super().__init__(**connargs)
 
-    return kazoo.client.KazooClient(**connargs)
+    def make_user_acl(self, user, perm):
+        """Create user acl in zookeeper.
+
+        ACL properties:
+            - schema: sasl
+            - credential: <user>
+        """
+        return kazoo.security.make_acl(
+            scheme='sasl', credential=user,
+            read='r' in perm,
+            write='w' in perm,
+            create='c' in perm,
+            delete='d' in perm,
+            admin='a' in perm
+        )
+
+    def make_role_acl(self, role, perm):
+        """Create role acl in zookeeper.
+
+        Roles are sourced from our LDAP lookup plugin, in the format
+        'role/<role>.
+        """
+        assert role in _ROLES
+
+        return kazoo.security.make_acl(
+            scheme='sasl', credential='role/{0}'.format(role),
+            read='r' in perm,
+            write='w' in perm,
+            create='c' in perm,
+            delete='d' in perm,
+            admin='a' in perm
+        )
+
+    def make_host_acl(self, host, perm):
+        """Create host acl in zookeeper.
+        """
+        return kazoo.security.make_acl(
+            scheme='sasl', credential='host/{0}'.format(host),
+            read='r' in perm,
+            write='w' in perm,
+            create='c' in perm,
+            delete='d' in perm,
+            admin='a' in perm
+        )
 
 
-def make_user_acl(user, perm):
-    """Create user acl in zookeeper.
-    """
-    return kazoo.security.make_acl(
-        scheme='sasl', credential=user, read='r' in perm,
-        write='w' in perm, delete='d' in perm,
-        create='c' in perm, admin='a' in perm
-    )
-
-
-def make_role_acl(role, perm):
-    """Create role acl in zookeeper.
-    """
-    assert role in _ROLES
-
-    return kazoo.security.make_acl(
-        scheme='sasl', credential='role/{0}'.format(role),
-        read='r' in perm, write='w' in perm,
-        delete='d' in perm, create='c' in perm,
-        admin='a' in perm
-    )
-
-
-def make_host_acl(host, perm):
-    """Create host acl in zookeeper.
-    """
-    return kazoo.security.make_acl(
-        scheme='sasl', credential='host/{0}'.format(host),
-        read='r' in perm, write='w' in perm,
-        delete='d' in perm, create='c' in perm,
-        admin='a' in perm
-    )
+__all__ = (
+    'SASLZkClient',
+)
