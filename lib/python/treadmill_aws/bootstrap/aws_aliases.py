@@ -43,7 +43,7 @@ _LINUX_ALIASES = {
     'reboot': '/usr/bin/reboot',
 
     # Skarnet S6
-    's6': '/usr/bin',
+    's6': '/opt/s6',
 
     # Treadmill PID1
     'pid1': '/usr/bin/pid1',
@@ -70,9 +70,9 @@ _LINUX_ALIASES = {
     # ld_preload libs use $LIB notation, and in the code should be resolved
     # with check=False.
     #
-    'treadmill_bind_distro': '/opt/treadmill_bind_preload',
+    'treadmill_bind_distro': '/opt/treadmill-bind/usr/',
     'treadmill_bind_preload.so': (
-        '/opt/treadmill_bind_preload/lib64/treadmill_bind_preload.so'
+        '/opt/treadmill-bind/usr/lib64/libtreadmill_bind_preload.so',
     ),
 
     # Linux Volume Manager
