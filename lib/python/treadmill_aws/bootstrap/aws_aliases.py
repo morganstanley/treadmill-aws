@@ -30,8 +30,8 @@ _LINUX_ALIASES = {
     'ipa': '/bin/ipa',
     'kinit': '/usr/bin/kinit',
     'klist': '/usr/bin/klist',
-    'kt_add': '/usr/bin/kt_add',
-    'kt_split': '/usr/bin/kt_split',
+    'kt_add': '/usr/bin/kt-add',
+    'kt_split': '/usr/bin/kt-split',
 
     'fio': None,
     'iozone': None,
@@ -62,8 +62,8 @@ _LINUX_ALIASES = {
     'sshd': '/usr/sbin/sshd',
 
     # Treadmill utilities.
-    'tkt_recv_v2': '/usr/bin/tkt-recv-v2',
-    'tkt_send_v2': '/usr/bin/tkt-send-v2',
+    'tkt_recv_v2': '/usr/bin/tkt-recv',
+    'tkt_send_v2': '/usr/bin/tkt-send',
 
     # Shared libraries.
     #
