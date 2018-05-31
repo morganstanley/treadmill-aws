@@ -13,7 +13,10 @@ import kazoo.security
 
 from treadmill import zkutils
 
-_ROLES = ['servers', 'admins', 'readers']
+_ROLES = {
+    'admin': 'admins',
+}
+
 _DEFAULT_ZK_SERVICE = 'zookeeper'
 
 _LOGGER = logging.getLogger('__name__')
@@ -65,10 +68,10 @@ class SASLZkClient(zkutils.ZkClient):
         Roles are sourced from our LDAP lookup plugin, in the format
         'role/<role>.
         """
-        assert role in _ROLES
-
+        credential = 'role/{0}'.format(_ROLES.get(role, role))
         return kazoo.security.make_acl(
-            scheme='sasl', credential='role/{0}'.format(role),
+            scheme='sasl',
+            credential=credential,
             read='r' in perm,
             write='w' in perm,
             create='c' in perm,
