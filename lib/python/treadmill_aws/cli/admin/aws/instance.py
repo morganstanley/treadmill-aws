@@ -69,7 +69,8 @@ def init():
         '--subnet',
         required=False,
         type=aws_cli.SUBNET,
-        help='Subnet'
+        help='Subnet',
+        multiple=True
     )
     @click.option(
         '--role',
@@ -116,26 +117,68 @@ def init():
         image_id = aws_cli.admin.image_id(
             ec2_conn, sts_conn, image, image_account)
         secgroup_id = aws_cli.admin.secgroup_id(ec2_conn, secgroup)
-        subnet_id = aws_cli.admin.subnet_id(ec2_conn, subnet)
+
+        total_subnets = []
 
         if not key:
             key = metadata.instance_keys()[0]
 
-        hostnames = hostmanager.create_host(
-            ipa_client=ipa_client,
-            ec2_conn=ec2_conn,
-            image_id=image_id,
-            count=count,
-            disk=disk_size,
-            domain=ipa_domain,
-            key=key,
-            secgroup_ids=secgroup_id,
-            instance_type=size,
-            subnet_id=subnet_id,
-            role=role,
+        def run_ec2(count, subnet_id):
+            """Run EC2 instance(s)"""
+            hostnames = hostmanager.create_host(
+                ipa_client=ipa_client,
+                ec2_conn=ec2_conn,
+                image_id=image_id,
+                count=count,
+                disk=disk_size,
+                domain=ipa_domain,
+                key=key,
+                secgroup_ids=secgroup_id,
+                instance_type=size,
+                subnet_id=subnet_id,
+                role=role,
+            )
+            for hostname in hostnames:
+                click.echo(hostname)
+
+        for _ in subnet:
+            subnet_id = aws_cli.admin.subnet_id(ec2_conn, _)
+            total_subnets.append(
+                ec2client.list_subnets(ec2_conn, subnet_id.split())
+            )
+
+        for network in total_subnets:
+            filter_subnets = list(
+                filter(
+                    lambda x, net=network:
+                    x[0]['SubnetId'] == net[0]['SubnetId'], total_subnets
+                )
+            )
+
+            assert len(filter_subnets) == 1, \
+                "The same subnet was specified multiple times"
+
+        total_available_ips = sum(
+            map(lambda x: x[0]['AvailableIpAddressCount'], total_subnets)
         )
-        for hostname in hostnames:
-            click.echo(hostname)
+
+        assert total_available_ips >= count, \
+            "There are not enough IP Addresses to run %s EC2 instances" % count
+
+        for network in total_subnets:
+            subnet_available_ips = network[0]['AvailableIpAddressCount']
+
+            if subnet_available_ips < count:
+                run_ec2(subnet_available_ips, network[0]['SubnetId'])
+
+                count -= subnet_available_ips
+
+                continue
+
+            elif subnet_available_ips >= count:
+                run_ec2(count, network[0]['SubnetId'])
+
+                break
 
     @instance.command(name='delete')
     @click.argument('hostname')
