@@ -49,6 +49,7 @@ ipakeytab = treadmill_aws.sproc.ipakeytab
 [treadmill.bootstrap]
 aliases.aws = treadmill_aws.bootstrap.aws_aliases
 node.aws = treadmill_aws.bootstrap.node.aws
+master.aws = treadmill_aws.bootstrap.master.aws
 
 
 [treadmill.zookeeper.client]
