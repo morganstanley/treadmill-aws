@@ -72,12 +72,6 @@ class ZookeeperTest(unittest.TestCase):
             write=False, delete=False, create=False, admin=True
         )
 
-    def test_make_role_acl_bad_role(self):
-        """Test acl with invalid role."""
-        zk = zksasl.SASLZkClient()
-        with self.assertRaises(AssertionError):
-            zk.make_role_acl('foo', 'rwc')
-
     @mock.patch('kazoo.security.make_acl')
     def test_make_host_acl(self, make_acl_mock):
         """Test host acl."""
