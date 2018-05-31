@@ -22,7 +22,7 @@ DEFAULTS = {
     'treadmill_runtime': _DEFAULT_RUNTIME,
     'treadmill_host_ticket': _DEFAULT_HOST_TICKET,
     'system_cpuset_cores': '0',
-    'treadmill_apps_cpuset_cpus': '1',
+    'treadmill_apps_cpuset_cpus': '1-',
     'treadmill_core_cpuset_cpus': '0',
     'treadmill_core_cpu_shares': '1%',
     'treadmill_core_mem': '1G',
