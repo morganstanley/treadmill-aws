@@ -70,9 +70,9 @@ _LINUX_ALIASES = {
     # ld_preload libs use $LIB notation, and in the code should be resolved
     # with check=False.
     #
-    'treadmill_bind_distro': '/opt/treadmill-bind/usr/',
+    'treadmill_bind_distro': '/opt/treadmill-bind',
     'treadmill_bind_preload.so': (
-        '/opt/treadmill-bind/usr/lib64/libtreadmill_bind_preload.so',
+        '/opt/treadmill-bind/$LIB/libtreadmill_bind_preload.so'
     ),
 
     # Linux Volume Manager
