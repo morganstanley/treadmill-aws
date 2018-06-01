@@ -28,7 +28,7 @@ DEFAULTS = {
     'treadmill_core_mem': '1G',
     'treadmill_cpu_shares': '90%',
     'treadmill_mem': '-2G',
-    'localdisk_img_location': '/var/tmp/treadmill-node/',
+    'localdisk_img_location': '{{ dir }}',
     'localdisk_img_size': None,
     'localdisk_block_dev': None,
     'localdisk_vg_name': _DEFAULT_TREADMILL_VG,
