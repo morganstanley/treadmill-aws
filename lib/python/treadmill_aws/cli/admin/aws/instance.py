@@ -7,6 +7,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import click
+import yaml
 
 from treadmill import cli
 
@@ -102,10 +103,16 @@ def init():
         help='Root parition size, e.g. 100G',
         callback=aws_cli.convert_disk_size_to_int
     )
+    @click.option(
+        '--data',
+        required=False,
+        help='Instance data in YAML format',
+        type=click.File()
+    )
     @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
     def create(
             image, image_account, count, disk_size,
-            key, role, secgroup, size, subnet):
+            key, role, secgroup, size, subnet, data):
         """Create instance(s)"""
         ipa_client = awscontext.GLOBAL.ipaclient
         ec2_conn = awscontext.GLOBAL.ec2
@@ -117,6 +124,11 @@ def init():
             ec2_conn, sts_conn, image, image_account)
         secgroup_id = aws_cli.admin.secgroup_id(ec2_conn, secgroup)
         subnet_id = aws_cli.admin.subnet_id(ec2_conn, subnet)
+
+        if data:
+            instance_vars = yaml.load(stream=data)
+        else:
+            instance_vars = {}
 
         if not key:
             key = metadata.instance_keys()[0]
@@ -133,6 +145,7 @@ def init():
             instance_type=size,
             subnet_id=subnet_id,
             role=role,
+            instance_vars=instance_vars,
         )
         for hostname in hostnames:
             click.echo(hostname)

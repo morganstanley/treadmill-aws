@@ -35,7 +35,8 @@ class API(object):
                 secgroup_ids=secgroup,
                 instance_type=size,
                 subnet_id=subnet,
-                disk=disk)
+                disk=disk,
+                instance_vars=None)
 
         def delete_hosts(hostnames):
             """Delete host."""
