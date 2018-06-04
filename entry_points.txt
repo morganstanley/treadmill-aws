@@ -1,5 +1,8 @@
 # vim:syntax=cfg
 
+[console_scripts]
+syscfg = treadmill_aws.syscfg:run
+
 [treadmill.profiles]
 aws = treadmill_aws.plugins.profile
 
