@@ -42,7 +42,7 @@ def syscfg(ctx, userdata):
 
 
 @syscfg.command()
-@click.option('--envfile', default='/etc/treadmill.node.conf',
+@click.option('--envfile', default='/etc/sysconfig/treadmill-node',
               type=click.File(mode='w'),
               help='Environent file location.')
 @click.pass_context
@@ -54,7 +54,7 @@ def node(ctx, envfile):
 
 
 @syscfg.command()
-@click.option('--envfile', default='/etc/treadmill.master.conf',
+@click.option('--envfile', default='/etc/sysconfig/treadmill-master',
               type=click.File(mode='w'),
               help='Environent file location.')
 @click.pass_context
