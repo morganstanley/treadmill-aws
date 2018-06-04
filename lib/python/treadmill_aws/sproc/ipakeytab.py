@@ -1,17 +1,6 @@
 """Runs IPA keytab service.
 """
 
-# runs as root on an IPA server
-# - uses host keytab for gss_accept_sec_context (gssapiprotocol service)
-# - uses host keytab to obtain TGT for host/$hostname
-#   - TGT is then used to run ipa service-add
-#   - how does host/$hostname get "ipa service-add privs"?
-# todo:
-# - refresh TGT (or handle externally, tbd)
-# - rework code (and underlying privs) to allow code to run as non-root (tbd)
-# - rework error/exception handling
-# - rework use of os.system
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -35,10 +24,13 @@ def init():
                   type=int,
                   help='service port to listen on')
     @click.option('--realm',
-                  required=False,
+                  required=True,
                   help='realm')
-    def ipakeytabserver(port, realm):
+    @click.option('--admin-group',
+                  required=False,
+                  help='IPA Keytab admin group (unix group)')
+    def ipakeytabserver(port, realm, admin_group):
         """Run IPA keytab daemon."""
-        ipakeytab.run_server(port, realm)
+        ipakeytab.run_server(port, realm, admin_group)
 
     return ipakeytabserver
