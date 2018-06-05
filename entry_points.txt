@@ -47,7 +47,7 @@ aws_user = treadmill_aws.formatter:UserPrettyFormatter
 awscredential = treadmill_aws.sproc.awscredential
 dnsmonitor = treadmill_aws.sproc.dnsmonitor
 ipakeytab = treadmill_aws.sproc.ipakeytab
-
+ipa525 = treadmill_aws.sproc.ipa525
 
 [treadmill.bootstrap]
 aliases.aws = treadmill_aws.bootstrap.aws_aliases
