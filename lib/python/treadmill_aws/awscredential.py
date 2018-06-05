@@ -146,13 +146,11 @@ def run_server(port, account_id, admin_group, realm):
                 response['status'] = "success"
                 response['result'] = credential
             except ValueError as err:
-                print('ValueError: %s' % err)  # until _LOGGER works
                 _LOGGER.error(repr(err))
                 response = {}
                 response['status'] = "failure"
                 response['result'] = {'why': str(err)}
             except Exception as err:  # pylint: disable=W0703
-                print('Unexpected error: %s' % err)  # until _LOGGER works
                 # could be authz error (including if role is not defined)
                 # could be lifetime error is role does not have proper max
                 _LOGGER.exception('Unknown exception')
