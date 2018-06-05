@@ -6,6 +6,16 @@ class NotUniqueError(Exception):
     pass
 
 
+class NoResourceError(Exception):
+    """Error indicating that selection criteria has no resource."""
+    pass
+
+
+class DupResourceError(Exception):
+    """Error indicating that selection criteria has duplicate resource."""
+    pass
+
+
 def build_tags_filter(tags):
     """Build tag filter based on dict of tags.
 

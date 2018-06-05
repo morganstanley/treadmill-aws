@@ -17,6 +17,7 @@ from treadmill_aws import ec2client
 from treadmill_aws import hostmanager
 from treadmill_aws import metadata
 from treadmill_aws import cli as aws_cli
+from treadmill_aws.aws import NoResourceError, DupResourceError
 
 
 def init():
@@ -70,7 +71,8 @@ def init():
         '--subnet',
         required=False,
         type=aws_cli.SUBNET,
-        help='Subnet'
+        help='Subnet',
+        multiple=True
     )
     @click.option(
         '--role',
@@ -123,7 +125,6 @@ def init():
         image_id = aws_cli.admin.image_id(
             ec2_conn, sts_conn, image, image_account)
         secgroup_id = aws_cli.admin.secgroup_id(ec2_conn, secgroup)
-        subnet_id = aws_cli.admin.subnet_id(ec2_conn, subnet)
 
         if data:
             instance_vars = yaml.load(stream=data)
@@ -133,7 +134,44 @@ def init():
         if not key:
             key = metadata.instance_keys()[0]
 
-        hostnames = hostmanager.create_host(
+        total_subnets = []
+
+        for network in subnet:
+            subnet_id = aws_cli.admin.subnet_id(ec2_conn, network)
+            total_subnets.append(
+                ec2client.list_subnets(ec2_conn, subnet_id.split())
+            )
+
+        for network in total_subnets:
+            filter_subnets = [
+                net[0]['SubnetId'] for net in total_subnets
+                if network[0]['SubnetId'] == net[0]['SubnetId']
+            ]
+
+            if len(filter_subnets) is not 1:
+                raise DupResourceError(
+                    "The same subnet was specified multiple times"
+                )
+
+        ec2_cap = hostmanager.is_space_available(total_subnets)
+
+        if ec2_cap < count:
+            raise NoResourceError(
+                "There are not enough IP Addresses to run %s EC2 instances"
+                % count
+            )
+
+        placements = {}
+
+        for network in total_subnets:
+            availability, total = hostmanager.get_availability(network)
+            placements[network[0]['SubnetId']] = (availability, total)
+
+        best_placement = hostmanager.get_availability_rate(placements)
+
+        hostnames = hostmanager.run_ec2(
+            placements,
+            best_placement,
             ipa_client=ipa_client,
             ec2_conn=ec2_conn,
             image_id=image_id,
@@ -143,12 +181,13 @@ def init():
             key=key,
             secgroup_ids=secgroup_id,
             instance_type=size,
-            subnet_id=subnet_id,
             role=role,
             instance_vars=instance_vars,
         )
+
         for hostname in hostnames:
-            click.echo(hostname)
+            for instance in hostname:
+                click.echo(instance)
 
     @instance.command(name='delete')
     @click.argument('hostname')

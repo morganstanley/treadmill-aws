@@ -85,3 +85,92 @@ def find_hosts(ipa_client, pattern=None):
     return ipa_client.get_hosts(
         pattern=pattern
     )
+
+
+def is_space_available(subnets):
+    """ Returns total available IPs. """
+    total_available_ips = sum(
+        [subnet[0]['AvailableIpAddressCount'] for subnet in subnets]
+    )
+
+    return total_available_ips
+
+
+def get_availability(subnet):
+    """ Returns subnet`s total and available IPs. """
+    subnet_available_ips = subnet[0]['AvailableIpAddressCount']
+    subnet_cidr = subnet[0]['CidrBlock']
+    subnet_total_ips = pow(
+        2, (32 - int(subnet_cidr[subnet_cidr.find('/') + 1:]))
+    )
+
+    return subnet_available_ips, subnet_total_ips
+
+
+def get_availability_rate(placements):
+    """ Returns subnet`s availability rate. """
+    availability_rate = {}
+
+    for network, availability in placements.items():
+        availability_rate[network] = (availability[0] * 100) / \
+            availability[1]
+
+    availability_rate = [(v, k) for k, v in availability_rate.items()]
+    availability_rate.sort(reverse=True)
+    availability_rate = [(k, v) for v, k in availability_rate]
+
+    return availability_rate
+
+
+def run_ec2(placements, best_placement, ipa_client, ec2_conn, image_id,
+            count, disk, domain, key, secgroup_ids, instance_type, role,
+            instance_vars):
+    """ Run EC2 instance(s) in the best subnet. """
+    hostnames = []
+
+    for network in best_placement:
+        subnet_available_ips = placements[network[0]][0]
+
+        if subnet_available_ips < count:
+            hostnames.append(
+                create_host(
+                    ipa_client=ipa_client,
+                    ec2_conn=ec2_conn,
+                    image_id=image_id,
+                    count=subnet_available_ips,
+                    disk=disk,
+                    domain=domain,
+                    key=key,
+                    secgroup_ids=secgroup_ids,
+                    instance_type=instance_type,
+                    subnet_id=network[0],
+                    role=role,
+                    instance_vars=instance_vars,
+                )
+            )
+
+            count -= subnet_available_ips
+
+            continue
+
+        elif subnet_available_ips >= count:
+            hostnames.append(
+                create_host(
+                    ipa_client=ipa_client,
+                    ec2_conn=ec2_conn,
+                    image_id=image_id,
+                    count=count,
+                    disk=disk,
+                    domain=domain,
+                    key=key,
+                    secgroup_ids=secgroup_ids,
+                    instance_type=instance_type,
+                    subnet_id=network[0],
+                    role=role,
+                    instance_vars=instance_vars,
+                )
+            )
+
+            break
+
+    return hostnames
