@@ -23,17 +23,17 @@ def init():
                   required=True,
                   type=int,
                   help='Service port to listen on.')
-    @click.option('--accountid',
+    @click.option('--account-id',
                   required=True,
                   help='AWS Account ID.')
     @click.option('--realm',
-                  required=False,
+                  required=True,
                   help='Kerberos realm of authorized users.')
-    @click.option('--adminprinc',
+    @click.option('--admin-group',
                   required=False,
-                  help='Kerberos principal authorized for all.')
-    def awscredentialserver(port, accountid, adminprinc, realm):
+                  help='Name of admin group (unix group).')
+    def awscredentialserver(port, account_id, admin_group, realm):
         """Run AWS credential daemon."""
-        awscredential.run_server(port, accountid, adminprinc, realm)
+        awscredential.run_server(port, account_id, admin_group, realm)
 
     return awscredentialserver

@@ -6,8 +6,11 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import grp
 import json
 import logging
+import pwd
+import re
 
 from twisted.internet import reactor
 from twisted.internet import protocol
@@ -20,59 +23,88 @@ _LOGGER = logging.getLogger(__name__)
 _DEFAULT_DURATION_SEC = 43200
 
 
-# Disable warning for too many branches.
-# pylint: disable=R0912
-def run_server(port, accountid, adminprinc, realm):
-    """Runs ipa keytab server."""
+def run_server(port, account_id, admin_group, realm):
+    """Runs AWS Credential server."""
     _LOGGER.info(
         'AWS Credential server starting - listening on port %d',
         port)
 
-    # no __init__ method.
-    #
-    # pylint: disable=W0232
+    def _parse_name(princ):
+        match = re.search('^([^/@]*)/?([^@]*)@?(.*)$', princ)
+        if match is None:
+            _LOGGER.error((
+                'Internal error - expected name to be a kerberos '
+                'principal name, got [%s]'), princ)
+            raise ValueError('Internal error')
 
-    # pylint: disable=W0613
-    def _error_str(self, string):
-        return str("ERROR: %s" % string).encode("utf-8")
+        name = match.group(1)
+        inst = match.group(2)
+        realm = match.group(3)
+
+        return [name, inst, realm]
 
     class AWSCredentialServer(gssapiprotocol.GSSAPILineServer):
         """AWS Credential server."""
 
-        def __init__(self, accountid, adminprinc):
-            self.accountid = accountid
-            self.adminprinc = adminprinc
+        def __init__(self, account_id, admin_group, realm):
+            self.account_id = account_id
+            self.admin_group = admin_group
+            self.realm = realm
             gssapiprotocol.GSSAPILineServer.__init__(self)
 
         def _validate_request(self, request):
 
-            # should be a valid IAM role (for now)
+            # should verify it is a valid IAM role
             # but it will fail downstream if it is not
-            # should probably verify character set and length
-            pass
+            # for now we just validate that it is a valid user
+            try:
+                uid = pwd.getpwnam(request)
+            except KeyError:
+                raise ValueError("user [%s] is not defined" % request)
 
         def _authorize(self, requestor, request):
 
-            if requestor == self.adminprinc:
+            # admin can request anything (hence request is not considered)
+            if self._authorize_admin(requestor):
                 return
 
-            if '@' not in requestor:
-                _LOGGER.error((
-                    'Internal error - expected requestor to be an kerberos'
-                    'principal name, e.g., user@realm, got [%s]'), requestor)
-                raise ValueError('Internal error')
+            self._authorize_self(requestor, request)
 
-            requestor_parts = requestor.split("@")
-            request_parts = request.split("@")
+        def _authorize_admin(self, requestor):
 
-            if requestor_parts[0] != request_parts[0]:
+            if admin_group is None:
+                return False
+
+            requestor_name, requestor_inst, requestor_realm = \
+                _parse_name(requestor)
+
+            try:
+                if requestor_name in grp.getgrnam(self.admin_group).gr_mem \
+                        and requestor_inst == '' \
+                        and requestor_realm == self.realm:
+                    return True
+            except KeyError as err:
+                _LOGGER.warning(
+                    'admin group [%s] does not exist', self.admin_group)
+
+            return False
+
+        def _authorize_self(self, requestor, request):
+
+            requestor_name, requestor_inst, requestor_realm = \
+                _parse_name(requestor)
+
+            request_name, request_inst, request_realm = \
+                _parse_name(request)
+
+            if requestor_name != request_name:
                 raise ValueError((
-                    'Requestor [%s] is not authorized to request credential'
-                    'for role [%s]') % (requestor, request))
+                    'Requestor [%s] is not authorized to request credential '
+                    'for user [%s]') % (requestor, request))
 
-            if requestor_parts[1] != self.realm:
+            if requestor_realm != self.realm:
                 raise ValueError(
-                    'Requestor [%s] must be in authorized realm [%s]' %
+                    'Requestor [%s] is not in authorized realm [%s]' %
                     (requestor, self.realm))
 
         def _get_credential(self, requestor, role, lifetime):
@@ -81,7 +113,7 @@ def run_server(port, accountid, adminprinc, realm):
 
             sts = awscontext.GLOBAL.sts
             role_cred = sts.assume_role(
-                RoleArn='arn:aws:iam::%s:role/%s' % (self.accountid, role),
+                RoleArn='arn:aws:iam::%s:role/%s' % (self.account_id, role),
                 RoleSessionName=requestor,
                 DurationSeconds=actual_lifetime)
 
@@ -90,6 +122,7 @@ def run_server(port, accountid, adminprinc, realm):
             credential['Credentials']['Expiration'] = \
                 role_cred['Credentials']['Expiration'].isoformat()
             credential['AssumedRoleUser'] = role_cred['AssumedRoleUser']
+            credential['Profile'] = '%s/%s' % (role, requestor)
             return credential
 
         @utils.exit_on_unhandled
@@ -98,32 +131,34 @@ def run_server(port, accountid, adminprinc, realm):
             """
 
             requestor = self.peer()
-            role = data.decode()
+            request = data.decode()
             lifetime = self.peercred_lifetime()
             _LOGGER.info(
                 'Processing AWS credential request for [%s] from [%s]',
-                role,
+                request,
                 requestor)
 
             try:
-                self._validate_request(role)
-                self._authorize(requestor, role)
-                credential = self._get_credential(requestor, role, lifetime)
+                self._validate_request(request)
+                self._authorize(requestor, request)
+                credential = self._get_credential(requestor, request, lifetime)
                 response = {}
                 response['status'] = "success"
-                response['response'] = credential
-            except ValueError as exc:
-                _LOGGER.error(repr(exc))
+                response['result'] = credential
+            except ValueError as err:
+                print('ValueError: %s' % err)  # until _LOGGER works
+                _LOGGER.error(repr(err))
                 response = {}
                 response['status'] = "failure"
-                response['response'] = {'why': str(exc)}
-            except Exception:  # pylint: disable=W0703
+                response['result'] = {'why': str(err)}
+            except Exception as err:  # pylint: disable=W0703
+                print('Unexpected error: %s' % err)  # until _LOGGER works
                 # could be authz error (including if role is not defined)
                 # could be lifetime error is role does not have proper max
                 _LOGGER.exception('Unknown exception')
                 response = {}
                 response['status'] = "failure"
-                response['response'] = {'why': "internal server error"}
+                response['result'] = {'why': "internal server error"}
 
             response_string = json.dumps(response)
             self.write(response_string.encode("utf-8"))
@@ -132,16 +167,18 @@ def run_server(port, accountid, adminprinc, realm):
     class AWSCredentialServerFactory(protocol.Factory):
         """AWSCredentialServer factory."""
 
-        def __init__(self, accountid, adminprinc, realm):
+        def __init__(self, account_id, admin_group, realm):
             protocol.Factory.__init__(self)
-            self.accountid = accountid
-            self.adminprinc = adminprinc
+            self.account_id = account_id
+            self.admin_group = admin_group
             self.realm = realm
 
-        def buildProtocol(self, addr):  # pylint: disable=C0103
-            return AWSCredentialServer(self.accountid, self.adminprinc)
+        def buildProtocol(self, addr):
+            return AWSCredentialServer(self.account_id,
+                                       self.admin_group,
+                                       self.realm)
 
     reactor.listenTCP(
         port, AWSCredentialServerFactory(
-            accountid, adminprinc, realm))
+            account_id, admin_group, realm))
     reactor.run()
