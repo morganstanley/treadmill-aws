@@ -244,7 +244,6 @@ def run_server(port, realm, admin_group):
                 response['status'] = "success"
                 response['result'] = result
             except ValueError as err:
-                print('ValueError: %s' % err)  # until _LOGGER works
                 _LOGGER.error(repr(err))
                 result = {}
                 result['why'] = str(err)
@@ -253,7 +252,6 @@ def run_server(port, realm, admin_group):
                 response['status'] = "failure"
                 response['result'] = result
             except Exception as err:  # pylint: disable=W0703
-                print('Unknown Exception: %s' % err)  # until _LOGGER works
                 _LOGGER.exception('Unknown exception')
                 response = {}
                 response['status'] = "failure"

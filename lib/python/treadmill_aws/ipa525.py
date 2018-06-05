@@ -180,13 +180,11 @@ def run_server(port, client_realm, server_realm, admin_group):
                 result['credential'] = ticket
                 response['result'] = result
             except ValueError as err:
-                print('ValueError: %s' % err)  # until _LOGGER works
                 _LOGGER.error(repr(err))
                 response = {}
                 response['status'] = "failure"
                 response['result'] = {'why': str(err)}
             except Exception:  # pylint: disable=W0703
-                print('Unexpected error: %s' % err)  # until _LOGGER works
                 _LOGGER.exception('Unknown exception')
                 response = {}
                 response['status'] = "failure"
