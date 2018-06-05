@@ -1,0 +1,9 @@
+{
+    "loggers": {
+        "treadmill_aws": {
+            "handlers": ["console"],
+            "level": "CRITICAL",
+            "propagate": 0
+        }
+    }
+}
