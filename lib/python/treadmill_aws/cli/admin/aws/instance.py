@@ -109,10 +109,14 @@ def init():
         help='Instance data in YAML format',
         type=click.File()
     )
+    @click.option(
+        '--instance-profile',
+        help='EC2 instance profile to attach',
+    )
     @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
     def create(
             image, image_account, count, disk_size,
-            key, role, secgroup, size, subnet, data):
+            key, role, secgroup, size, subnet, data, instance_profile):
         """Create instance(s)"""
         ipa_client = awscontext.GLOBAL.ipaclient
         ec2_conn = awscontext.GLOBAL.ec2
@@ -146,6 +150,7 @@ def init():
             subnet_id=subnet_id,
             role=role,
             instance_vars=instance_vars,
+            instance_profile=instance_profile
         )
         for hostname in hostnames:
             click.echo(hostname)

@@ -101,7 +101,7 @@ def init():
     @click.option(
         '--instance-profile',
         required=True,
-        help='IAM profile with create image privs.'
+        help='Instance profile with create image privs.'
     )
     @click.option(
         '--secgroup',
