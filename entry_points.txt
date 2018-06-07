@@ -18,6 +18,7 @@ aws = treadmill_aws.cli.aws
 
 [treadmill.cli.admin]
 aws = treadmill_aws.cli.admin.aws
+cell = treadmill_aws.cli.admin.cell
 
 
 [treadmill_aws.cli.aws]

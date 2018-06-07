@@ -1,0 +1,31 @@
+---
+memory: 3G
+cpu: 50%
+disk: 1G
+services:
+- command: |
+    unset PYTHONPATH;
+    echo "plugins: [aws-proid-env]" > /tmp/instance.cfg.yml
+    exec /opt/treadmill/bin/treadmill \
+      sproc \
+        --logging-conf daemon_container.json \
+      restapi \
+        -p 8000 \
+        --title 'Treadmill_Cell_API' \
+        -m cron,instance,app-monitor,identity-group,nodeinfo,scheduler \
+        --config instance /tmp/instance.cfg.yml \
+        --workers 5 \
+        --cors-origin='(?i).*\.{{ cors }}'
+  name: rest-api
+  restart:
+    limit: 5
+    interval: 60
+endpoints:
+- name: http
+  port: 8000
+  type: infra
+environ:
+- name: KRB5CCNAME
+  value: /var/spool/tickets/{{ proid }}
+affinity_limits:
+  server: 1
