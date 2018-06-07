@@ -1,0 +1,29 @@
+---
+memory: 3G
+cpu: 50%
+disk: 1G
+services:
+- command: |
+    unset PYTHONPATH; \
+    exec /opt/treadmill/bin/treadmill \
+      sproc \
+        --logging-conf daemon_container.json \
+      restapi \
+        -p 8000 \
+        --title 'Treadmill_Query_API' \
+        -m state,endpoint \
+        --workers 1 \
+        --cors-origin='(?i).*\.{{ cors }}'
+  name: state-api
+  restart:
+    limit: 5
+    interval: 60
+endpoints:
+- name: http
+  port: 8000
+  type: infra
+environ:
+- name: KRB5CCNAME
+  value: /var/spool/tickets/{{ proid }}
+affinity_limits:
+  server: 1

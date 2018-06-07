@@ -1,0 +1,6 @@
+---
+# TODO: enable adminapi monitor once tickets forwarding is resolved.
+# {{ proid }}.adminapi.{{ cell }}: 1
+{{ proid }}.cellapi.{{ cell }}: 1
+{{ proid }}.wsapi.{{ cell }}: 1
+{{ proid }}.stateapi.{{ cell }}: 1

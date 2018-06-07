@@ -1,0 +1,42 @@
+---
+memory: 3G
+cpu: 50%
+disk: 1G
+services:
+- command: |
+    unset PYTHONPATH; \
+    exec /opt/treadmill/bin/treadmill \
+      sproc \
+        --logging-conf daemon_container.json \
+      zk2fs \
+        --root /var/run/zk2fs \
+        --endpoints \
+        --running \
+        --scheduled \
+        --trace \
+        --identity-groups
+  name: zk2fs
+  restart:
+    limit: 5
+    interval: 60
+- command: |
+    unset PYTHONPATH; \
+    exec /opt/treadmill/bin/treadmill \
+      sproc \
+        --logging-conf daemon_container.json \
+      websocket \
+        --fs-root /var/run/zk2fs \
+        -m endpoint,state,trace,identity-group
+  name: websocket
+  restart:
+    limit: 5
+    interval: 60
+endpoints:
+- name: ws
+  port: 8080
+  type: infra
+environ:
+- name: KRB5CCNAME
+  value: /var/spool/tickets/{{ proid }}
+affinity_limits:
+  server: 1
