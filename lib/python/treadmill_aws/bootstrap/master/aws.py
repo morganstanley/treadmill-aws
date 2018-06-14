@@ -11,7 +11,6 @@ from .. import aws_aliases as aliases
 
 
 DEFAULTS = {
-    'treadmill_host_ticket': '/treadmill/spool/krb5cc_host',
     'broken_nodes_percent': '5%',
 }
 
