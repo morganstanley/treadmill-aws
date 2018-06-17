@@ -37,10 +37,11 @@ DEFAULTS = {
     'block_dev_write_bps': None,
     'block_dev_read_iops': None,
     'block_dev_write_iops': None,
-    'localdisk_default_read_bps': None,
-    'localdisk_default_read_iops': None,
-    'localdisk_default_write_bps': None,
-    'localdisk_default_write_iops': None,
+    # TODO: these should be discovered based on instance type.
+    'localdisk_default_read_bps': '1G',
+    'localdisk_default_read_iops': 1000000,
+    'localdisk_default_write_bps': '1G',
+    'localdisk_default_write_iops': 1000000,
     'runtime_linux_host_mounts': (
         '/,/dev*,/proc*,/sys*,/run*,/mnt*,/etc/resolv.conf,'
     ),
