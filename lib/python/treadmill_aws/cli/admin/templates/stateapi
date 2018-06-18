@@ -27,3 +27,5 @@ environ:
   value: /var/spool/tickets/{{ proid }}
 affinity_limits:
   server: 1
+tickets:
+- {{ proid }}@{{ krb_realm }}
