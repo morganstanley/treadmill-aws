@@ -28,14 +28,15 @@ _LOGGER = logging.getLogger(__name__)
 # TODO: full list of cell apps:
 #       adminapi, wsapi, app-dns, stateapi, cellapi
 _CELL_APPS = [
-    'wsapi', 'stateapi', 'cellapi',
+    'scheduler', 'appmonitor', 'wsapi', 'stateapi', 'cellapi', 'cellsync',
+    'trace-cleanup',
 ]
 
 
 class CellCtx(object):
     """Cell context."""
 
-    def __init__(self, cors=None):
+    def __init__(self, cors=None, krb_realm=None):
         self.cell = context.GLOBAL.cell
 
         admin_cell = admin.Cell(context.GLOBAL.ldap.conn)
@@ -52,6 +53,10 @@ class CellCtx(object):
             self.cors = '\\.'.join(last_two)
         else:
             self.cors = '\\.'.join(cors.strip('.').split('.'))
+
+        self.krb_realm = krb_realm
+        if not self.krb_realm:
+            self.krb_realm = context.GLOBAL.dns_domain.upper()
 
 
 def _render(name, ctx):
@@ -92,10 +97,13 @@ def init():
                   envvar='TREADMILL_CELL',
                   is_eager=True, callback=cli.handle_context_opt,
                   expose_value=False)
+    @click.option('--krb-realm', help='Kerberos realm',
+                  envvar='TREADMILL_KRB_REALM',
+                  required=False)
     @click.pass_context
-    def cell_grp(ctx, cors_origin):
+    def cell_grp(ctx, cors_origin, krb_realm):
         """Manage treadmill cell."""
-        ctx.obj = CellCtx(cors=cors_origin)
+        ctx.obj = CellCtx(cors=cors_origin, krb_realm=krb_realm)
 
     @cell_grp.command(name='configure-apps')
     @click.option('--apps', type=cli.LIST, help='List of apps to configure.')

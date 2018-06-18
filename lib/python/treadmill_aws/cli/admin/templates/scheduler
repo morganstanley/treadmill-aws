@@ -1,0 +1,31 @@
+---
+memory: 3G
+cpu: 50%
+disk: 1G
+services:
+- name: scheduler
+  command: |
+    unset PYTHONPATH;
+    mkdir -p /var/tmp/treadmill/appevents
+    exec /opt/treadmill/bin/treadmill sproc scheduler \
+        --events-dir /var/tmp/treadmill/appevents
+  restart:
+    limit: 5
+    interval: 60
+- name: appevents
+  command: |
+    unset PYTHONPATH;
+    mkdir -p /var/tmp/treadmill/appevents
+    exec /opt/treadmill/bin/treadmill sproc \
+        appevents /var/tmp/treadmill/appevents
+  restart:
+    limit: 5
+    interval: 60
+endpoints: []
+environ:
+- name: KRB5CCNAME
+  value: /var/spool/tickets/{{ proid }}
+affinity_limits:
+  server: 1
+tickets:
+- {{ proid }}@{{ krb_realm }}

@@ -4,3 +4,7 @@
 {{ proid }}.cellapi.{{ cell }}: 1
 {{ proid }}.wsapi.{{ cell }}: 1
 {{ proid }}.stateapi.{{ cell }}: 1
+{{ proid }}.scheduler.{{ cell }}: 3
+{{ proid }}.appmonitor.{{ cell }}: 3
+{{ proid }}.trace-cleanup.{{ cell }}: 3
+{{ proid }}.cellsync.{{ cell }}: 3
