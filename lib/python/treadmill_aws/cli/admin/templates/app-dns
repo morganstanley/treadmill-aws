@@ -1,0 +1,35 @@
+---
+memory: 3G
+cpu: 50%
+disk: 1G
+services:
+- command: |
+    unset PYTHONPATH; \
+    exec /opt/treadmill/bin/treadmill \
+      sproc \
+        --logging-conf daemon_container.json \
+      zk2fs \
+        --root /var/run/zk2fs \
+        --endpoints --running --scheduled --appgroups --servers
+  name: zk2fs
+  restart:
+    limit: 5
+    interval: 60
+- command: |
+    unset PYTHONPATH; \
+    exec /opt/treadmill/bin/treadmill \
+      sproc \
+        --logging-conf daemon_container.json \
+      app-dns-ipa --fs-root /var/run/zk2fs
+  name: app-dns
+  restart:
+    limit: 5
+    interval: 60
+endpoints: []
+environ:
+- name: KRB5CCNAME
+  value: /var/spool/tickets/{{ proid }}
+affinity_limits:
+  server: 1
+tickets:
+- {{ proid }}@{{ krb_realm }}

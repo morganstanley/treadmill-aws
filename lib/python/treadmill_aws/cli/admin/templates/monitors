@@ -1,10 +1,10 @@
 ---
-# TODO: enable adminapi monitor once tickets forwarding is resolved.
-# {{ proid }}.adminapi.{{ cell }}: 1
-{{ proid }}.cellapi.{{ cell }}: 1
-{{ proid }}.wsapi.{{ cell }}: 1
-{{ proid }}.stateapi.{{ cell }}: 1
+# {{ proid }}.adminapi.{{ cell }}: 3
+{{ proid }}.cellapi.{{ cell }}: 3
+{{ proid }}.wsapi.{{ cell }}: 3
+{{ proid }}.stateapi.{{ cell }}: 3
 {{ proid }}.scheduler.{{ cell }}: 3
 {{ proid }}.appmonitor.{{ cell }}: 3
 {{ proid }}.trace-cleanup.{{ cell }}: 3
 {{ proid }}.cellsync.{{ cell }}: 3
+{{ proid }}.app-dns.{{ cell }}: 3
