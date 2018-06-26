@@ -46,7 +46,7 @@ aws_user = treadmill_aws.formatter:UserPrettyFormatter
 
 [treadmill.sproc]
 awscredential = treadmill_aws.sproc.awscredential
-dnsmonitor = treadmill_aws.sproc.dnsmonitor
+app-dns-ipa = treadmill_aws.sproc.app_dns
 ipakeytab = treadmill_aws.sproc.ipakeytab
 ipa525 = treadmill_aws.sproc.ipa525
 
