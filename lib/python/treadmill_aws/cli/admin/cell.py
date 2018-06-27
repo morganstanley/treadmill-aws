@@ -29,7 +29,7 @@ _LOGGER = logging.getLogger(__name__)
 #       adminapi, wsapi, app-dns, stateapi, cellapi
 _CELL_APPS = [
     'scheduler', 'appmonitor', 'wsapi', 'stateapi', 'cellapi', 'cellsync',
-    'trace-cleanup',
+    'trace-cleanup', 'app-dns',
 ]
 
 
