@@ -1,5 +1,5 @@
 ---
-# {{ proid }}.adminapi.{{ cell }}: 3
+{{ proid }}.adminapi.{{ cell }}: 3
 {{ proid }}.cellapi.{{ cell }}: 3
 {{ proid }}.wsapi.{{ cell }}: 3
 {{ proid }}.stateapi.{{ cell }}: 3
