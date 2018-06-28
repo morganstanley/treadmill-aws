@@ -17,3 +17,11 @@ class HostmanagerTest(unittest.TestCase):
               'Tags': [{'Key': 'Name', 'Value': 'host.foo.com'},
                        {'Key': 'Role', 'Value': 'foo'}]}]
         )
+
+    def test_render_manifest(self):
+        """Test that YAML is rendered correctly."""
+        self.assertEqual(
+            hostmanager.render_manifest({'otp': 'abc123',
+                                         'hostname': 'host.foo.com'}),
+            "#cloud-config\n'hostname': 'host.foo.com'\n'otp': 'abc123'\n"
+        )

@@ -18,7 +18,7 @@ def render_manifest(key_value_pairs):
     """ Stub function to supply instance user_data during testing. """
 
     return "#cloud-config\n" + yaml.dump(
-        key_value_pairs, default_flow_style=False)
+        key_value_pairs, default_flow_style=False, default_style='\'')
 
 
 def generate_hostname(domain, image):
