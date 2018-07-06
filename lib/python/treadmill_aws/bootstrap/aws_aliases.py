@@ -81,6 +81,9 @@ _LINUX_ALIASES = {
     'pvs': '/sbin/pvs',
     'vgchange': '/sbin/vgchange',
     'vgremove': '/sbin/vgremove',
+
+    # java
+    'java': '/usr/bin/java',
 }
 
 _WINDOWS_ALIASES = {

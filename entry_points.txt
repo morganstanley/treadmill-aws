@@ -54,6 +54,7 @@ ipa525 = treadmill_aws.sproc.ipa525
 aliases.aws = treadmill_aws.bootstrap.aws_aliases
 node.aws = treadmill_aws.bootstrap.node.aws
 master.aws = treadmill_aws.bootstrap.master.aws
+zookeeper.aws = treadmill_aws.bootstrap.zookeeper.aws
 
 
 [treadmill.zookeeper.client]
