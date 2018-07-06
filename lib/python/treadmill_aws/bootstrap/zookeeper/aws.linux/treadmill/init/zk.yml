@@ -1,0 +1,23 @@
+# TODO: enable SASL.
+#    -Djava.security.auth.login.config=${ZKROOT}/conf/jaas.conf \
+#    -Dsun.security.krb5.debug=false \
+
+user: "{{ treadmillid }}"
+command: |
+  ZKROOT=/treadmill/zookeeper
+  for J in $(ls {{ zk_distro }}/*.jar); do
+    CP=${CP:+$CP}:$J;
+  done
+  echo CLASSPATH: ${CP}
+  exec \
+    {{ java }} -cp ${CP} \
+    -Dlog4j.configuration=file://${ZKROOT}/conf/log4j.properties \
+    -Dcom.sun.management.jmxremote \
+    -Dcom.sun.management.jmxremote.local.only=false \
+    org.apache.zookeeper.server.quorum.QuorumPeerMain ${ZKROOT}/conf/zoo.cfg
+environ_dir: "/treadmill/env"
+monitor_policy:
+  limit: "{{ restart_limit }}"
+  interval: "{{ restart_interval }}"
+  tombstone:
+    path: "/treadmill/tombstones"
