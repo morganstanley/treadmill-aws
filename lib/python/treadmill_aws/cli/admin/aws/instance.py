@@ -113,10 +113,16 @@ def init():
         '--instance-profile',
         help='EC2 instance profile to attach',
     )
+    @click.option(
+        '--hostgroup',
+        multiple=True,
+        help='IPA hostgroup memberships',
+    )
     @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
     def create(
             image, image_account, count, disk_size,
-            key, role, secgroup, size, subnet, data, instance_profile):
+            key, role, secgroup, size, subnet, data,
+            instance_profile, hostgroup):
         """Create instance(s)"""
         ipa_client = awscontext.GLOBAL.ipaclient
         ec2_conn = awscontext.GLOBAL.ec2
@@ -150,7 +156,8 @@ def init():
             subnet_id=subnet_id,
             role=role,
             instance_vars=instance_vars,
-            instance_profile=instance_profile
+            instance_profile=instance_profile,
+            hostgroups=hostgroup
         )
         for hostname in hostnames:
             click.echo(hostname)

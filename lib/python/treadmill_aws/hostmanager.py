@@ -29,10 +29,14 @@ def generate_hostname(domain, image):
 
 def create_host(ec2_conn, ipa_client, image_id, count, domain,
                 key, secgroup_ids, instance_type, subnet_id, disk,
-                instance_vars, role=None, instance_profile=None):
+                instance_vars, hostgroups=None, role=None,
+                instance_profile=None):
     """Adds host defined in manifest to IPA, then adds the OTP from the
        IPA reply to the manifest and creates EC2 instance.
     """
+    if hostgroups is None:
+        hostgroups = []
+
     if role is None:
         role = 'generic'
 
@@ -46,6 +50,9 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
         ipa_host = ipa_client.enroll_host(hostname=host_ctx['hostname'])
         host_ctx['otp'] = ipa_host['result']['result']['randompassword']
         user_data = render_manifest(host_ctx)
+
+        for hostgroup in hostgroups:
+            ipa_client.hostgroup_add_member(hostgroup, host_ctx['hostname'])
 
         ec2client.create_instance(
             ec2_conn,

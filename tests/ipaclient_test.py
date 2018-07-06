@@ -348,6 +348,16 @@ class IPAClientTest(unittest.TestCase):
                      'params': [['foo'],
                                 {'version': '2.28'}]})
 
+    def test_hostgroup_add_member(self):
+        """ Test that hostgroup_add_member formats payload correctly """
+        self.test_client.hostgroup_add_member(hostgroup='foo', host='foo.com')
+        self.test_client._post.assert_called_with(
+            payload={'id': 0,
+                     'method': 'hostgroup_add_member',
+                     'params': [['foo'],
+                                {'host': 'foo.com',
+                                 'version': '2.28'}]})
+
 
 if __name__ == '__main__':
     unittest.main()
