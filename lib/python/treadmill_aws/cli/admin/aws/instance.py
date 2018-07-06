@@ -118,11 +118,15 @@ def init():
         multiple=True,
         help='IPA hostgroup memberships',
     )
+    @click.option(
+        '--hostname',
+        help='Shortname or Pattern, e.g. PATTERN-{time}',
+    )
     @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
     def create(
             image, image_account, count, disk_size,
             key, role, secgroup, size, subnet, data,
-            instance_profile, hostgroup):
+            instance_profile, hostgroup, hostname):
         """Create instance(s)"""
         ipa_client = awscontext.GLOBAL.ipaclient
         ec2_conn = awscontext.GLOBAL.ec2
@@ -143,7 +147,7 @@ def init():
         if not key:
             key = metadata.instance_keys()[0]
 
-        hostnames = hostmanager.create_host(
+        hosts_created = hostmanager.create_host(
             ipa_client=ipa_client,
             ec2_conn=ec2_conn,
             image_id=image_id,
@@ -157,10 +161,11 @@ def init():
             role=role,
             instance_vars=instance_vars,
             instance_profile=instance_profile,
-            hostgroups=hostgroup
+            hostgroups=hostgroup,
+            hostname=hostname
         )
-        for hostname in hostnames:
-            click.echo(hostname)
+        for host_created in hosts_created:
+            click.echo(host_created)
 
     @instance.command(name='delete')
     @click.argument('hostname')

@@ -3,6 +3,7 @@
 import time
 import yaml
 
+from treadmill_aws import aws
 from treadmill_aws import ec2client
 from treadmill_aws import ipaclient
 
@@ -15,22 +16,29 @@ def _instance_tags(hostname, role):
 
 
 def render_manifest(key_value_pairs):
-    """ Stub function to supply instance user_data during testing. """
+    """Returns formatted cloud-init from dictionary k:v pairs"""
 
     return "#cloud-config\n" + yaml.dump(
         key_value_pairs, default_flow_style=False, default_style='\'')
 
 
-def generate_hostname(domain, image):
-    """Generates hostname from role, domain and timestamp."""
+def generate_hostname(domain, hostname):
+    """If hostname defined, returns FQDN.
+       If not, returns FQDN with base32 timestamp.
+    """
     timestamp = str(time.time()).replace('.', '')
-    return '{}-{}.{}'.format(image.lower(), timestamp, domain)
+    b32time = aws.int2str(number=int(timestamp), base=32)
+
+    if hostname[-1] == '-':
+        hostname = '{}{}'.format(hostname, '{time}')
+
+    return '{}.{}'.format(hostname.format(time=b32time), domain)
 
 
 def create_host(ec2_conn, ipa_client, image_id, count, domain,
                 key, secgroup_ids, instance_type, subnet_id, disk,
-                instance_vars, hostgroups=None, role=None,
-                instance_profile=None):
+                instance_vars, role=None, instance_profile=None,
+                hostgroups=None, hostname=None):
     """Adds host defined in manifest to IPA, then adds the OTP from the
        IPA reply to the manifest and creates EC2 instance.
     """
@@ -43,10 +51,18 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
     if instance_vars is None:
         instance_vars = {}
 
+    if hostname is None:
+        hostname = '{}-{}'.format(role.lower(), '{time}')
+
     hosts = []
     for _ in range(count):
         host_ctx = instance_vars.copy()
-        host_ctx['hostname'] = generate_hostname(domain=domain, image=image_id)
+
+        host_ctx['hostname'] = generate_hostname(domain=domain,
+                                                 hostname=hostname)
+        if host_ctx['hostname'] in hosts:
+            raise IndexError("Duplicate hostname")
+
         ipa_host = ipa_client.enroll_host(hostname=host_ctx['hostname'])
         host_ctx['otp'] = ipa_host['result']['result']['randompassword']
         user_data = render_manifest(host_ctx)
