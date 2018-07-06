@@ -298,3 +298,14 @@ class IPAClient():
                               {'version': _API_VERSION}],
                    'id': 0}
         return self._post(payload=payload).json()['result']['result']
+
+    def hostgroup_add_member(self, hostgroup, host):
+        """Add host to IPA hostgroup.
+        """
+        payload = {'method': 'hostgroup_add_member',
+                   'params': [[hostgroup],
+                              {'host': host,
+                               'version': _API_VERSION}],
+                   'id': 0}
+        response = self._post(payload=payload)
+        return response.json()['result']['result']
