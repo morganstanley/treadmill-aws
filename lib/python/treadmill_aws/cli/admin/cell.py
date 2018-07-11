@@ -20,6 +20,8 @@ from treadmill import context
 from treadmill import yamlwrapper as yaml
 from treadmill.api import instance
 from treadmill.scheduler import masterapi
+from treadmill import sysinfo
+from treadmill.syscall import krb5
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -51,7 +53,6 @@ class CellCtx(object):
 
         self.proid = cell['username']
         self.data = cell.get('data')
-        self.location = cell['location']
 
         # Default cors origin to top level dns domain. The value is passed to
         # manifest verbatim, so need to shell escape it.
@@ -63,7 +64,9 @@ class CellCtx(object):
 
         self.krb_realm = krb_realm
         if not self.krb_realm:
-            self.krb_realm = context.GLOBAL.dns_domain.upper()
+            realms = krb5.get_host_realm(sysinfo.hostname())
+            if realms:
+                self.krb_realm = realms[0]
 
 
 def _render(name, ctx):
