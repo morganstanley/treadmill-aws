@@ -21,11 +21,6 @@ _LINUX_ALIASES = {
     # djbdns cache.
     'dnscache': None,
 
-    # Docker binaries.
-    'docker': '/usr/bin/docker',
-    'dockerd': '/usr/bin/dockerd',
-    'docker_runtime': '/usr/libexec/docker/docker-runc-latest',
-
     # Kerberos utilities.
     'ipa': '/bin/ipa',
     'kinit': '/usr/bin/kinit',
