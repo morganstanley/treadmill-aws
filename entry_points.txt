@@ -15,11 +15,12 @@ aws-image = treadmill_aws.api.image
 
 [treadmill.cli]
 aws = treadmill_aws.cli.aws
+krb5keytab = treadmill_aws.cli.krb5keytab
 
 [treadmill.cli.admin]
 aws = treadmill_aws.cli.admin.aws
 cell = treadmill_aws.cli.admin.cell
-
+krb5keytab = treadmill_aws.cli.admin.krb5keytab
 
 [treadmill_aws.cli.aws]
 image = treadmill_aws.cli.aws.image
@@ -49,6 +50,7 @@ awscredential = treadmill_aws.sproc.awscredential
 app-dns-ipa = treadmill_aws.sproc.app_dns
 ipakeytab = treadmill_aws.sproc.ipakeytab
 ipa525 = treadmill_aws.sproc.ipa525
+krb5keytab-proxy = treadmill_aws.sproc.krb5keytabproxy
 
 [treadmill.bootstrap]
 aliases.aws = treadmill_aws.bootstrap.aws_aliases
