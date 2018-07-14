@@ -23,6 +23,8 @@ DEFAULTS = {
     'restart_interval': 300,
     'restart_limit': 5,
     'zk_distro': '/opt/zookeeper',
+    'keytab': '/treadmill/zookeeper/zookeeper.keytab',
+    'zkroot': '/treadmill/zookeeper',
 }
 
 ALIASES = aliases.ALIASES

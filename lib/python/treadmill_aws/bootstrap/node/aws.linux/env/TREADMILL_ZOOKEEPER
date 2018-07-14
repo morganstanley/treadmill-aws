@@ -1,1 +1,1 @@
-zookeeper://{% for master in masters %}{{ master['hostname'] }}:{{ master['zk-client-port'] }}{{ "," if not loop.last }}{% endfor %}/treadmill/{{ cell }}
+zookeeper.sasl://{{ treadmillid }}@{% for master in masters %}{{ master['hostname'] }}:{{ master['zk-client-port'] }}{{ "," if not loop.last }}{% endfor %}/treadmill/{{ cell }}
