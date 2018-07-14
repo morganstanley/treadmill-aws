@@ -247,6 +247,36 @@ class IPAClient():
                        'id': 0}
         return self._post(payload=payload).json()
 
+    def add_srv_record(self, idnsname, host, port, weight=0, priority=0):
+        """Add SRV record."""
+        record = '{weight} {priority} {port} {host}.'.format(
+            weight=weight,
+            priority=priority,
+            port=port,
+            host=host
+        )
+        _LOGGER.debug('Adding SRV record: %s %s', idnsname, record)
+        self.add_dns_record(
+            record_type='srvrecord',
+            record_name=idnsname,
+            record_value=record
+        )
+
+    def delete_srv_record(self, idnsname, host, port, weight=0, priority=0):
+        """Add SRV record."""
+        record = '{weight} {priority} {port} {host}.'.format(
+            weight=weight,
+            priority=priority,
+            port=port,
+            host=host
+        )
+        _LOGGER.debug('Deleting SRV record: %s %s', idnsname, record)
+        self.delete_dns_record(
+            record_type='srvrecord',
+            record_name=idnsname,
+            record_value=record
+        )
+
     def add_user(self, user_name, first_name, last_name, user_type):
         """Add new user to IPA server.
         """
