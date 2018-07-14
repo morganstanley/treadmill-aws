@@ -42,11 +42,11 @@ def init():
         client = peercredprotocol.PeerCredLineClient(sock_path)
         try:
             client.connect()
-            request = {}
-            if keytab:
-                # If we write keytab ourselvs, do not ask server to write the
-                # file.
-                request['keytab'] = False
+            # If we write keytab ourselvs, do not ask server to write the
+            # file.
+            request = {
+                'keytab': (not keytab)
+            }
 
             client.write(json.dumps(request).encode('utf8'))
             reply = client.read()

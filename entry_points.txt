@@ -21,6 +21,7 @@ krb5keytab = treadmill_aws.cli.krb5keytab
 aws = treadmill_aws.cli.admin.aws
 cell = treadmill_aws.cli.admin.cell
 krb5keytab = treadmill_aws.cli.admin.krb5keytab
+ipa = treadmill_aws.cli.admin.ipa
 
 [treadmill_aws.cli.aws]
 image = treadmill_aws.cli.aws.image
