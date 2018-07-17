@@ -42,7 +42,7 @@ _CELL_APPS = [
 ]
 
 
-class CellCtx(object):
+class CellCtx:
     """Cell context."""
 
     def __init__(self, cors=None, krb_realm=None):

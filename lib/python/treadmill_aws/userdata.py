@@ -96,7 +96,7 @@ def _iterate_cloud_init(content):
         yield (name, content_type, payload)
 
 
-class CloudInit(object):
+class CloudInit:
     """Manage cloud-init data."""
 
     def __init__(self, content=None):

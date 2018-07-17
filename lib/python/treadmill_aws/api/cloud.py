@@ -9,7 +9,7 @@ import yaml
 from treadmill import authz
 
 
-class API(object):
+class API:
     """Treadmill Cloud REST API."""
 
     def __init__(self):

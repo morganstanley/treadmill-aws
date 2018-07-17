@@ -30,7 +30,7 @@ def _fmt_tags():
     return _fmt
 
 
-class SubnetPrettyFormatter(object):
+class SubnetPrettyFormatter:
     """Pretty table formatter for AWS subnets."""
 
     @staticmethod
@@ -54,7 +54,7 @@ class SubnetPrettyFormatter(object):
             return format_item(item)
 
 
-class VpcPrettyFormatter(object):
+class VpcPrettyFormatter:
     """Pretty table formatter for AWS vpcs."""
 
     @staticmethod
@@ -77,7 +77,7 @@ class VpcPrettyFormatter(object):
             return format_item(item)
 
 
-class InstancePrettyFormatter(object):
+class InstancePrettyFormatter:
     """Pretty table formatter for AWS instances."""
 
     @staticmethod
@@ -124,7 +124,7 @@ class InstancePrettyFormatter(object):
             return format_item(item)
 
 
-class RolePrettyFormatter(object):
+class RolePrettyFormatter:
     """Pretty table formatter for AWS roles."""
 
     @staticmethod
@@ -150,7 +150,7 @@ class RolePrettyFormatter(object):
             return format_item(item)
 
 
-class ImagePrettyFormatter(object):
+class ImagePrettyFormatter:
     """Pretty table formatter for AWS images."""
 
     @staticmethod
@@ -178,7 +178,7 @@ class ImagePrettyFormatter(object):
             return format_item(item)
 
 
-class SecgroupPrettyFormatter(object):
+class SecgroupPrettyFormatter:
     """Pretty table formatter for AWS security groups."""
 
     @staticmethod
@@ -208,7 +208,7 @@ class SecgroupPrettyFormatter(object):
             return format_item(item)
 
 
-class UserPrettyFormatter(object):
+class UserPrettyFormatter:
     """Pretty table formatter for AWS/IPA user."""
 
     @staticmethod

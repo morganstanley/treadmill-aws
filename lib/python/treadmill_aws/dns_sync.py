@@ -23,7 +23,7 @@ DEFAULT_WEIGHT = 10
 DEFAULT_PRIORITY = 10
 
 
-class DnsSync(object):
+class DnsSync:
     """Syncronizes DNS with Zk mirror on disk."""
 
     def __init__(self, ipaclient, cell, zone, fs_root, scopes):

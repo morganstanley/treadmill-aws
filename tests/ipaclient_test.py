@@ -16,7 +16,7 @@ class IPAHelperTests(unittest.TestCase):
     """Test IPAClient helper functions.
     """
 
-    class FakeIPAResponse(object):
+    class FakeIPAResponse:
         """Fake IPA JSON-RPC response object.
         """
         text = ''
@@ -87,7 +87,7 @@ class IPAHelperTests(unittest.TestCase):
         """Test IPA server resolution from DNS.
         """
 
-        class FakeDNSResponse(object):
+        class FakeDNSResponse:
             """Fake dns.resolver.query object.
             """
 
@@ -180,7 +180,7 @@ class IPAClientTest(unittest.TestCase):
     """Tests IPA client interface.
     """
 
-    class FakeResponse(object):
+    class FakeResponse:
         """Fake IPA response object.
         """
 

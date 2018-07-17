@@ -7,7 +7,7 @@ from treadmill_aws import ec2client
 from treadmill_aws import awscontext
 
 
-class API(object):
+class API:
     """AWS Image REST api."""
 
     def __init__(self):
@@ -38,7 +38,7 @@ class API(object):
 
         def delete(_rsrc_id):
             """Delete AWS image."""
-            return None
+            pass
 
         self.list = _list
         self.get = get

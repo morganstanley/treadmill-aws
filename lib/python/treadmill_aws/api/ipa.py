@@ -6,7 +6,7 @@ import subprocess
 from treadmill import authz
 
 
-class API(object):
+class API:
     """Treadmill IPA REST API."""
 
     def __init__(self):
