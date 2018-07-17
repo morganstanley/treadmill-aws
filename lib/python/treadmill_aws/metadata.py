@@ -66,7 +66,7 @@ def _load_url(url, data):
                 data[line] = None
 
 
-class Metadata(object):
+class Metadata:
     """Lazily loads instance metadata."""
 
     __slots__ = (

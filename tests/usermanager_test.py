@@ -25,7 +25,7 @@ class UsermanagerTest(unittest.TestCase):
             'ipa-server.mydomain.x'
         self.ipaclient = ipaclient.IPAClient('certs', 'domain')
 
-    class FakeResponse(object):
+    class FakeResponse:
         """Fake IPA response object.
         """
         text = 'foo'

@@ -30,6 +30,9 @@ _SERVICE_BLACKLIST = ['admin', 'host', 'root']
 
 def run_server(port, realm, admin_group):
     """Runs IPA keytab server."""
+    # TODO: pylint complains the function is too long, need to refactor.
+    #
+    # pylint: disable=R0915
     _LOGGER.info('IPA Keytab server starting - listening on port %d', port)
 
     def _parse_name(princ):
@@ -67,8 +70,6 @@ def run_server(port, realm, admin_group):
                 raise ValueError(
                     'Request for [%s], [%s] is not defined in IPA' %
                     (request, name))
-            except BaseException:
-                raise
 
             if inst == "localhost":
                 raise ValueError(
@@ -93,8 +94,6 @@ def run_server(port, realm, admin_group):
                 uid = pwd.getpwnam(name)
             except KeyError:
                 raise ValueError("%s is not a valid username" % name)
-            except BaseException:
-                raise
 
         def _validate_request(self, request):
 

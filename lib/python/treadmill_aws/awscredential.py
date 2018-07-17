@@ -25,6 +25,9 @@ _DEFAULT_DURATION_SEC = 43200
 
 def run_server(port, account_id, admin_group, realm):
     """Runs AWS Credential server."""
+    # TODO: pylint complains the function is too long, need to refactor.
+    #
+    # pylint: disable=R0915
     _LOGGER.info(
         'AWS Credential server starting - listening on port %d',
         port)

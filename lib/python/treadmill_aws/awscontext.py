@@ -7,7 +7,7 @@ import boto3
 from treadmill_aws import ipaclient
 
 
-class AWSContext(object):
+class AWSContext:
     """Global AWS context for handling AWS sessions."""
 
     __slots__ = (

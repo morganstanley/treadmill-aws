@@ -30,6 +30,9 @@ _LOGGER = logging.getLogger(__name__)
 # pylint: disable=R0912
 def run_server(port, client_realm, server_realm, admin_group):
     """Runs IPA525 server."""
+    # TODO: pylint complains the function is too long, need to refactor.
+    #
+    # pylint: disable=R0915
     _LOGGER.info(
         'IPA 525 server starting - listening on port %d',
         port)

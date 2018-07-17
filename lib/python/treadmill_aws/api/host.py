@@ -5,7 +5,7 @@ from treadmill_aws import hostmanager
 from treadmill_aws import awscontext
 
 
-class API(object):
+class API:
     """Treadmill Host REST API."""
 
     def __init__(self):
