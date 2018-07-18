@@ -12,6 +12,9 @@ import kazoo.client
 import kazoo.security
 
 from treadmill import zkutils
+from treadmill import utils
+from treadmill import sysinfo
+from treadmill.syscall import krb5
 
 _ROLES = {
     'admin': 'admins',
@@ -62,28 +65,55 @@ class SASLZkClient(zkutils.ZkClient):
             admin='a' in perm
         )
 
+    def make_self_acl(self, perm):
+        """Constucts acl for the current user.
+
+        If the user is root, use host principal.
+        """
+        if utils.is_root():
+            return self.make_host_acl(sysinfo.hostname(), perm)
+
+        user = krb5.get_principal()
+        return self.make_user_acl(user, perm)
+
     def make_role_acl(self, role, perm):
         """Create role acl in zookeeper.
 
         Roles are sourced from our LDAP lookup plugin, in the format
         'role/<role>.
         """
-        credential = 'role/{0}'.format(_ROLES.get(role, role))
-        return kazoo.security.make_acl(
-            scheme='sasl',
-            credential=credential,
-            read='r' in perm,
-            write='w' in perm,
-            create='c' in perm,
-            delete='d' in perm,
-            admin='a' in perm
-        )
+        # TODO: enable role ACLs when role authorizer is implemented. Until
+        #       then, allow any authenticated user.
+        #
+        # credential = 'role/{0}'.format(_ROLES.get(role, role))
+        # return kazoo.security.make_acl(
+        #     scheme='sasl',
+        #     credential=credential,
+        #     read='r' in perm,
+        #     write='w' in perm,
+        #     create='c' in perm,
+        #     delete='d' in perm,
+        #     admin='a' in perm
+        # )
+
+        # pylint: disable=useless-super-delegation
+        return super().make_role_acl(role, perm)
 
     def make_host_acl(self, host, perm):
         """Create host acl in zookeeper.
         """
+        realms = krb5.get_host_realm(host)
+        if not realms:
+            _LOGGER.critical('Host %s does not belong to krb realm.', host)
+            raise Exception('Host does not belong to krb5 realm.')
+
+        host_principal = 'host/{host}@{realm}'.format(
+            host=host,
+            realm=realms[0]
+        )
         return kazoo.security.make_acl(
-            scheme='sasl', credential='host/{0}'.format(host),
+            scheme='sasl',
+            credential=host_principal,
             read='r' in perm,
             write='w' in perm,
             create='c' in perm,

@@ -67,19 +67,31 @@ class ZookeeperTest(unittest.TestCase):
         zk = zksasl.SASLZkClient()
         zk.make_role_acl('servers', 'ra')
 
+        # TODO: re-enable when role support is added.
+        #
+        # make_acl_mock.assert_called_once_with(
+        #    scheme='sasl', credential='role/servers', read=True,
+        #    write=False, delete=False, create=False, admin=True
+        # )
         make_acl_mock.assert_called_once_with(
-            scheme='sasl', credential='role/servers', read=True,
-            write=False, delete=False, create=False, admin=True
+            'world', 'anyone',
+            read=True,
+            write=False,
+            delete=False,
+            create=False,
+            admin=True
         )
 
     @mock.patch('kazoo.security.make_acl')
+    @mock.patch('treadmill.syscall.krb5.get_host_realm',
+                mock.Mock(return_value=['my-realm']))
     def test_make_host_acl(self, make_acl_mock):
         """Test host acl."""
         zk = zksasl.SASLZkClient()
-        zk.make_host_acl('foo@123', 'rdwca')
+        zk.make_host_acl('foo', 'rdwca')
 
         make_acl_mock.assert_called_once_with(
-            scheme='sasl', credential='host/foo@123', read=True,
+            scheme='sasl', credential='host/foo@my-realm', read=True,
             write=True, delete=True, create=True, admin=True
         )
 
