@@ -1,2 +1,3 @@
 recursive-include lib/python/treadmill_aws/bootstrap/node/aws.linux *
 recursive-include lib/python/treadmill_aws/bootstrap/master/aws.linux *
+recursive-include lib/python/treadmill_aws/bootstrap/zookeeper/aws.linux *
