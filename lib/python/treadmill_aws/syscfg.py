@@ -39,7 +39,7 @@ def _exec(userdata, args, prefix=None):
     for key, value in userdata.items():
         if prefix and not key.startswith(prefix):
             continue
-        os.environ[key.upper()] = value
+        os.environ[key.upper()] = str(value)
 
     os.execvp(args[0], args)
 
