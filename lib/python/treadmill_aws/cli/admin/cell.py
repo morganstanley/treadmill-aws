@@ -23,6 +23,9 @@ from treadmill.scheduler import masterapi
 from treadmill import sysinfo
 from treadmill.syscall import krb5
 
+from treadmill_aws import awscontext
+from treadmill_aws import cli as aws_cli
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -101,6 +104,8 @@ def _ident_groups(ctx):
 def init():
     """Admin Cell CLI module"""
 
+    # pylint: disable=too-many-statements
+
     @click.group(name='cell')
     @click.option('--cors-origin', help='CORS origin for API.')
     @click.option('--cell', required=True,
@@ -110,6 +115,24 @@ def init():
     @click.option('--krb-realm', help='Kerberos realm',
                   envvar='TREADMILL_KRB_REALM',
                   required=False)
+    @click.option(
+        '--cell', required=True,
+        envvar='TREADMILL_CELL',
+        is_eager=True, callback=cli.handle_context_opt,
+        expose_value=False
+    )
+    @click.option(
+        '--krb-realm', help='Kerberos realm',
+        envvar='TREADMILL_KRB_REALM',
+        required=False
+    )
+    @click.option(
+        '--ipa-certs', required=False, envvar='TREADMILL_IPA_CERTS',
+        callback=aws_cli.handle_context_opt,
+        is_eager=True,
+        default='/etc/ipa/ca.crt',
+        expose_value=False
+    )
     @click.pass_context
     def cell_grp(ctx, cors_origin, krb_realm):
         """Manage treadmill cell."""
@@ -211,6 +234,40 @@ def init():
             admin_app_group.update(name, {'cells': list(group_cells)})
             existing = admin_app_group.get(name, dirty=True)
             print(existing)
+
+    @cell_grp.command(name='configure-dns')
+    @click.pass_context
+    def configure_dns(ctx):
+        """Configure DNS cell records."""
+
+        ipaclient = awscontext.GLOBAL.ipaclient
+        idnsname = 'zk.{}.{}'.format(ctx.obj.cell, context.GLOBAL.dns_domain)
+
+        admin_cell = admin.Cell(context.GLOBAL.ldap.conn)
+        cell = admin_cell.get(ctx.obj.cell)
+
+        masters = ','.join(['{}:{}'.format(m['hostname'], m['zk-client-port'])
+                            for m in cell['masters']])
+        scheme = cell.get('zk-auth-scheme')
+        if not scheme:
+            scheme = 'zookeeper'
+
+        zkurl = '{scheme}://{username}@{hostports}/treadmill/{cell}'.format(
+            scheme=scheme,
+            username=ctx.obj.proid,
+            hostports=masters,
+            cell=ctx.obj.cell
+        )
+
+        current_rec = ipaclient.get_dns_record(idnsname)
+        existing = current_rec['result']['result'][0]['txtrecord'][0]
+
+        if existing == zkurl:
+            _LOGGER.info('Zookeeper TXT records up to date: %s : %s',
+                         idnsname, zkurl)
+            return
+
+        ipaclient.add_txt_record(idnsname, zkurl)
 
     del restart_apps
     del configure_apps
