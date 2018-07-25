@@ -20,16 +20,20 @@ def init():
 
     @click.command()
     @click.option('--port',
+                  envvar='IPA525_PORT',
                   required=True,
                   type=int,
                   help='Service port to listen on.')
     @click.option('--client-realm',
+                  envvar='IPA525_CLIENT_REALM',
                   required=True,
                   help='Client Kerberos realm.')
     @click.option('--server-realm',
+                  envvar='IPA525_SERVER_REALM',
                   required=True,
                   help='Server Kerberos realm.')
     @click.option('--admin-group',
+                  envvar='IPA525_ADMIN_GROUP',
                   required=False,
                   help='IPA 525 admin group.')
     def ipa525server(port, client_realm, server_realm, admin_group):

@@ -23,6 +23,7 @@ _LINUX_ALIASES = {
 
     # Kerberos utilities.
     'ipa': '/bin/ipa',
+    'kadmin.local': '/sbin/kadmin.local',
     'kinit': '/usr/bin/kinit',
     'klist': '/usr/bin/klist',
     'kt_add': '/usr/bin/kt-add',
