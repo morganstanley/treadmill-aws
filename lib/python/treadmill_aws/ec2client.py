@@ -100,6 +100,36 @@ def delete_instances(ec2_conn, ids=None, tags=None, hostnames=None,
         )
 
 
+def start_instances(ec2_conn, ids=None, tags=None, hostnames=None,
+                    state=None):
+    """Start instances matching criteria."""
+    instances = list_instances(
+        ec2_conn, ids=ids, tags=tags, hostnames=hostnames, state=state
+    )
+
+    instance_ids = [i['InstanceId'] for i in instances]
+    if instance_ids:
+        ec2_conn.start_instances(
+            InstanceIds=instance_ids,
+            DryRun=False
+        )
+
+
+def stop_instances(ec2_conn, ids=None, tags=None, hostnames=None,
+                   state=None):
+    """Stop instances matching criteria."""
+    instances = list_instances(
+        ec2_conn, ids=ids, tags=tags, hostnames=hostnames, state=state
+    )
+
+    instance_ids = [i['InstanceId'] for i in instances]
+    if instance_ids:
+        ec2_conn.stop_instances(
+            InstanceIds=instance_ids,
+            DryRun=False
+        )
+
+
 def list_images(ec2_conn, ids=None, tags=None, owners=None, name=None):
     """List images."""
     if not owners:
