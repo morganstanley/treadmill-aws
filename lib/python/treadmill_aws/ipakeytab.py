@@ -20,15 +20,18 @@ import tempfile
 
 from twisted.internet import reactor
 from twisted.internet import protocol
+from twisted.internet import task
 
 from treadmill import gssapiprotocol
+from treadmill import subproc
 from treadmill import utils
 
 _LOGGER = logging.getLogger(__name__)
 _SERVICE_BLACKLIST = ['admin', 'host', 'root']
+_TICKET_REFRESH_INTERVAL = 60 * 60 * 2
 
 
-def run_server(port, realm, admin_group):
+def run_server(port, realm, admin, admin_group):
     """Runs IPA keytab server."""
     # TODO: pylint complains the function is too long, need to refactor.
     #
@@ -52,10 +55,35 @@ def run_server(port, realm, admin_group):
     class IPAKeytabServer(gssapiprotocol.GSSAPILineServer):
         """IPA Keytab server."""
 
-        def __init__(self, realm, admin_group):
+        def __init__(self, realm, admin, admin_group):
             gssapiprotocol.GSSAPILineServer.__init__(self)
             self.realm = realm
+            self.admin = admin
             self.admin_group = admin_group
+
+            if self.admin:
+                fd, krb5cc = tempfile.mkstemp(prefix='krb5cc_ipakeytab_')
+                os.close(fd)
+                os.environ['KRB5CCNAME'] = 'FILE:%s' % krb5cc
+                task.LoopingCall(
+                    self._get_admin_tickets).start(_TICKET_REFRESH_INTERVAL)
+
+        def _get_admin_tickets(self):
+            """get/refresh admin tickets."""
+            adminktdir = tempfile.mkdtemp(prefix="ipakeytab-admin-")
+            adminkt = "%s/krb5kt_%s" % (adminktdir, self.admin)
+            subproc.check_call(['kadmin.local',
+                                'ktadd',
+                                '-k',
+                                adminkt,
+                                '-norandkey',
+                                admin])
+            subproc.check_call(['kinit',
+                                '-k',
+                                '-t',
+                                adminkt,
+                                admin])
+            shutil.rmtree(adminktdir)
 
         def _validate_request_service(self, request):
             name, inst, realm = _parse_name(request)
@@ -183,18 +211,26 @@ def run_server(port, realm, admin_group):
                 "writing keytab for [%s] to tmp keytab file %s",
                 request, tmpkt)
 
-            os.system(
-                "kadmin.local ktadd -k %s -norandkey %s" %
-                (tmpkt, request))
+            subproc.check_call(['kadmin.local',
+                                'ktadd',
+                                '-k',
+                                tmpkt,
+                                '-norandkey',
+                                request])
             if not os.path.isfile(tmpkt) and inst:
-                # only do this part if request is for service principal
                 _LOGGER.info("running: ipa service-add %s", request)
-                os.system("klist -s || kinit -k")
-                os.system("ipa service-add %s" % request)
-                os.system("kadmin.local cpw -randkey %s" % request)
-                os.system(
-                    "kadmin.local ktadd -k %s -norandkey %s" %
-                    (tmpkt, request))
+                # todo - write rest api client for service-add
+                subproc.check_call(['ipa', 'service-add', request])
+                subproc.check_call(['kadmin.local',
+                                    'cpw',
+                                    '-randkey',
+                                    request])
+                subproc.check_call(['kadmin.local',
+                                    'ktadd',
+                                    '-k',
+                                    tmpkt,
+                                    '-norandkey',
+                                    request])
 
             if os.path.isfile(tmpkt):
                 with io.open(tmpkt, 'rb') as f:
@@ -263,17 +299,24 @@ def run_server(port, realm, admin_group):
     class IPAKeytabServerFactory(protocol.Factory):
         """IPAKeytabServer factory."""
 
-        def __init__(self, realm, admin_group):
+        def __init__(self, realm, admin, admin_group):
             protocol.Factory.__init__(self)
             self.realm = realm
+            self.admin = admin
             self.admin_group = admin_group
 
         def buildProtocol(self, addr):  # pylint: disable=C0103
-            return IPAKeytabServer(self.realm, self.admin_group)
+            return IPAKeytabServer(self.realm, self.admin, self.admin_group)
+
+    _LOGGER.info('IPA Keytab server starting')
+    _LOGGER.info('Listening on port %d', port)
+    if admin:
+        _LOGGER.info('IPA Keytab server will impersonate [%s]', admin)
+    if admin_group:
+        _LOGGER.info('IPA Keytab server admin group is [%s]', admin_group)
 
     if 'KRB5_KTNAME' in os.environ:
-        del os.environ['KRB5_KTNAME']
-    os.environ['KRB5CCNAME'] = "FILE:/tmp/krb5cc_root_ipakeytabd"
+        _LOGGER.info('KRB5_KTNAME is set to %s', os.environ['KRB5_KTNAME'])
 
-    reactor.listenTCP(port, IPAKeytabServerFactory(realm, admin_group))
+    reactor.listenTCP(port, IPAKeytabServerFactory(realm, admin, admin_group))
     reactor.run()
