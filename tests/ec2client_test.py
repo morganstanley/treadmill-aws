@@ -44,7 +44,8 @@ class EC2ClientTest(unittest.TestCase):
             TagSpecifications=[],
             UserData='foo',
             BlockDeviceMappings=[{'DeviceName': '/dev/sda1',
-                                  'Ebs': {'VolumeSize': 1}}]
+                                  'Ebs': {'VolumeSize': 1,
+                                          'VolumeType': 'gp2'}}]
         )
 
     @mock.patch('treadmill_aws.ec2client.list_instances',
