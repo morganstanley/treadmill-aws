@@ -56,7 +56,7 @@ krb5keytab-proxy = treadmill_aws.sproc.krb5keytabproxy
 [treadmill.bootstrap]
 aliases.aws = treadmill_aws.bootstrap.aws_aliases
 node.aws = treadmill_aws.bootstrap.node.aws
-master.aws = treadmill_aws.bootstrap.master.aws
+openldap.aws = treadmill_aws.bootstrap.openldap.aws
 zookeeper.aws = treadmill_aws.bootstrap.zookeeper.aws
 
 
