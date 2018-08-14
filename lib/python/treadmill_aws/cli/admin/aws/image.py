@@ -117,13 +117,12 @@ def init():
     )
     @click.option(
         '--key',
-        required=True,
         help='SSH key'
     )
     @click.argument('image', required=True, type=str)
     @cli.admin.ON_EXCEPTIONS
     def create(base_image, base_image_account, userdata, instance_profile,
-               secgroup, subnet, key, image):
+               secgroup, subnet, image, key):
         """Create image"""
         ec2_conn = awscontext.GLOBAL.ec2
         sts_conn = awscontext.GLOBAL.sts
