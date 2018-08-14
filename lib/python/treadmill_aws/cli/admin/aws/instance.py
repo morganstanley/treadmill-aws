@@ -122,10 +122,20 @@ def init():
         '--hostname',
         help='Shortname or Pattern, e.g. PATTERN-{time}',
     )
+    @click.option(
+        '--ip-address',
+        required=False,
+        help='IP address',
+    )
+    @click.option(
+        '--eni',
+        required=False,
+        help='Network id',
+    )
     @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
     def create(
             image, image_account, count, disk_size,
-            key, role, secgroup, size, subnet, data,
+            key, role, ip_address, eni, secgroup, size, subnet, data,
             instance_profile, hostgroup, hostname):
         """Create instance(s)"""
         ipa_client = awscontext.GLOBAL.ipaclient
@@ -162,7 +172,9 @@ def init():
             instance_vars=instance_vars,
             instance_profile=instance_profile,
             hostgroups=hostgroup,
-            hostname=hostname
+            hostname=hostname,
+            ip_address=ip_address,
+            eni=eni
         )
         for host_created in hosts_created:
             click.echo(host_created)
