@@ -24,7 +24,7 @@ def create_instance(ec2_conn, user_data, image_id, instance_type,
         }],
         'BlockDeviceMappings': [{
             'DeviceName': '/dev/sda1',
-            'Ebs': {'VolumeSize': disk}}]
+            'Ebs': {'VolumeSize': disk, 'VolumeType': 'gp2'}}]
     }
 
     if instance_profile:
