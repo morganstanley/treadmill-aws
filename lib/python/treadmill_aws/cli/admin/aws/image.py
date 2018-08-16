@@ -146,7 +146,9 @@ def init():
             ec2_conn, sts_conn, base_image, account=base_image_account)
         secgroup_id = aws_cli.admin.secgroup_id(ec2_conn, secgroup)
         subnet_id = aws_cli.admin.subnet_id(ec2_conn, subnet)
-        tags = []
+        tags = [{'ResourceType': 'instance',
+                 'Tags': [{'Key': 'Name',
+                           'Value': 'ImageBuild-{}'.format(image)}]}]
 
         instance = ec2client.create_instance(
             ec2_conn,
@@ -160,7 +162,7 @@ def init():
             instance_profile=instance_profile,
             disk=10
         )
-        print(instance)
+        click.echo(instance['Instances'][0]['InstanceId'])
 
     @image.command(name='share')
     @click.option(
