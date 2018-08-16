@@ -132,7 +132,12 @@ def get_image(ec2_conn, ids=None, tags=None, owners=None, name=None):
     )
 
     if not images:
-        raise exc.NotFoundError('No {} found.'.format(ids))
+        if ids:
+            raise exc.NotFoundError('No image id {} found.'.format(ids))
+        if tags:
+            raise exc.NotFoundError('No image tagged {} found.'.format(tags))
+        if name:
+            raise exc.NotFoundError('No image named {} found.'.format(name))
 
     image = images.pop(0)
     if images:
