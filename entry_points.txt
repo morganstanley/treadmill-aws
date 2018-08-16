@@ -13,6 +13,9 @@ aws-image = treadmill_aws.rest.api.image
 aws-image = treadmill_aws.api.image
 
 
+[treadmill.image.native.fs]
+aws = treadmill_aws.plugins.fs.aws:MinimalAWSFilesystemPlugin
+
 [treadmill.cli]
 aws = treadmill_aws.cli.aws
 krb5keytab = treadmill_aws.cli.krb5keytab
