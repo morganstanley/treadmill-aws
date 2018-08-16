@@ -181,8 +181,30 @@ def init():
             hostnames=[hostname]
         )
 
+    @instance.command(name='start')
+    @click.argument('hostname', nargs=-1)
+    @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
+    def start(hostname):
+        """Start instance(s)."""
+        ec2_conn = awscontext.GLOBAL.ec2
+        ec2client.start_instances(ec2_conn,
+                                  state=['stopped'],
+                                  hostnames=list(hostname))
+
+    @instance.command(name='stop')
+    @click.argument('hostname', nargs=-1)
+    @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
+    def stop(hostname):
+        """Stop instance(s)."""
+        ec2_conn = awscontext.GLOBAL.ec2
+        ec2client.stop_instances(ec2_conn,
+                                 state=['pending', 'running'],
+                                 hostnames=list(hostname))
+
     del _list
     del configure
     del delete
+    del start
+    del stop
 
     return instance
