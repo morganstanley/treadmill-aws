@@ -46,7 +46,7 @@ def init():
         cellname = context.GLOBAL.cell
 
         ipaclient = awscontext.GLOBAL.ipaclient
-        idnsname = 'zk.{}.{}'.format(cellname, context.GLOBAL.dns_domain)
+        idnsname = 'zk.{}'.format(cellname)
 
         admin_cell = admin.Cell(context.GLOBAL.ldap.conn)
         cell = admin_cell.get(cellname)
@@ -65,9 +65,19 @@ def init():
         )
 
         current_rec = ipaclient.get_dns_record(idnsname)
-        existing = current_rec['result']['result'][0]['txtrecord'][0]
+        found = False
 
-        if existing == zkurl:
+        if current_rec['result']['result']:
+            for record in current_rec['result']['result'][0]['txtrecord']:
+                if record != zkurl:
+                    _LOGGER.info(
+                        'Deleting stale TXT record: %s %s', idnsname, record
+                    )
+                    ipaclient.delete_txt_record(idnsname, record)
+                else:
+                    found = True
+
+        if found:
             _LOGGER.info('Zookeeper TXT records up to date: %s : %s',
                          idnsname, zkurl)
             return
