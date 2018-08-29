@@ -10,8 +10,7 @@ import glob
 import io
 import logging
 import os
-
-import six
+import socket
 
 from treadmill import utils
 from treadmill import yamlwrapper as yaml
@@ -37,10 +36,7 @@ class DnsSync:
             'cell': cell,
         }
         self.scopes.update(scopes)
-
         self.zone = zone
-        self.zones = ['.'.join([scope, scope_name, self.zone])
-                      for scope_name, scope in six.iteritems(self.scopes)]
 
     def _srv_rsrc(self, name, scope, proto, endpoint, hostport):
         """Return tuple of resource endpoint/payload."""
@@ -53,7 +49,7 @@ class DnsSync:
             _LOGGER.warning('Unsupported proto: %s', proto)
             return None
 
-        zone = '.'.join([self.scopes[scope], scope, self.zone])
+        zone = '.'.join([self.scopes[scope], scope])
         return (
             '_{endpoint}._{proto}.{name}.{zone}'.format(
                 endpoint=endpoint,
@@ -68,10 +64,8 @@ class DnsSync:
             )
         )
 
-    def _current_records(self, zone):
+    def _current_records(self):
         """Return all records found in DNS for the given cell."""
-        _LOGGER.info('Query state for: %s', zone)
-
         result = self.ipaclient.get_dns_record(self.zone)
         if result.get('error'):
             raise Exception(result.get('error'))
@@ -83,8 +77,25 @@ class DnsSync:
                 continue
 
             srv_rec_name = rec['idnsname'][0]
+
             for srv_rec in rec['srvrecord']:
                 _wei, _prio, port, host = srv_rec.split()
+
+                # There is no way to tell if the old record pointing to host
+                # that is no longer there belonged to the cell. There is no
+                # point keeping srv records pointing to hosts that no longer
+                # exist, so we GC for everyone.
+                try:
+                    socket.gethostbyname(host)
+                except socket.error:
+                    _LOGGER.info(
+                        'Stale record - host does not exist: %s %s:%s',
+                        srv_rec_name,
+                        host,
+                        port
+                    )
+                    current.add((srv_rec_name, srv_rec))
+                    continue
 
                 # skip records that do not belong to the cell.
                 host = host.rstrip('.')
@@ -180,9 +191,7 @@ class DnsSync:
         self._update_cell_servers()
 
         if self.state is None:
-            self.state = set()
-            for zone in self.zones:
-                self.state.update(self._current_records(zone))
+            self.state = self._current_records()
 
         _LOGGER.debug('Current state:')
         for record in sorted(self.state):
