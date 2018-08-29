@@ -308,11 +308,14 @@ class IPAClient():
             record_value=record
         )
 
-    def delete_txt_record(self, idnsname):
+    def delete_txt_record(self, idnsname, record):
         """Delete TXT record."""
-        # TODO: add implementation of delete.
-        del idnsname
-        raise Exception('Not implemented.')
+        _LOGGER.debug('Adding TXT record: %s %s', idnsname, record)
+        self.delete_dns_record(
+            record_type='txtrecord',
+            record_name=idnsname,
+            record_value=record
+        )
 
     def add_user(self, user_name, first_name, last_name, user_type):
         """Add new user to IPA server.
