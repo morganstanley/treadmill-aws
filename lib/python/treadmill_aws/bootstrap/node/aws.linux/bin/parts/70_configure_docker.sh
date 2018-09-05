@@ -18,7 +18,7 @@ cat <<EOF
 [registries.search]
 registries = []
 [registries.insecure]
-registries = ['{{ data.docker_registries }}']
+registries = {{ data.docker_registries }}
 [registries.block]
 registries = []
 EOF
