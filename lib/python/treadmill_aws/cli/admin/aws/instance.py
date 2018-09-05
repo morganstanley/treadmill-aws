@@ -182,7 +182,7 @@ def init():
         )
 
     @instance.command(name='start')
-    @click.argument('hostname', nargs=-1)
+    @click.argument('hostname', nargs=-1, required=True)
     @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
     def start(hostname):
         """Start instance(s)."""
@@ -192,7 +192,7 @@ def init():
                                   hostnames=list(hostname))
 
     @instance.command(name='stop')
-    @click.argument('hostname', nargs=-1)
+    @click.argument('hostname', nargs=-1, required=True)
     @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
     def stop(hostname):
         """Stop instance(s)."""
