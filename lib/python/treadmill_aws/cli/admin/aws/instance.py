@@ -145,9 +145,6 @@ def init():
         else:
             instance_vars = {}
 
-        if not key:
-            key = metadata.instance_keys()[0]
-
         hosts_created = hostmanager.create_host(
             ipa_client=ipa_client,
             ec2_conn=ec2_conn,
