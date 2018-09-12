@@ -6,6 +6,8 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import os
+
 import click
 import requests
 from six.moves import http_client
@@ -32,6 +34,15 @@ def _write_env_file(conf_file, userdata, prefixes=()):
                 conf_file.write('{}={}\n'.format(key.upper(), value))
 
 
+def _exec(userdata, args, prefixes=()):
+    """Set environment from user data and exec."""
+    for key, value in userdata.items():
+        for prefix in prefixes:
+            if key.startswith(prefix):
+                os.environ[key.upper()] = value
+    os.execvp(args[0], args)
+
+
 @click.group()
 @click.option('--userdata', help='Userdata url',
               default=_USERDATA_URL)
@@ -56,6 +67,20 @@ def write(ctx, envfile, prefix):
     url = ctx.obj['USERDATA_URL']
     userdata = _load_userdata(url)
     _write_env_file(envfile, userdata, prefix)
+
+
+@syscfg.command(name='exec')
+@click.option('--prefix',
+              multiple=True,
+              default=['treadmill_'],
+              help='Environent variable location.')
+@click.argument('command', nargs=-1)
+@click.pass_context
+def exec_cmd(ctx, prefix, command):
+    """Read environment from userdata and exec."""
+    url = ctx.obj['USERDATA_URL']
+    userdata = _load_userdata(url)
+    _exec(userdata, list(command), prefix)
 
 
 def run():
