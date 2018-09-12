@@ -6,8 +6,8 @@ from . import aws
 
 
 def create_instance(ec2_conn, user_data, image_id, instance_type,
-                    key, tags, secgroup_ids, subnet_id, disk,
-                    instance_profile=None):
+                    tags, secgroup_ids, subnet_id, disk, key=None,
+                    instance_profile=None, ip_address=None, eni=None):
     """Create new instance."""
     args = {
         'TagSpecifications': tags,
@@ -15,12 +15,9 @@ def create_instance(ec2_conn, user_data, image_id, instance_type,
         'MinCount': 1,
         'MaxCount': 1,
         'InstanceType': instance_type,
-        'KeyName': key,
         'UserData': user_data,
         'NetworkInterfaces': [{
             'DeviceIndex': 0,
-            'SubnetId': subnet_id,
-            'Groups': [secgroup_ids]
         }],
         'BlockDeviceMappings': [{
             'DeviceName': '/dev/sda1',
@@ -36,6 +33,23 @@ def create_instance(ec2_conn, user_data, image_id, instance_type,
             args['IamInstanceProfile'] = {
                 'Name': instance_profile
             }
+
+    if key is not None:
+        args['KeyName'] = key
+
+    if ip_address is not None:
+        args['NetworkInterfaces'][0]['PrivateIpAddress'] = ip_address
+
+    if eni is not None:
+        subnet_id = None
+        secgroup_ids = None
+        args['NetworkInterfaces'][0]['NetworkInterfaceId'] = eni
+
+    if subnet_id is not None:
+        args['NetworkInterfaces'][0]['SubnetId'] = subnet_id
+
+    if secgroup_ids is not None:
+        args['NetworkInterfaces'][0]['Groups'] = [secgroup_ids]
 
     response = ec2_conn.run_instances(**args)
     return response

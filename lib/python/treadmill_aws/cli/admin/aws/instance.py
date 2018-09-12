@@ -51,36 +51,30 @@ def init():
     @instance.command()
     @click.option(
         '--image',
-        required=False,
         help='Image',
         type=aws_cli.IMAGE
     )
     @click.option(
         '--image-account',
-        required=False,
         help='AWS image account.',
     )
     @click.option(
         '--secgroup',
-        required=False,
         type=aws_cli.SECGROUP,
         help='Security group'
     )
     @click.option(
         '--subnet',
-        required=False,
         type=aws_cli.SUBNET,
         help='Subnet'
     )
     @click.option(
         '--role',
-        required=False,
         help='Instance role',
         default='generic'
     )
     @click.option(
         '--key',
-        required=False,
         help='Instance SSH key name'
     )
     @click.option(
@@ -105,7 +99,6 @@ def init():
     )
     @click.option(
         '--data',
-        required=False,
         help='Instance data in YAML format',
         type=click.File()
     )
@@ -122,10 +115,18 @@ def init():
         '--hostname',
         help='Shortname or Pattern, e.g. PATTERN-{time}',
     )
+    @click.option(
+        '--ip-address',
+        help='IP address',
+    )
+    @click.option(
+        '--eni',
+        help='Elastic Network ID; e.g. eni-xxxxxxxx',
+    )
     @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
     def create(
             image, image_account, count, disk_size,
-            key, role, secgroup, size, subnet, data,
+            key, role, ip_address, eni, secgroup, size, subnet, data,
             instance_profile, hostgroup, hostname):
         """Create instance(s)"""
         ipa_client = awscontext.GLOBAL.ipaclient
@@ -162,7 +163,9 @@ def init():
             instance_vars=instance_vars,
             instance_profile=instance_profile,
             hostgroups=hostgroup,
-            hostname=hostname
+            hostname=hostname,
+            ip_address=ip_address,
+            eni=eni
         )
         for host_created in hosts_created:
             click.echo(host_created)
