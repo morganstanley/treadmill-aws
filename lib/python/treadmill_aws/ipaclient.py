@@ -271,7 +271,7 @@ class IPAClient():
 
     def add_srv_record(self, idnsname, host, port, weight=0, priority=0):
         """Add SRV record."""
-        record = '{weight} {priority} {port} {host}.'.format(
+        record = '{weight} {priority} {port} {host}'.format(
             weight=weight,
             priority=priority,
             port=port,
@@ -286,7 +286,7 @@ class IPAClient():
 
     def delete_srv_record(self, idnsname, host, port, weight=0, priority=0):
         """Add SRV record."""
-        record = '{weight} {priority} {port} {host}.'.format(
+        record = '{weight} {priority} {port} {host}'.format(
             weight=weight,
             priority=priority,
             port=port,

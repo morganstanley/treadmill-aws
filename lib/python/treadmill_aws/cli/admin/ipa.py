@@ -86,10 +86,8 @@ def init():
     @cli.handle_exceptions(_CLI_EXCEPTIONS)
     def krb5keytab(add, remove):
         """Manage krb5keytab configuration."""
-        domain = awscontext.GLOBAL.ipa_domain
         ipaclient = awscontext.GLOBAL.ipaclient
-
-        idnsname = '_krb5keytab._tcp.{}'.format(domain)
+        idnsname = '_krb5keytab._tcp'
         for endpoint in sorted(_set_state(ipaclient, idnsname, add, remove)):
             print(endpoint)
 
