@@ -1,11 +1,12 @@
 """ IPA client connectors and helper functions """
 import logging
-import os
 import random
 
 import dns.resolver
 import requests
 import requests_kerberos
+
+from treadmill_aws import noproxy
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -147,23 +148,6 @@ def check_response(response):
     raise IPAError('Unknown error.')
 
 
-class _NoProxy():
-    """Safely remove/restore proxy environment variables."""
-
-    def __init__(self):
-        self.saved = dict()
-
-    def __enter__(self):
-        for key in list(os.environ.keys()):
-            if key.lower().endswith('_proxy'):
-                self.saved[key] = os.environ[key]
-                del os.environ[key]
-
-    def __exit__(self, *args, **kwargs):
-        for key, value in self.saved.items():
-            os.environ[key] = value
-
-
 # TODO: Error handling is very inconsistent, need to be rewritten.
 class IPAClient():
     """ Interfaces with freeIPA API to add, delete, list and manage
@@ -186,7 +170,7 @@ class IPAClient():
         """ Submits formatted JSON to IPA server.
             Uses requests_kerberos module for Kerberos authentication with IPA.
         """
-        with _NoProxy() as _proxy:
+        with noproxy.NoProxy() as _proxy:
             response = requests.post(self.ipa_srv_api_address,
                                      json=payload,
                                      auth=auth,
