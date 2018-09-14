@@ -15,15 +15,15 @@ matrix:
     env: TOXENV=docs
 
   - python: 3.4
-    env: TOXENV=py34,codecov
+    env: TOXENV=py34
   - python: 3.5
-    env: TOXENV=py35,codecov
+    env: TOXENV=py35
   - python: 3.6
-    env: TOXENV=py36,codecov
+    env: TOXENV=py36
 
   # Failures on these unsupported python versions are allowed
   allow_failures:
-  - env: TOXENV=py35,codecov
+  - env: TOXENV=py35
 
 
 install:
