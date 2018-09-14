@@ -13,13 +13,17 @@ import requests
 from six.moves import http_client
 import yaml
 
+from treadmill_aws import noproxy
+
 
 _USERDATA_URL = 'http://169.254.169.254/latest/user-data'
 
 
 def _load_userdata(url):
     """Reads user data as dictionary."""
-    resp = requests.get(url)
+    with noproxy.NoProxy() as _proxy:
+        resp = requests.get(url)
+
     if resp.status_code == http_client.NOT_FOUND:
         return {}
 
