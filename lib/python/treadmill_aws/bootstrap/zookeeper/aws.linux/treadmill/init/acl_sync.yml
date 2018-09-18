@@ -2,11 +2,11 @@ user: "{{ treadmillid }}"
 command: |
   echo \
     {{ treadmill }}/bin/treadmill \
-        sproc srvacl /treadmill/roles/servers
+        sproc srvacl {{ dir }}/treadmill/roles/servers
   /bin/sleep inf
-environ_dir: "/treadmill/env"
+environ_dir: "{{ dir }}/treadmill/env"
 monitor_policy:
   limit: "{{ restart_limit }}"
   interval: "{{ restart_interval }}"
   tombstone:
-    path: "/treadmill/tombstones"
+    path: "{{ dir }}/treadmill/tombstones"

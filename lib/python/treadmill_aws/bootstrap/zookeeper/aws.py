@@ -13,7 +13,7 @@ _DEFAULT_HOST_TICKET = 'treadmill/spool/tickets/krb5cc_host'
 
 DEFAULTS = {
     'treadmill_host_ticket': _DEFAULT_HOST_TICKET,
-    'data_dir': '/treadmill/zookeeper/data',
+    'data_dir': '{{ dir }}/treadmill/zookeeper/data',
     'tick_time': 10000,
     'init_limit': 5,
     'sync_limit': 2,
@@ -23,8 +23,8 @@ DEFAULTS = {
     'restart_interval': 300,
     'restart_limit': 5,
     'zk_distro': '/opt/zookeeper',
-    'keytab': '/treadmill/zookeeper/zookeeper.keytab',
-    'zkroot': '/treadmill/zookeeper',
+    'keytab': '{{ dir }}/treadmill/zookeeper/zookeeper.keytab',
+    'zkroot': '{{ dir }}/treadmill/zookeeper',
 }
 
 ALIASES = aliases.ALIASES

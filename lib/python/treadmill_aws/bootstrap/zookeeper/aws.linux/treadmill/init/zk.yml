@@ -18,9 +18,9 @@ command: |
     -Dcom.sun.management.jmxremote \
     -Dcom.sun.management.jmxremote.local.only=false \
     org.apache.zookeeper.server.quorum.QuorumPeerMain {{ zkroot }}/conf/zoo.cfg
-environ_dir: "/treadmill/env"
+environ_dir: "{{ dir }}/treadmill/env"
 monitor_policy:
   limit: "{{ restart_limit }}"
   interval: "{{ restart_interval }}"
   tombstone:
-    path: "/treadmill/tombstones"
+    path: "{{ dir }}/treadmill/tombstones"
