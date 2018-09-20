@@ -6,6 +6,8 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import yaml
+
 from treadmill.formatter import tablefmt
 from treadmill import yamlwrapper as yaml
 
@@ -208,30 +210,48 @@ class SecgroupPrettyFormatter:
             return format_item(item)
 
 
-class UserPrettyFormatter:
-    """Pretty table formatter for AWS/IPA user."""
+class IpaUserPrettyFormatter:
+    """Pretty table formatter for AWS user."""
 
     @staticmethod
     def format(item):
         """Return pretty-formatted item."""
         list_schema = [
-            ('id', None, None),
-            ('type', None, None),
+            ('id', 'uid', lambda _: _[0]),
         ]
 
         item_schema = [
-            ('id', None, None),
-            ('type', None, None),
-            ('groups', '_ipa',
-             lambda ipa: '\n'.join(ipa.get('memberof_group', []))),
-            ('indirect-groups', '_ipa',
-             lambda ipa: '\n'.join(ipa.get('memberofindirect_group', []))),
-            ('hbac-rule', '_ipa',
-             lambda ipa: '\n'.join(ipa.get('memberofindirect_hbacrule', []))),
-            ('sudo-rule', '_ipa',
-             lambda ipa: '\n'.join(ipa.get('memberofindirect_sudorule', []))),
-            ('iam-user', '_iam', lambda iam: yaml.dump(iam['user'])),
-            ('iam-role', '_iam', lambda iam: yaml.dump(iam['role'])),
+            ('id', 'uid', lambda _: _[0]),
+            ('type', 'userclass', lambda _: _[0]),
+            ('groups', 'memberof_group', '\n'.join),
+            ('indirect-groups', 'memberofindirect_group', '\n'.join),
+            ('hbac-rule', 'memberofindirect_hbacrule', '\n'.join),
+            ('sudo-rule', 'memberofindirect_sudorule', '\n'.join),
+        ]
+
+        format_item = tablefmt.make_dict_to_table(item_schema)
+        format_list = tablefmt.make_list_to_table(list_schema)
+
+        if isinstance(item, list):
+            return format_list(item)
+        else:
+            return format_item(item)
+
+
+class AwsUserPrettyFormatter:
+    """Pretty table formatter for IPA user."""
+
+    @staticmethod
+    def format(item):
+        """Return pretty-formatted item."""
+        list_schema = [
+            ('id', 'User', lambda _: _['UserName']),
+        ]
+
+        item_schema = [
+            ('id', 'user', lambda _: _['UserName']),
+            ('user', 'user', yaml.dump),
+            ('role', 'role', yaml.dump),
         ]
 
         format_item = tablefmt.make_dict_to_table(item_schema)

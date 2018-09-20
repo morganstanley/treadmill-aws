@@ -120,10 +120,12 @@ class UsermanagerTest(unittest.TestCase):
         self.assertFalse(subproc_mock.called)
 
     @mock.patch('treadmill_aws.iamclient.get_user', mock.Mock())
+    @mock.patch('treadmill_aws.iamclient.get_role', mock.Mock())
     def test_create_iam_user(self):
         """Test create_iam_user
         """
         treadmill_aws.iamclient.get_user.side_effect = exc.NotFoundError('x')
+        treadmill_aws.iamclient.get_role.side_effect = exc.NotFoundError('x')
 
         iam_conn = mock.MagicMock()
         iam_conn.create_user.return_value = {'User': {
@@ -136,41 +138,11 @@ class UsermanagerTest(unittest.TestCase):
 
         result = usermanager.create_iam_user(
             iam_conn,
-            user_name='foo'
+            user_name='foo',
+            policy='xxx'
         )
 
         iam_conn.create_user.assert_called_with(UserName='foo', Path='/')
-
-    @mock.patch('treadmill_aws.iamclient.get_role', mock.Mock())
-    def test_create_iam_role(self):
-        """Test create_iam_user
-        """
-        treadmill_aws.iamclient.get_role.side_effect = exc.NotFoundError('x')
-
-        iam_conn = mock.MagicMock()
-        iam_conn.create_role.return_value = {'Role': {
-            'Arn': 'arn:aws:iam::236968667438:role/xxx',
-            'Path': '/',
-            'RoleId': 'ABSDEFGABCDEFG',
-            'RoleName': 'xxx',
-            'AssumeRolePolicyDocument': {
-                'Version': '2012-10-17',
-                'Statement': [
-                    {'Action': 'sts:AssumeRole',
-                     'Effect': 'Allow',
-                     'Principal': {'AWS': 'arn:aws:iam::12345:root'}}
-                ]
-            }
-        }}
-
-        result = usermanager.create_iam_role(
-            iam_conn,
-            role_name='xxx',
-            policy={'foo': 'bar'},
-        )
-
         iam_conn.create_role.assert_called_with(
-            RoleName='xxx',
-            Path='/',
-            AssumeRolePolicyDocument='{"foo": "bar"}'
+            RoleName='foo', Path='/', AssumeRolePolicyDocument='"xxx"'
         )

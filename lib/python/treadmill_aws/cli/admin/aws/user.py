@@ -13,6 +13,7 @@ import os
 import click
 
 from treadmill import cli
+from treadmill import exc
 
 from treadmill_aws import awscontext
 from treadmill_aws import cli as aws_cli
@@ -37,25 +38,26 @@ def _default_policy():
     }
 
 
-def init():
-    """ AWS user CLI group"""
-    formatter = cli.make_formatter('aws_user')
+def _ipa_grp(parent):
+    """Configure IPA command group."""
 
-    @click.group()
-    def user():
-        """Manage user configuration"""
+    formatter = cli.make_formatter('ipa_user')
+
+    @parent.group()
+    def ipa():
+        """Manage IPA user configuration"""
         pass
 
-    @user.command(name='list')
+    @ipa.command(name='list')
     @cli.admin.ON_EXCEPTIONS
-    def _list():
+    def list_ipa():
         """List users.
         """
         ipa_client = awscontext.GLOBAL.ipaclient
         users = usermanager.list_users(ipa_client=ipa_client)
         cli.out(formatter(users))
 
-    @user.command(name='configure')
+    @ipa.command(name='configure')
     @click.option('--usertype', required=False,
                   type=click.Choice(['proid', 'user', 'privuser']),
                   help='User type.')
@@ -63,8 +65,6 @@ def init():
                   help='First Name.')
     @click.option('--lname', required=False,
                   help='Last Name.')
-    @click.option('--policy-doc', required=False,
-                  help='IAM Role policy document.')
     @click.option('--kadmin', required=False,
                   help='IPA kadmin principal.')
     @click.option('--ktadmin', required=False,
@@ -72,58 +72,115 @@ def init():
     @click.argument('username', required=True,
                     callback=aws_cli.sanitize_user_name)
     @cli.admin.ON_EXCEPTIONS
-    def configure(usertype, fname, lname, policy_doc, kadmin, ktadmin,
-                  username):
+    def configure_ipa(usertype, fname, lname, kadmin, ktadmin, username):
         """Create user.
         """
         ipa_client = awscontext.GLOBAL.ipaclient
-        iam_conn = awscontext.GLOBAL.iam
         if not kadmin:
             kadmin = os.getlogin()
 
         if not usertype:
-            user = usermanager.get_user(ipa_client=ipa_client,
-                                        iam_conn=iam_conn,
-                                        user_name=username)
+            user = usermanager.get_ipa_user(ipa_client=ipa_client,
+                                            user_name=username)
         else:
-            if not policy_doc:
-                policy = _default_policy()
-            else:
-                with io.open(policy) as f:
-                    policy = json.loads(f.read())
-
             if not fname:
                 fname = username
             if not lname:
                 lname = username
 
-            user = usermanager.create_user(
+            user = usermanager.create_ipa_user(
                 ipa_client=ipa_client,
-                iam_conn=iam_conn,
                 kadmin=kadmin,
                 ktadmin=ktadmin,
                 user_name=username,
                 first_name=fname,
                 last_name=lname,
                 user_type=usertype,
+            )
+
+        cli.out(formatter(user))
+
+    @ipa.command(name='delete')
+    @click.argument('username')
+    @cli.admin.ON_EXCEPTIONS
+    def delete_ipa(username):
+        """Delete IPA user."""
+        ipa_client = awscontext.GLOBAL.ipaclient
+        iam_conn = awscontext.GLOBAL.iam
+        usermanager.delete_iam_user(iam_conn=iam_conn,
+                                    user_name=username)
+
+    del list_ipa
+    del configure_ipa
+    del delete_ipa
+
+
+def _iam_grp(parent):
+    """Configure IAM command group."""
+
+    formatter = cli.make_formatter('aws_user')
+
+    @parent.group()
+    def iam():
+        """Manage IAM user configuration"""
+        pass
+
+    @iam.command(name='configure')
+    @click.option('--policy-doc', required=False,
+                  help='IAM Role policy document.')
+    @click.option('--create', is_flag=True, default=False,
+                  help='Create IAM user/role.')
+    @click.argument('username', required=True,
+                    callback=aws_cli.sanitize_user_name)
+    @cli.admin.ON_EXCEPTIONS
+    def configure_iam(policy_doc, create, username):
+        """Create IAM user.
+        """
+        iam_conn = awscontext.GLOBAL.iam
+        try:
+            user = usermanager.get_iam_user(iam_conn=iam_conn,
+                                            user_name=username)
+        except exc.NotFoundError:
+            if not create:
+                raise
+
+        if create or policy_doc:
+            policy = _default_policy()
+            if policy_doc:
+                with io.open(policy_doc) as f:
+                    policy = json.loads(f.read())
+
+            user = usermanager.create_iam_user(
+                iam_conn=iam_conn,
+                user_name=username,
                 policy=policy
             )
 
         cli.out(formatter(user))
 
-    @user.command(name='delete')
+    @iam.command(name='delete')
     @click.argument('username')
     @cli.admin.ON_EXCEPTIONS
-    def delete(username):
-        """Delete user."""
+    def delete_iam(username):
+        """Delete IAM user."""
         ipa_client = awscontext.GLOBAL.ipaclient
         iam_conn = awscontext.GLOBAL.iam
-        usermanager.delete_user(ipa_client=ipa_client,
-                                iam_conn=iam_conn,
-                                user_name=username)
+        usermanager.delete_iam_user(iam_conn=iam_conn,
+                                    user_name=username)
 
-    del _list
-    del configure
-    del delete
+    del configure_iam
+    del delete_iam
+
+
+def init():
+    """ AWS user CLI group"""
+
+    @click.group()
+    def user():
+        """Manage user configuration"""
+        pass
+
+    _ipa_grp(user)
+    _iam_grp(user)
 
     return user
