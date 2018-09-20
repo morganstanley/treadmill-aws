@@ -20,6 +20,7 @@ def init(api, cors, impl):
         api, __name__, 'AWS Image REST operations'
     )
 
+    # TODO: will it make sense to maintain models in separate module?
     model = {
         'ImageId': fields.String(description='Image id.'),
         'Name': fields.String(description='Image name.'),
@@ -31,6 +32,22 @@ def init(api, cors, impl):
     aws_image_model = api.model(
         'AWSImage', model
     )
+
+    resource_fields = {
+        'tags': fields.Raw(description='Tags k/v dictionary'),
+        'name': fields.String(description='Resource name'),
+        'ids': fields.List(fields.String, description='List of resource ids')
+    }
+
+    aws_image_req_model = api.model('AWSImageRequest', {
+        'base_image': fields.Nested(resource_fields, description='Base image'),
+        'base_image_account': fields.String(description='Base image account.'),
+        'userdata': fields.List(fields.String, description='User data.'),
+        'profile': fields.String(description='Instance profile.'),
+        'secgroup': fields.Nested(resource_fields, description='AWS secgroup'),
+        'subnet': fields.Nested(resource_fields, description='AWS subnet'),
+        'key': fields.String(description='Instance ssh key.'),
+    })
 
     match_parser = api.parser()
     match_parser.add_argument('account', help='Image account',
@@ -63,20 +80,13 @@ def init(api, cors, impl):
             return impl.get(image)
 
         @webutils.post_api(api, cors,
-                           req_model=aws_image_model,
+                           req_model=aws_image_req_model,
                            resp_model=aws_image_model)
-        def post(self, app_monitor):
+        def post(self, image):
             """Creates AWS image."""
-            return impl.create(app_monitor, flask.request.json)
-
-        @webutils.put_api(api, cors,
-                          req_model=aws_image_model,
-                          resp_model=aws_image_model)
-        def put(self, image):
-            """Updates Treadmill application configuration."""
-            return impl.update(image, flask.request.json)
+            return impl.create(image, flask.request.json)
 
         @webutils.delete_api(api, cors)
         def delete(self, image):
-            """Deletes Treadmill application monitor."""
+            """Deletes AWS image."""
             return impl.delete(image)

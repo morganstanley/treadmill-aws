@@ -1,8 +1,13 @@
 """AWS client connectors and helper functions.
 """
 
+import logging
+
 from treadmill import exc
 from . import aws
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def create_instance(ec2_conn, user_data, image_id, instance_type,
@@ -188,6 +193,25 @@ def get_image(ec2_conn, ids=None, tags=None, owners=None, name=None):
         raise aws.NotUniqueError()
 
     return image
+
+
+def delete_images(ec2_conn, ids=None, tags=None, owners=None, name=None):
+    """Delete (unregister) AMI images."""
+    images = list_images(
+        ec2_conn, ids=ids, tags=tags, owners=owners, name=name
+    )
+
+    if not images:
+        if ids:
+            raise exc.NotFoundError('No image id {} found.'.format(ids))
+        if tags:
+            raise exc.NotFoundError('No image tagged {} found.'.format(tags))
+        if name:
+            raise exc.NotFoundError('No image named {} found.'.format(name))
+
+    for image in images:
+        _LOGGER.info('deleting image: %s', image['ImageId'])
+        ec2_conn.deregister_image(ImageId=image['ImageId'])
 
 
 def list_secgroups(ec2_conn, ids=None, tags=None, names=None):
