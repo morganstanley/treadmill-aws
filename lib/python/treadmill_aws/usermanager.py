@@ -10,29 +10,19 @@ from treadmill_aws import iamclient
 from treadmill_aws import ipaclient
 
 
-def _user(user):
-    """Creates a top level user object, conflating IPA and AWS attributes."""
-    user['id'] = user['_ipa']['uid'][0]
-    user['type'] = user['_ipa'].get('userclass', [None])[0]
-    return user
+def get_ipa_user(ipa_client, user_name):
+    """Get user details from IPA."""
+    return ipa_client.show_user(user_name=user_name)
 
 
-def get_user(iam_conn, ipa_client, user_name):
-    """Get user details."""
-    user = {
-        '_ipa': None,
-        '_iam': {
-            'user': None,
-            'role': None,
-        }
-    }
-    ipa_user = ipa_client.show_user(user_name=user_name)
+def get_iam_user(iam_conn, user_name):
+    """Get IAM user details."""
     iam_user = iamclient.get_user(iam_conn=iam_conn, user_name=user_name)
     iam_role = iamclient.get_role(iam_conn=iam_conn, role_name=user_name)
-    user['_ipa'] = ipa_user
-    user['_iam']['user'] = iam_user
-    user['_iam']['role'] = iam_role
-    return _user(user)
+    return {
+        'user': iam_user,
+        'role': iam_role,
+    }
 
 
 def create_ipa_user(ipa_client, kadmin, ktadmin, first_name,
@@ -73,7 +63,7 @@ def create_ipa_user(ipa_client, kadmin, ktadmin, first_name,
     return ipa_user
 
 
-def create_iam_user(iam_conn, user_name):
+def create_iam_user(iam_conn, user_name, policy):
     """ Create user account with AWS IAM if not already created.
     """
     try:
@@ -85,63 +75,33 @@ def create_iam_user(iam_conn, user_name):
             user_name=user_name,
         )
 
-    return iam_user
-
-
-def create_iam_role(iam_conn, role_name, policy):
-    """Configure user role with AWS IAM.
-    """
     try:
-        iam_role = iamclient.get_role(iam_conn=iam_conn, role_name=role_name)
+        iam_role = iamclient.get_role(iam_conn=iam_conn, role_name=user_name)
     except exc.NotFoundError:
         # If role does not exist:
         iam_role = iamclient.create_role(
             iam_conn=iam_conn,
-            role_name=role_name,
+            role_name=user_name,
             policy_document=json.dumps(policy)
         )
-    return iam_role
 
-
-def create_user(iam_conn, ipa_client, kadmin, ktadmin,
-                user_name, first_name, last_name, user_type, policy):
-    """ Create new user in freeIPA and in AWS IAM.
-    """
-    user = {
-        '_ipa': None,
-        '_iam': {
-            'user': None,
-            'role': None,
-        }
+    return {
+        'user': iam_user,
+        'role': iam_role,
     }
-    ipa_user = create_ipa_user(
-        ipa_client=ipa_client,
-        kadmin=kadmin,
-        ktadmin=ktadmin,
-        first_name=first_name,
-        last_name=last_name,
-        user_name=user_name,
-        user_type=user_type,
-    )
-    user['_ipa'] = ipa_user
-
-    iam_user = create_iam_user(
-        iam_conn=iam_conn,
-        user_name=user_name,
-    )
-    user['_iam']['user'] = iam_user
-
-    iam_role = create_iam_role(
-        iam_conn=iam_conn,
-        role_name=user_name,
-        policy=policy
-    )
-    user['_iam']['role'] = iam_role
-    return _user(user)
 
 
-def delete_user(iam_conn, ipa_client, user_name):
-    """Delete user from freeIPA and AWS IAM if not already deleted.
+def delete_ipa_user(iam_conn, user_name):
+    """Delete user from FreeIPA if not already deleted.
+    """
+    try:
+        iamclient.delete_user(iam_conn=iam_conn, user_name=user_name)
+    except exc.NotFoundError:
+        pass
+
+
+def delete_iam_user(iam_conn, user_name):
+    """Delete user from AWS IAM if not already deleted.
     """
     try:
         iamclient.delete_user(iam_conn=iam_conn, user_name=user_name)
@@ -153,18 +113,9 @@ def delete_user(iam_conn, ipa_client, user_name):
     except exc.NotFoundError:
         pass
 
-    try:
-        ipa_client.delete_user(user_name=user_name)
-    except ipaclient.NotFoundError:
-        pass
 
-
-def list_users(ipa_client, pattern=None):
-    """Lists users that exist in freeIPA.
+def list_ipa_users(ipa_client, pattern=None):
+    """Lists IPA users.
     """
     ipa_users = ipa_client.list_users(pattern)
-
-    # TODO: handle errors
-    # TODO: need to query iam users and roles and potentially reconcile.
-    users = [dict((['_ipa', ipa_user],)) for ipa_user in ipa_users]
-    return [_user(user) for user in users]
+    return ipa_users
