@@ -83,3 +83,6 @@ aws-proid-env = treadmill_aws.plugins.api.instance
 
 [treadmill.logging]
 aws = treadmill_aws.logging
+
+[treadmill.features]
+krb5keytab = treadmill_aws.features.krb5keytab:Krb5KeytabFeature
