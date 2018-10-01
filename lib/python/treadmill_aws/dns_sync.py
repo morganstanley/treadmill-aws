@@ -34,24 +34,31 @@ class DnsSync:
         self.servers = set()
         self.scopes = {
             'cell': cell,
+            'global': None,
         }
         self.scopes.update(scopes)
         self.zone = zone
 
     def _srv_rsrc(self, name, scope, proto, endpoint, hostport):
         """Return tuple of resource endpoint/payload."""
-        host, port = hostport.split(':')
-        if scope not in self.scopes:
-            _LOGGER.warning('Unsupported scope: %s', scope)
-            return None
-
         if proto not in ['tcp', 'udp']:
             _LOGGER.warning('Unsupported proto: %s', proto)
             return None
 
-        zone = '.'.join([self.scopes[scope], scope])
+        if scope not in self.scopes:
+            _LOGGER.warning('Unsupported scope: %s', scope)
+            return None
+
+        host, port = hostport.split(':')
+        if scope == 'global':
+            zone = None
+            srv_rec = '_{endpoint}._{proto}.{name}'
+        else:
+            zone = '.'.join([self.scopes[scope], scope])
+            srv_rec = '_{endpoint}._{proto}.{name}.{zone}'
+
         return (
-            '_{endpoint}._{proto}.{name}.{zone}'.format(
+            srv_rec.format(
                 endpoint=endpoint,
                 proto=proto,
                 name=name,
