@@ -1,6 +1,7 @@
 """Tests for aws/hostmanager."""
 
 import re
+import time
 import unittest
 
 import mock
@@ -80,3 +81,24 @@ class HostmanagerTest(unittest.TestCase):
     def test_generate_hostname(self):
         """Test that generated hostnames are rendered correctly."""
         assert True
+
+    @mock.patch('time.time', mock.Mock(return_value=1538429096.025851))
+    def test_timestamp(self):
+        """Test timestamp generation."""
+        self.assertEqual('y.x', hostmanager.generate_hostname('x', 'y'))
+        self.assertEqual(
+            'y-dl7tpestdee.x',
+            hostmanager.generate_hostname('x', 'y-{time}')
+        )
+
+        time.time.return_value = 1538429096.025851
+        h1 = hostmanager.generate_hostname('x', 'y-{time}')
+
+        time.time.return_value = 1538429096.02586
+        h2 = hostmanager.generate_hostname('x', 'y-{time}')
+
+        time.time.return_value = 1538429096.03
+        h3 = hostmanager.generate_hostname('x', 'y-{time}')
+
+        self.assertTrue(h1 < h2)
+        self.assertTrue(h2 < h3)

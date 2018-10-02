@@ -26,7 +26,15 @@ def generate_hostname(domain, hostname):
     """If hostname defined, returns FQDN.
        If not, returns FQDN with base32 timestamp.
     """
-    timestamp = str(time.time()).replace('.', '')
+
+    # Take time.time() - float, then:
+    # - remove period
+    # - truncate to 17 digits
+    # - if it happen that last digits are 0 (and will not be displayed, so
+    #   string is shorter - pad it with 0.
+    #
+    # The result ensures that timestamp is 17 char length and is increasing.
+    timestamp = str(time.time()).replace('.', '')[:17].ljust(17, '0')
     b32time = aws.int2str(number=int(timestamp), base=32)
 
     if hostname[-1] == '-':
