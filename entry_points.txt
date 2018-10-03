@@ -33,8 +33,12 @@ configure-dns = treadmill_aws.cli.admin.cell.configure_dns
 restart-apps = treadmill_aws.cli.admin.cell.restart_apps
 subnet = treadmill_aws.cli.admin.cell.subnet
 docker = treadmill_aws.cli.admin.cell.docker
+hostgroup = treadmill_aws.cli.admin.cell.hostgroup
 image = treadmill_aws.cli.admin.cell.image
+instance-profile = treadmill_aws.cli.admin.cell.instanceprofile
 realm = treadmill_aws.cli.admin.cell.realm
+size = treadmill_aws.cli.admin.cell.size
+disk-size = treadmill_aws.cli.admin.cell.disksize
 
 [treadmill_aws.cli.aws]
 image = treadmill_aws.cli.aws.image
