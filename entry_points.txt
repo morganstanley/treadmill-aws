@@ -30,15 +30,11 @@ configure-apps = treadmill_aws.cli.admin.cell.configure_apps
 configure-monitors = treadmill_aws.cli.admin.cell.configure_monitors
 configure-appgroups = treadmill_aws.cli.admin.cell.configure_appgroups
 configure-dns = treadmill_aws.cli.admin.cell.configure_dns
+configure-data = treadmill_aws.cli.admin.cell.configure_data
 restart-apps = treadmill_aws.cli.admin.cell.restart_apps
 subnet = treadmill_aws.cli.admin.cell.subnet
 docker = treadmill_aws.cli.admin.cell.docker
-hostgroup = treadmill_aws.cli.admin.cell.hostgroup
-image = treadmill_aws.cli.admin.cell.image
-instance-profile = treadmill_aws.cli.admin.cell.instanceprofile
-realm = treadmill_aws.cli.admin.cell.realm
-size = treadmill_aws.cli.admin.cell.size
-disk-size = treadmill_aws.cli.admin.cell.disksize
+nodes = treadmill_aws.cli.admin.cell.nodes
 
 [treadmill_aws.cli.aws]
 image = treadmill_aws.cli.aws.image
@@ -62,6 +58,7 @@ aws_image = treadmill_aws.formatter:ImagePrettyFormatter
 aws_secgroup = treadmill_aws.formatter:SecgroupPrettyFormatter
 aws_user = treadmill_aws.formatter:AwsUserPrettyFormatter
 ipa_user = treadmill_aws.formatter:IpaUserPrettyFormatter
+aws_cell_data = treadmill_aws.formatter:CellDataFormatter
 
 
 [treadmill.sproc]
