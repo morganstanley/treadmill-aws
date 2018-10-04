@@ -261,3 +261,30 @@ class AwsUserPrettyFormatter:
             return format_list(item)
         else:
             return format_item(item)
+
+
+class CellDataFormatter:
+    """Pretty table formatter for cell data."""
+
+    @staticmethod
+    def format(item):
+        """Return pretty-formatted item."""
+        schema = [
+            ('image', 'image', None),
+            ('docker-registries', 'docker_registries', ','.join),
+            ('size', 'size', None),
+            ('disk-size', 'disk_size', None),
+            ('hostgroups', 'hostgroups', ','.join),
+            ('secgroup', 'secgroup', None),
+            ('realm', 'realm', None),
+            ('instance-profile', 'instance_profile', None),
+            ('subnets', 'subnets', ','.join),
+        ]
+
+        format_item = tablefmt.make_dict_to_table(schema)
+        format_list = tablefmt.make_list_to_table(schema)
+
+        if isinstance(item, list):
+            return format_list(item)
+        else:
+            return format_item(item)
