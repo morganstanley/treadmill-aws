@@ -45,7 +45,7 @@ def _create_servers(count, partition=None):
     hostgroups = data['hostgroups']
     instance_profile = data['instance_profile']
     disk_size = int(data['disk_size'])
-    hostname = '{}-{}-{}'.format(
+    hostname_template = '{}-{}-{}'.format(
         context.GLOBAL.cell,
         partition if partition else 'node',
         '{time}'
@@ -87,7 +87,7 @@ def _create_servers(count, partition=None):
             instance_vars=instance_vars,
             instance_profile=instance_profile,
             hostgroups=hostgroups,
-            hostname=hostname,
+            hostname=hostname_template,
             ip_address=None,
             eni=None
         )
