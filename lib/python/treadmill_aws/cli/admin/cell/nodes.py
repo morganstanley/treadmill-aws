@@ -19,6 +19,7 @@ from treadmill import sysinfo
 
 import treadmill_aws
 from treadmill_aws import awscontext
+from treadmill_aws import cli as aws_cli
 from treadmill_aws import hostmanager
 
 
@@ -47,7 +48,7 @@ def _create_servers(count, partition=None):
     disk_size = int(data['disk_size'])
     hostname_template = '{}-{}-{}'.format(
         context.GLOBAL.cell,
-        partition if partition else 'node',
+        partition.replace('_', '') if partition else 'node',
         '{time}'
     )
 
@@ -148,7 +149,8 @@ def init():
 
     @nodes_grp.command(name='scale')
     @click.option('--count', type=int, help='Target node count.')
-    @click.option('--partition', help='Target partition')
+    @click.option('--partition', help='Target partition',
+                  callback=aws_cli.sanitize_partition_name)
     def scale_cmd(count, partition):
         """Scale nodes to specified count."""
         cell = context.GLOBAL.cell
@@ -170,7 +172,8 @@ def init():
 
     @nodes_grp.command(name='rotate')
     @click.option('--count', type=int, help='Target node count.')
-    @click.option('--partition', help='Target partition', default='_default')
+    @click.option('--partition', help='Target partition', default='_default',
+                  callback=aws_cli.sanitize_partition_name)
     def rotate_cmd(count, partition):
         """Rotate nodes, deleting old nodes and starting new."""
         _create_servers(count, partition)

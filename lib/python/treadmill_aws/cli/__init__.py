@@ -84,6 +84,21 @@ def sanitize_user_name(ctx, param, value):
     return value.lower()
 
 
+def sanitize_partition_name(ctx, param, value):
+    """Check partitions for invalid characters.
+    """
+    del ctx
+    del param
+
+    if value in {None, '_default'}:
+        return None
+
+    if not re.match(r'^[a-zA-Z0-9-_]+$', value):
+        raise click.BadParameter('Invalid characters in partition')
+
+    return value
+
+
 def convert_disk_size_to_int(ctx, param, value):
     """Convert friendly cli option to int
     """
