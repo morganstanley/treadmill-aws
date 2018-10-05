@@ -157,7 +157,7 @@ def init():
                                   'partition': partition})
 
         current_count = len(servers)
-        if not count or current_count == count:
+        if count in {None, current_count}:
             print(current_count)
             return
 
