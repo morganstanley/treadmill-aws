@@ -1,10 +1,18 @@
 """Global AWS context."""
 
+import logging
 import socket
 
 import boto3
 
 from treadmill_aws import ipaclient
+
+
+def _set_boto_logging(level=logging.WARNING):
+    """Set logging level for all boto loggers."""
+    for name in logging.Logger.manager.loggerDict:
+        if 'boto' in name:
+            logging.getLogger(name).setLevel(level)
 
 
 class AWSContext:
@@ -26,6 +34,8 @@ class AWSContext:
         self.ipa_certs = None
         self.region_name = None
         self.aws_profile = None
+
+        _set_boto_logging()
 
     @property
     def session(self):

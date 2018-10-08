@@ -129,7 +129,9 @@ class API:
                 'Started instance: %s', instance['Instances'][0]['InstanceId']
             )
 
-            return {}
+            return {
+                'instance': instance['Instances'][0]['InstanceId']
+            }
 
         def delete(rsrc_id):
             """Delete AWS image."""
