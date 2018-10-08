@@ -20,6 +20,7 @@ from treadmill import sysinfo
 import treadmill_aws
 from treadmill_aws import awscontext
 from treadmill_aws import hostmanager
+from treadmill_aws import ec2client
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -39,6 +40,12 @@ def _create_servers(count, partition=None):
     data = cell['data']
 
     image_id = data['image']
+    if not image_id.startswith('ami-'):
+        account = sts_conn.get_caller_identity().get('Account')
+        image_id = ec2client.get_image(
+            ec2_conn, owners=[account], name=image_id
+        )['ImageId']
+
     instance_type = data['size']
     subnets = data['subnets']
     secgroup_id = data['secgroup']
@@ -170,7 +177,7 @@ def init():
 
     @nodes_grp.command(name='rotate')
     @click.option('--count', type=int, help='Target node count.')
-    @click.option('--partition', help='Target partition', default='_default')
+    @click.option('--partition', help='Target partition')
     def rotate_cmd(count, partition):
         """Rotate nodes, deleting old nodes and starting new."""
         _create_servers(count, partition)
