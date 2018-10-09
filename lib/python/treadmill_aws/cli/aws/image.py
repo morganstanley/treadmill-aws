@@ -15,6 +15,7 @@ import logging
 import click
 
 from treadmill import cli
+from treadmill import dnsutils
 from treadmill import restclient
 
 from treadmill_aws import cli as aws_cli
@@ -27,7 +28,7 @@ _EXCEPTIONS.extend(restclient.CLI_REST_EXCEPTIONS)
 
 _ON_EXCEPTIONS = cli.handle_exceptions(_EXCEPTIONS)
 
-_REST_PATH = '/image/'
+_REST_PATH = '/aws-image/'
 
 
 def init():  # pylint: disable=R0912
@@ -39,10 +40,19 @@ def init():  # pylint: disable=R0912
     @click.option('--api', help='API url to use.',
                   metavar='URL',
                   type=cli.LIST,
-                  envvar='TREADMILL_AWSAPI')
-    def image_group(api):
+                  envvar='TREADMILL_AWSIMAGE_API')
+    @click.option('--srvrec', help='API srv record.',
+                  envvar='TREADMILL_AWSIMAGE_API_SRVREC')
+    def image_group(api, srvrec):
         """Manage Treadmill app monitor configuration"""
         ctx['api'] = api
+        if not ctx['api']:
+            ctx['api'] = []
+
+        if srvrec:
+            result = dnsutils.srv(srvrec, None)
+            for host, port, _p, _w in result:
+                ctx['api'].append('http://{}:{}'.format(host, port))
 
     @image_group.command()
     @click.argument('name')
@@ -137,7 +147,7 @@ def init():  # pylint: disable=R0912
 
         url = _REST_PATH + name
         response = restclient.post(restapi, url, payload=payload)
-        print(response.json())
+        cli.out(response.json().get('instance', '-'))
 
     del delete
     del _list

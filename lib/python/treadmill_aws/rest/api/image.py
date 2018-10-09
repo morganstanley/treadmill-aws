@@ -17,7 +17,7 @@ def init(api, cors, impl):
     """Configures REST handlers for AWS image resource."""
 
     namespace = webutils.namespace(
-        api, __name__, 'AWS Image REST operations'
+        api, 'aws-image', 'AWS Image REST operations'
     )
 
     # TODO: will it make sense to maintain models in separate module?
@@ -32,6 +32,12 @@ def init(api, cors, impl):
     aws_image_model = api.model(
         'AWSImage', model
     )
+
+    aws_image_create_model = api.model('AWSCreateImage', {
+        'instance': fields.String(
+            description='Instance ID of the image building instance.'
+        )
+    })
 
     resource_fields = {
         'tags': fields.Raw(description='Tags k/v dictionary'),
@@ -81,7 +87,7 @@ def init(api, cors, impl):
 
         @webutils.post_api(api, cors,
                            req_model=aws_image_req_model,
-                           resp_model=aws_image_model)
+                           resp_model=aws_image_create_model)
         def post(self, image):
             """Creates AWS image."""
             return impl.create(image, flask.request.json)
