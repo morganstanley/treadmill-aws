@@ -5,13 +5,16 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+from collections import namedtuple
 import logging
+import math
 import random
 
 from treadmill import admin
 from treadmill import context
-from treadmill.syscall import krb5
 from treadmill import sysinfo
+from treadmill import restclient
+from treadmill.syscall import krb5
 
 from treadmill_aws import awscontext
 from treadmill_aws import hostmanager
@@ -20,8 +23,12 @@ from treadmill_aws import ec2client
 
 _LOGGER = logging.getLogger(__name__)
 
+_STATE_URL = '/state/'
 
-def create_servers(count, partition=None):
+_STATE = namedtuple('state', 'running pending busy_srv_cnt idle_servers')
+
+
+def create_n_servers(count, partition=None):
     """Create new servers in the cell."""
 
     ipa_client = awscontext.GLOBAL.ipaclient
@@ -104,7 +111,7 @@ def create_servers(count, partition=None):
             admin_srv.create(hostname, attrs)
 
 
-def delete_servers(count, partition=None):
+def delete_n_servers(count, partition=None):
     """Delete old servers."""
     ipa_client = awscontext.GLOBAL.ipaclient
     ec2_conn = awscontext.GLOBAL.ec2
@@ -123,3 +130,154 @@ def delete_servers(count, partition=None):
 
     for hostname in extra:
         admin_srv.delete(hostname)
+
+
+def delete_servers_by_name(servers):
+    """Delete servers by name."""
+    ipa_client = awscontext.GLOBAL.ipaclient
+    ec2_conn = awscontext.GLOBAL.ec2
+
+    _LOGGER.info('Deleting servers: %r', servers)
+
+    hostmanager.delete_hosts(
+        ipa_client=ipa_client,
+        ec2_conn=ec2_conn,
+        hostnames=servers
+    )
+
+    admin_srv = admin.Server(context.GLOBAL.ldap.conn)
+    for server in servers:
+        admin_srv.delete(server)
+
+
+def scale(min_servers, max_servers, default_app_srv_ratio, max_batch):
+    """Process state.
+    """
+
+    state = _state()
+    running = state.running
+    pending = state.pending
+    busy_srv_cnt = state.busy_srv_cnt
+    idle_servers = state.idle_servers
+    running, pending, busy_srv_cnt, idle_servers = _state()
+
+    # Rules of scale:
+    #
+    # - If there are no pending apps, shutdown idle server.
+    # - If there are pending apps and idle server, shutdown (idle - pending)
+    #   servers.
+    # - Skip servers that are newer than 15 min.
+    # - Target server count = (busy_servers/running_apps) * total_apps.
+    #   Notice invariant: busy_server / running_apps <= 1
+    # - Server count can't exceed max_servers or be less than min_servers.
+    # - Servers can't grow more than max_batch at single iteration.
+
+    if running > 0:
+        ratio = float(busy_srv_cnt) / float(running)
+    else:
+        ratio = default_app_srv_ratio
+
+    if pending > 0:
+        # if there are enough idle servers, nothing to create for now.
+        servers_needed = max(
+            0,
+            math.ceil(float(pending) * ratio) - len(idle_servers)
+        )
+    else:
+        servers_needed = 0
+
+    new_server_cnt = min(max_batch, servers_needed)
+    _LOGGER.info('Projected servers to create: %s', new_server_cnt)
+
+    # check if total projected server count does not exceed max_servers.
+    exceed_limit = max(
+        0,
+        busy_srv_cnt + len(idle_servers) + new_server_cnt - max_servers
+    )
+
+    _LOGGER.info('Target servers exceed limit by: %s', exceed_limit)
+
+    final_new_server_cnt = max(
+        0,
+        new_server_cnt - exceed_limit
+    )
+
+    _LOGGER.info('Final new server count: %s', final_new_server_cnt)
+
+    extra = []
+    if final_new_server_cnt == 0:
+        extra = _select_idle_servers(idle_servers, pending)
+
+        # Ensure that there will be at least min_servers left.
+        idle_srv_cnt = len(idle_servers)
+        extra_cnt = len(extra)
+
+        if busy_srv_cnt + idle_srv_cnt - extra_cnt < min_servers:
+            extra = extra[
+                min_servers - (busy_srv_cnt + idle_srv_cnt - extra_cnt):
+            ]
+
+    return final_new_server_cnt, extra
+
+
+def _state():
+    """Return tuple that represents current state:
+
+    (running_apps_count,
+     pending_apps_count,
+     busy_server_count,
+     idle_servers)
+    """
+    cellapis = context.GLOBAL.state_api()
+    response = restclient.get(cellapis, _STATE_URL)
+
+    apps = response.json()
+
+    admin_srv = admin.Server(context.GLOBAL.ldap.conn)
+
+    running = 0
+    pending = 0
+    busy_servers = set()
+    for app in apps:
+        if app['host']:
+            running += 1
+            busy_servers.add(app['host'])
+        else:
+            pending += 1
+
+    _LOGGER.info('Apps: running: %s, pending: %s', running, pending)
+
+    servers = admin_srv.list({'cell': context.GLOBAL.cell})
+    all_servers = {s['_id'] for s in servers}
+
+    idle_servers = all_servers - busy_servers
+    _LOGGER.info(
+        'Servers: busy: %s, idle: %s',
+        len(busy_servers),
+        len(idle_servers)
+    )
+
+    return _STATE(
+        running=running,
+        pending=pending,
+        busy_srv_cnt=len(busy_servers),
+        idle_servers=list(idle_servers)
+    )
+
+
+def _select_idle_servers(idle_servers, pending):
+    """Remove idle servers.
+    """
+    _LOGGER.info(
+        'Idle servers cleanup - idle: %s, pending: %s',
+        idle_servers,
+        pending
+    )
+
+    extra = []
+    can_remove = len(idle_servers) - pending
+    if can_remove > 0:
+        _LOGGER.info('Can delete idle servers: %s', can_remove)
+        extra = idle_servers[0:can_remove]
+
+    return extra
