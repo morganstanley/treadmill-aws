@@ -6,6 +6,8 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import collections
+import itertools
 import logging
 
 import click
@@ -49,28 +51,44 @@ def init():
     @click.option('--partition', help='Target partition')
     def scale_cmd(count, partition):
         """Scale nodes to specified count."""
+        if partition in ('-', '_default'):
+            partition = None
+
         cell = context.GLOBAL.cell
         admin_srv = admin.Server(context.GLOBAL.ldap.conn)
-        servers = admin_srv.list({'cell': cell,
-                                  'partition': partition})
+        by_partition = {}
+        for part, srvs in itertools.groupby(admin_srv.list({'cell': cell}),
+                                            lambda x: x.get('partition')):
+            by_partition[part] = list(srvs)
 
-        current_count = len(servers)
-        if count in {None, current_count}:
-            print(current_count)
-            return
+        current_count = len(by_partition.get(
+            partition if partition else '_default',
+            []
+        ))
 
-        if count > current_count:
-            autoscale.create_n_servers(count - current_count, partition)
-        else:
-            autoscale.delete_n_servers(current_count - count, partition)
+        count_by_partition = collections.Counter(
+            {p: len(s) for p, s in by_partition.items()}
+        )
 
-        cli.out(count)
+        if count not in {None, current_count}:
+            if count > current_count:
+                autoscale.create_n_servers(count - current_count, partition)
+            else:
+                autoscale.delete_n_servers(current_count - count, partition)
+
+            count_by_partition[partition if partition else '_default'] = count
+
+        for part in sorted(count_by_partition):
+            print('{: <32}: {}'.format(part, count_by_partition[part]))
 
     @nodes_grp.command(name='rotate')
-    @click.option('--count', type=int, help='Target node count.')
+    @click.option('--count', type=int, help='Target node count.', default=1)
     @click.option('--partition', help='Target partition')
     def rotate_cmd(count, partition):
         """Rotate nodes, deleting old nodes and starting new."""
+        if partition in ('-', '_default'):
+            partition = None
+
         autoscale.create_n_servers(count, partition)
         autoscale.delete_n_servers(count, partition)
 
