@@ -187,8 +187,22 @@ def init():
 
         click.echo('%s has been shared with %s' % (image, account))
 
+    @image.command(name='delete')
+    @click.argument('image', required=True, type=aws_cli.IMAGE)
+    @cli.admin.ON_EXCEPTIONS
+    def delete(image):
+        """Delete Image"""
+        ec2_conn = awscontext.GLOBAL.ec2
+        ec2client.delete_images(
+            ec2_conn=ec2_conn,
+            ids=image['ids']
+        )
+
+        click.echo(image)
+
     del _list
     del configure
     del create
+    del delete
 
     return image
