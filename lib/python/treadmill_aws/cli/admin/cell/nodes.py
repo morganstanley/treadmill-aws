@@ -15,8 +15,6 @@ from treadmill import context
 from treadmill import cli
 
 import treadmill_aws
-from treadmill_aws import awscontext
-from treadmill_aws import hostmanager
 from treadmill_aws import autoscale
 
 
@@ -62,9 +60,9 @@ def init():
             return
 
         if count > current_count:
-            autoscale.create_servers(count - current_count, partition)
+            autoscale.create_n_servers(count - current_count, partition)
         else:
-            autoscale.delete_servers(current_count - count, partition)
+            autoscale.delete_n_servers(current_count - count, partition)
 
         cli.out(count)
 
@@ -73,24 +71,13 @@ def init():
     @click.option('--partition', help='Target partition')
     def rotate_cmd(count, partition):
         """Rotate nodes, deleting old nodes and starting new."""
-        autoscale.create_servers(count, partition)
-        autoscale.delete_servers(count, partition)
+        autoscale.create_n_servers(count, partition)
+        autoscale.delete_n_servers(count, partition)
 
     @nodes_grp.command(name='delete')
     @click.option('--servers', type=cli.LIST)
     def delete_cmd(servers):
         """Delete servers by name."""
-        ipa_client = awscontext.GLOBAL.ipaclient
-        ec2_conn = awscontext.GLOBAL.ec2
-
-        hostmanager.delete_hosts(
-            ipa_client=ipa_client,
-            ec2_conn=ec2_conn,
-            hostnames=servers
-        )
-
-        admin_srv = admin.Server(context.GLOBAL.ldap.conn)
-        for server in servers:
-            admin_srv.delete(server)
+        autoscale.delete_servers_by_name(servers)
 
     return nodes_grp

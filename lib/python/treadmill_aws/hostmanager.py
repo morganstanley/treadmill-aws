@@ -1,11 +1,15 @@
 """ Module defining interface to create/delete/list IPA-joined hosts on AWS.
 """
+import logging
 import time
 import yaml
 
 from treadmill_aws import aws
 from treadmill_aws import ec2client
 from treadmill_aws import ipaclient
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def _instance_tags(hostname, role):
@@ -79,13 +83,28 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
         for hostgroup in hostgroups:
             ipa_client.hostgroup_add_member(hostgroup, host_ctx['hostname'])
 
+        tags = _instance_tags(host_ctx['hostname'], role)
+        _LOGGER.debug(
+            'Create EC2 instance: %s %s %s %s %r %r %s %s %s %s',
+            host_ctx['hostname'],
+            image_id,
+            instance_type,
+            key,
+            secgroup_ids,
+            subnet_id,
+            instance_profile,
+            disk,
+            ip_address,
+            eni
+        )
+
         ec2client.create_instance(
             ec2_conn,
             user_data=user_data,
             image_id=image_id,
             instance_type=instance_type,
             key=key,
-            tags=_instance_tags(host_ctx['hostname'], role),
+            tags=tags,
             secgroup_ids=secgroup_ids,
             subnet_id=subnet_id,
             instance_profile=instance_profile,
@@ -101,11 +120,13 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
 def delete_hosts(ec2_conn, ipa_client, hostnames):
     """ Unenrolls hosts from IPA and AWS """
     for hostname in hostnames:
+        _LOGGER.debug('Unenroll host from IPA: %s', hostname)
         try:
             ipa_client.unenroll_host(hostname=hostname)
         except (KeyError, ipaclient.NotFoundError):
-            pass
+            _LOGGER.debug('Host not found: %s', hostname)
 
+    _LOGGER.debug('Delete instances: %r', hostnames)
     ec2client.delete_instances(ec2_conn, hostnames=hostnames)
 
 

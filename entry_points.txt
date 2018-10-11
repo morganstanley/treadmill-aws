@@ -62,6 +62,7 @@ aws_cell_data = treadmill_aws.formatter:CellDataFormatter
 
 
 [treadmill.sproc]
+autoscale = treadmill_aws.sproc.autoscale
 awscredential = treadmill_aws.sproc.awscredential
 app-dns-ipa = treadmill_aws.sproc.app_dns
 ipakeytab = treadmill_aws.sproc.ipakeytab
