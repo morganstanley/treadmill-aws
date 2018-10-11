@@ -16,7 +16,7 @@ DEFAULTS = {
     'backends': [
         {
             'name': '{0}config',
-            'owner': '{{ owner }}',
+            'owner': '{{ treadmillid }}',
             'rootdn': 'cn=Manager,cn=config',
             'rootpw': '{{ rootpw }}',
             'suffix': 'cn=config',
@@ -25,7 +25,7 @@ DEFAULTS = {
         {
             'name': '{1}mdb',
             'objectclass': 'olcMdbConfig',
-            'owner': '{{ owner }}',
+            'owner': '{{ treadmillid }}',
             'rootdn': 'cn=Manager,{{ suffix }}',
             'rootpw': '{{ rootpw }}',
             'suffix': '{{ suffix }}',
