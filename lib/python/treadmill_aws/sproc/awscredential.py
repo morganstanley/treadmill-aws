@@ -30,6 +30,7 @@ def init():
                   help='AWS Account ID.')
     @click.option('--realm',
                   envvar='AWSCREDENTIAL_REALM',
+                  multiple=True,
                   required=True,
                   help='Kerberos realm of authorized users.')
     @click.option('--admin-group',

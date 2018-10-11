@@ -2,6 +2,7 @@
 
 [console_scripts]
 syscfg = treadmill_aws.syscfg:run
+cloudshell = treadmill_aws.cloudshell:run
 
 [treadmill.profiles]
 aws = treadmill_aws.plugins.profile
