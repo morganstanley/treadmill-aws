@@ -56,8 +56,13 @@ def init():
 
         cell = context.GLOBAL.cell
         admin_srv = admin.Server(context.GLOBAL.ldap.conn)
+        all_servers = sorted(
+            admin_srv.list({'cell': cell}),
+            key=lambda x: x.get('partition')
+        )
+
         by_partition = {}
-        for part, srvs in itertools.groupby(admin_srv.list({'cell': cell}),
+        for part, srvs in itertools.groupby(all_servers,
                                             lambda x: x.get('partition')):
             by_partition[part] = list(srvs)
 
