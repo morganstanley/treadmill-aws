@@ -1,0 +1,43 @@
+command: |
+  exec /usr/bin/registry serve etc/config.yml
+
+data_dir:
+- path: etc/config.yml
+  content: |
+    # Docker Registry Configuration
+    version: 0.1
+
+    http:
+      addr: 192.168.254.254:5000
+
+    log:
+      accesslog:
+        disabled: true
+      level: debug
+      formatter: text
+      fields:
+        service: registry
+        environment: infra
+
+    storage:
+      s3:
+        region: {{ data.s3_registry_region }}
+        bucket: {{ data.s3_registry_bucket }}
+        secure: true
+        chunksize: 5242880
+        multipartcopychunksize: 33554432
+        multipartcopymaxconcurrency: 100
+        multipartcopythresholdsize: 33554432
+
+      maintenance:
+        uploadpurging:
+          enabled: false
+        readonly:
+          enabled: true
+
+environ_dir: "{{ dir }}/env"
+monitor_policy:
+  limit: 1
+  interval: 60
+  tombstone:
+    path: "{{ dir }}/tombstones/init"
