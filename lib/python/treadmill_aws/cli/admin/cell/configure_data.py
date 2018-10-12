@@ -47,6 +47,8 @@ def init():
     @click.option('--realm', help='Nodes kerberos realm.')
     @click.option('--instance-profile', help='Instance profile.')
     @click.option('--subnets', help='List of subnets.', type=cli.LIST)
+    @click.option('--s3-registry-region', help='S3 registry bucket region.')
+    @click.option('--s3-registry-bucket', help='S3 registry bucket name.')
     def configure_data_cmd(docker_registries,
                            image,
                            disk_size,
@@ -55,7 +57,9 @@ def init():
                            secgroup,
                            realm,
                            instance_profile,
-                           subnets):
+                           subnets,
+                           s3_registry_region,
+                           s3_registry_bucket):
         """Configure cell data."""
         admin_cell = admin.Cell(context.GLOBAL.ldap.conn)
         cell = admin_cell.get(context.GLOBAL.cell)
@@ -70,10 +74,15 @@ def init():
         modified = _set(data, 'realm', realm) or modified
         modified = _set(data, 'instance_profile', instance_profile) or modified
         modified = _set(data, 'subnets', subnets) or modified
+        modified = _set(data,
+                        's3_registry_region',
+                        s3_registry_region) or modified
+        modified = _set(data,
+                        's3_registry_bucket',
+                        s3_registry_bucket) or modified
 
         if modified:
             admin_cell.update(context.GLOBAL.cell, {'data': data})
-
         cli.out(formatter(data))
 
     return configure_data_cmd

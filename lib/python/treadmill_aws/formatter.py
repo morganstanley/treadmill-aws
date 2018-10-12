@@ -279,6 +279,8 @@ class CellDataFormatter:
             ('realm', 'realm', None),
             ('instance-profile', 'instance_profile', None),
             ('subnets', 'subnets', ','.join),
+            ('s3_registry_region', 's3_registry_region', None),
+            ('s3_registry_bucket', 's3_registry_bucket', None),
         ]
 
         format_item = tablefmt.make_dict_to_table(schema)
