@@ -3,23 +3,39 @@ memory: 3G
 cpu: 50%
 disk: 1G
 services:
-- command: |
+- name: rest-api
+  restart:
+    limit: 5
+    interval: 60
+  command: |
     unset PYTHONPATH;
-    echo "plugins: [aws-proid-env]" > /tmp/instance.cfg.yml
+    echo 'plugins: [aws-proid-env]' > /tmp/instance.cfg.yml
     exec /opt/treadmill/bin/treadmill \
       sproc \
         --logging-conf daemon_container.json \
       restapi \
         -p 8000 \
+        --auth spnego \
+        -A http+unix://%2Ftmp%2Fauthz.sock \
         --title 'Treadmill_Cell_API' \
         -m cron,instance,app-monitor,identity-group,nodeinfo,scheduler \
         --config instance /tmp/instance.cfg.yml \
         --workers 5 \
         --cors-origin='(?i).*\.{{ cors }}'
-  name: rest-api
+- name: authz
   restart:
     limit: 5
     interval: 60
+  command: |
+    unset PYTHONPATH;
+    echo 'groups: ["treadmill", "treadmill.${proid}"]' > /tmp/authz.cfg.yml
+    exec /opt/treadmill/bin/treadmill \
+      sproc restapi \
+        -s /tmp/authz.sock \
+        --title auth \
+        -m authz-group \
+        --cors-origin='.*' \
+        --config authz-group /tmp/authz.cfg.yml -a trusted
 endpoints:
 - name: http
   port: 8000
@@ -27,7 +43,11 @@ endpoints:
 environ:
 - name: KRB5CCNAME
   value: /var/spool/tickets/{{ proid }}
+- name: KRB5_KTNAME
+  value: /var/spool/keytabs/{{ proid }}
 affinity_limits:
   server: 1
 tickets:
 - {{ proid }}@{{ krb_realm }}
+features:
+- krb5keytab
