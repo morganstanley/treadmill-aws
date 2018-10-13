@@ -27,6 +27,7 @@ def init():
     @click.option('--client-realm',
                   envvar='IPA525_CLIENT_REALM',
                   required=True,
+                  multiple=True,
                   help='Client Kerberos realm.')
     @click.option('--server-realm',
                   envvar='IPA525_SERVER_REALM',

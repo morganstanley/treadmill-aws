@@ -120,7 +120,7 @@ def run_server(port, client_realm, server_realm, admin_group):
                     'Request [%s] is for service principal - not supported' %
                     request)
 
-            if requestor_realm != self.client_realm:
+            if requestor_realm not in self.client_realm:
                 raise ValueError(
                     'Requestor [%s] is not authorized to request ticket for '
                     '[%s] - requestor is from an unauthorized realm' %

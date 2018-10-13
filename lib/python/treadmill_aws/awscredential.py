@@ -105,7 +105,7 @@ def run_server(port, account_id, admin_group, realm):
                     'Requestor [%s] is not authorized to request credential '
                     'for user [%s]') % (requestor, request))
 
-            if requestor_realm != self.realm:
+            if requestor_realm not in self.realm:
                 raise ValueError(
                     'Requestor [%s] is not in authorized realm [%s]' %
                     (requestor, self.realm))
