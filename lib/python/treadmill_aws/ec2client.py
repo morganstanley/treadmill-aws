@@ -97,11 +97,14 @@ def get_instance(ec2_conn, ids=None, tags=None, hostnames=None, state=None):
     instances = list_instances(
         ec2_conn, ids=ids, tags=tags, hostnames=hostnames, state=state
     )
-    instance = instances.pop(0)
-    if instances:
+
+    if not instances:
+        raise exc.NotFoundError(
+            'No instance with hostname {} found.'.format(hostnames))
+    elif len(instances) > 1:
         raise aws.NotUniqueError()
 
-    return instance
+    return instances.pop(0)
 
 
 def delete_instances(ec2_conn, ids=None, tags=None, hostnames=None,

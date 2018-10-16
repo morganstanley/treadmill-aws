@@ -1,10 +1,17 @@
 """ Module defining interface to create/delete/list IPA-joined hosts on AWS.
 """
 import logging
+import random
 import time
 import yaml
 
+from treadmill import admin
+from treadmill import context
+from treadmill import sysinfo
+from treadmill.syscall import krb5
+
 from treadmill_aws import aws
+from treadmill_aws import awscontext
 from treadmill_aws import ec2client
 from treadmill_aws import ipaclient
 
@@ -140,3 +147,99 @@ def find_hosts(ipa_client, pattern=None):
     return ipa_client.get_hosts(
         pattern=pattern
     )
+
+
+def create_zk(
+        ec2_conn,
+        ipa_client,
+        master,
+        subnet_id=None,
+        ip_address=None,
+        instance_type=None):
+    """ Create new Zookeeper """
+    sts_conn = awscontext.GLOBAL.sts
+    ipa_domain = awscontext.GLOBAL.ipa_domain
+
+    admin_cell = admin.Cell(context.GLOBAL.ldap.conn)
+    cell = admin_cell.get(context.GLOBAL.cell)
+    data = cell['data']
+
+    image_id = data['image']
+    if not image_id.startswith('ami-'):
+        account = sts_conn.get_caller_identity().get('Account')
+        image_id = ec2client.get_image(
+            ec2_conn, owners=[account], name=image_id
+        )['ImageId']
+
+    # FIXME; subnet not unique among ZK, not AZ aware
+    if not subnet_id:
+        subnet_id = random.choice(data['subnets'])
+
+    shortname = master['hostname'].replace('.' + context.GLOBAL.dns_domain, '')
+
+    if not instance_type:
+        instance_type = 'm5.large'
+
+    # Instance vars
+    instance_vars = {
+        'treadmill_cell': context.GLOBAL.cell,
+        'treadmill_ldap': ','.join(context.GLOBAL.ldap.url),
+        'treadmill_ldap_suffix': context.GLOBAL.ldap_suffix,
+        'treadmill_dns_domain': context.GLOBAL.dns_domain,
+        'treadmill_isa': 'zookeeper',
+        'treadmill_profile': 'aws',
+        'treadmill_krb_realm': krb5.get_host_realm(sysinfo.hostname())[0],
+        'treadmill_zookeeper_myid': str(master['idx']),
+    }
+
+    # Build user-data and start new instance
+    create_host(ec2_conn=ec2_conn,
+                ipa_client=ipa_client,
+                image_id=image_id,
+                count=1,
+                domain=ipa_domain,
+                secgroup_ids=data['secgroup'],
+                instance_type=instance_type,
+                subnet_id=subnet_id,
+                disk=30,
+                instance_vars=instance_vars,
+                role='zookeeper',
+                hostgroups=['zookeepers'],
+                hostname=shortname,
+                ip_address=ip_address)
+
+    return master['hostname']
+
+
+def rotate_zk(ec2_conn, ipa_client, masters, ec2_instances):
+    """ Determine which Zookeeper instance to rotate"""
+
+    # Get oldest EC2 instance by LaunchTime
+    old_master = min(ec2_instances, key=lambda x: x.get('LaunchTime'))
+
+    # Parse instance data and extract hostname from tags:
+    old_master_hostname = next(
+        x.get('Value') for x in old_master.get('Tags')
+        if x.get('Key') == "Name")
+
+    # Retrieve cell Master record that matches hostname
+    master = next(x for x in masters
+                  if x.get('hostname') == old_master_hostname)
+
+    return replace_zk(ec2_conn=ec2_conn,
+                      ipa_client=ipa_client,
+                      master=master,
+                      old_master=old_master)
+
+
+def replace_zk(ec2_conn, ipa_client, master, old_master):
+    """ Delete and recreate oldest Zookeeper in quorum """
+    # Remove server
+    delete_hosts(ec2_conn, ipa_client, [master['hostname']])
+
+    # Create server
+    return create_zk(ec2_conn=ec2_conn,
+                     ipa_client=ipa_client,
+                     master=master,
+                     instance_type=old_master.get('InstanceType', None),
+                     subnet_id=old_master.get('SubnetId', None))
