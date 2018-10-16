@@ -11,6 +11,7 @@ import getpass
 import json
 import logging
 import os
+import subprocess
 import sys
 import tempfile
 import yaml
@@ -359,9 +360,7 @@ def cloudshell_fetch(ctx, user, krb5_realm, krbcc, aws_account, awscc):
 @click.option('--awscc',
               required=False,
               help='aws credential file (destination).')
-@click.option('--command',
-              default=os.environ['SHELL'],
-              help='command to run.')
+@click.argument('command', nargs=-1)
 @click.pass_context
 def cloudshell_login(ctx,
                      user,
@@ -385,11 +384,14 @@ def cloudshell_login(ctx,
     if aws_account:
         awscc = _awscredential_login(ctx, user, aws_account, awscc)
 
+    if not command:
+        command = [os.environ['SHELL']]
+
     os.environ['CLOUDSHELL'] = '1'
     os.environ['CLOUDSHELL_USER_SAVED'] = user
 
-    _LOGGER.debug('spawning command [%s]', command)
-    os.system(command)
+    _LOGGER.debug('spawning command [%s]', ' '.join(command))
+    subprocess.call(list(command))
 
     if awscc:
         _LOGGER.debug('deleting AWS credential %s', awscc)
