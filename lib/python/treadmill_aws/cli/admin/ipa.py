@@ -33,10 +33,9 @@ def _get_state(ipaclient, idnsname):
     """Return set of currently defined SRV records."""
     current = set()
     result = ipaclient.get_dns_record(idnsname)['result']['result']
-    for item in result:
-        for record in item.get('srvrecord', []):
-            _w, _p, port, host = record.split()
-            current.add('{}:{}'.format(host.rstrip('.'), port))
+    for record in result.get('srvrecord', []):
+        _w, _p, port, host = record.split()
+        current.add('{}:{}'.format(host.rstrip('.'), port))
     return current
 
 
@@ -52,11 +51,19 @@ def _set_state(ipaclient, idnsname, add, remove):
     else:
         for endpoint in missing:
             host, port = endpoint.split(':')
-            ipaclient.add_srv_record(idnsname, host, port)
+            ipaclient.add_srv_record(idnsname,
+                                     host,
+                                     port,
+                                     DEFAULT_WEIGHT,
+                                     DEFAULT_PRIORITY)
 
         for endpoint in extra:
             host, port = endpoint.split(':')
-            ipaclient.delete_srv_record(idnsname, host, port)
+            ipaclient.delete_srv_record(idnsname,
+                                        host,
+                                        port,
+                                        DEFAULT_WEIGHT,
+                                        DEFAULT_PRIORITY)
 
         return _get_state(ipaclient, idnsname)
 
@@ -79,17 +86,53 @@ def init():
     @ipa_grp.command()
     @click.option('--add', '-a', required=False, metavar='HOST:PORT',
                   multiple=True,
-                  help='Add krb5keytab server endpoints.')
+                  help='Add ipakeytab server endpoints.')
     @click.option('--remove', '-r', required=False, metavar='HOST:PORT',
                   multiple=True,
-                  help='Remove krb5keytab server endpoints.')
+                  help='Remove ipa525 server endpoints.')
     @cli.handle_exceptions(_CLI_EXCEPTIONS)
-    def krb5keytab(add, remove):
-        """Manage krb5keytab configuration."""
+    def ipa525(add, remove):
+        """Manage ipa525 configuration. xxx"""
         ipaclient = awscontext.GLOBAL.ipaclient
-        idnsname = '_krb5keytab._tcp'
+        idnsname = '_ipa525._tcp'
         for endpoint in sorted(_set_state(ipaclient, idnsname, add, remove)):
             print(endpoint)
 
-    del krb5keytab
+    @ipa_grp.command()
+    @click.option('--aws-account',
+                  required=True,
+                  help='AWS Account served by awscredential server')
+    @click.option('--add', '-a', required=False, metavar='HOST:PORT',
+                  multiple=True,
+                  help='Add awscredential server endpoints.')
+    @click.option('--remove', '-r', required=False, metavar='HOST:PORT',
+                  multiple=True,
+                  help='Remove awscredential server endpoints.')
+    @cli.handle_exceptions(_CLI_EXCEPTIONS)
+    def awscredential(aws_account, add, remove):
+        """Manage awscredential configuration."""
+        ipaclient = awscontext.GLOBAL.ipaclient
+        idnsname = '_awscredential._tcp.{}'.format(aws_account)
+        for endpoint in sorted(_set_state(ipaclient, idnsname, add, remove)):
+            print(endpoint)
+
+    @ipa_grp.command()
+    @click.option('--add', '-a', required=False, metavar='HOST:PORT',
+                  multiple=True,
+                  help='Add ipakeytab server endpoints.')
+    @click.option('--remove', '-r', required=False, metavar='HOST:PORT',
+                  multiple=True,
+                  help='Remove ipakeytab server endpoints.')
+    @cli.handle_exceptions(_CLI_EXCEPTIONS)
+    def ipakeytab(add, remove):
+        """Manage ipakeytab configuration."""
+        ipaclient = awscontext.GLOBAL.ipaclient
+        idnsname = '_ipakeytab._tcp'
+        for endpoint in sorted(_set_state(ipaclient, idnsname, add, remove)):
+            print(endpoint)
+
+    del ipa525
+    del awscredential
+    del ipakeytab
+
     return ipa_grp

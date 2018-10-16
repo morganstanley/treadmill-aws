@@ -23,14 +23,14 @@ from treadmill import gssapiprotocol
 _LOGGER = logging.getLogger(__name__)
 
 
-def _server_list(ctx, server, port, srv_name):
+def _server_list(ctx, server, port, srv_name, dns_domain=None):
     if server and isinstance(port, int):
         return [[server, port]]
 
     dns_server = list(ctx.obj['dns_server'])
     dns_port = ctx.obj['dns_port']
-    if ctx.obj['dns_domain']:
-        srv_name = srv_name + '.' + ctx.obj['dns_domain']
+    if dns_domain:
+        srv_name = srv_name + '.' + dns_domain
 
     srv_records = dnsutils.srv(srv_name, [dns_server, dns_port], True)
     if not srv_records:
@@ -151,9 +151,12 @@ def _awscredential_fetch(ctx, user, account, awscc=None):
 
     server = ctx.obj['awscredential_server']
     port = ctx.obj['awscredential_port']
-    # xxx srv_name = '%s.%s' % (ctx.obj['awscredential_srv_name'], account)
     srv_name = '{}.{}'.format(ctx.obj['awscredential_srv_name'], account)
-    server_list = _server_list(ctx, server, port, srv_name)
+    server_list = _server_list(ctx,
+                               server,
+                               port,
+                               srv_name,
+                               ctx.obj['dns_domain'])
     _LOGGER.debug('awscredential request: %r', server_list)
     response = _gssapiprotocol_loop(request, server_list)
 
