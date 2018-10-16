@@ -118,7 +118,7 @@ class Krb5KeytabProxy(peercredprotocol.PeerCredLineServer):
             # during the run.
             try:
                 srvrecs = dns.resolver.query(
-                    '_krb5keytab._tcp.{}'.format(self.domain), 'SRV'
+                    '_ipakeytab._tcp.{}'.format(self.domain), 'SRV'
                 )
             except dns.resolver.NXDOMAIN:
                 srvrecs = []

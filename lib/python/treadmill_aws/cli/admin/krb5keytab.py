@@ -120,7 +120,7 @@ def init():
             domain = awscontext.GLOBAL.ipa_domain
             try:
                 srvrecs = dns.resolver.query(
-                    '_krb5keytab._tcp.{}'.format(domain), 'SRV'
+                    '_ipakeytab._tcp.{}'.format(domain), 'SRV'
                 )
             except dns.resolver.NXDOMAIN:
                 srvrecs = []
