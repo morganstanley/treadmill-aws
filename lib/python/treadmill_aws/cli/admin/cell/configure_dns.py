@@ -64,7 +64,7 @@ def init():
             cell=cellname
         )
 
-        current_rec = ipaclient.get_dns_record(idnsname)
+        current_rec = ipaclient.search_dns_record(idnsname)
         found = False
 
         if current_rec['result']['result']:

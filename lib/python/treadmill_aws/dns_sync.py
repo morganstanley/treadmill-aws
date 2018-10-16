@@ -73,7 +73,7 @@ class DnsSync:
 
     def _current_records(self):
         """Return all records found in DNS for the given cell."""
-        result = self.ipaclient.get_dns_record(self.zone)
+        result = self.ipaclient.search_dns_record(self.zone)
         if result.get('error'):
             raise Exception(result.get('error'))
 

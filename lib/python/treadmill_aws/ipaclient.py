@@ -236,7 +236,7 @@ class IPAClient():
                    'id': 0}
         return self._post(payload=payload).json()
 
-    def get_dns_record(self, idnsname=None):
+    def search_dns_record(self, idnsname=None):
         """Retrieve DNS records from IPA server.
         """
         if idnsname:
@@ -251,6 +251,15 @@ class IPAClient():
                                   {'version': _API_VERSION,
                                    'sizelimit': 0}],
                        'id': 0}
+        return self._post(payload=payload).json()
+
+    def get_dns_record(self, idnsname):
+        """Retrieve DNS records from IPA server.
+        """
+        payload = {'method': 'dnsrecord_show',
+                   'params': [[self.domain, idnsname],
+                              {'version': _API_VERSION}],
+                   'id': 0}
         return self._post(payload=payload).json()
 
     def add_srv_record(self, idnsname, host, port, weight=0, priority=0):
