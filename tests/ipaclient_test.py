@@ -274,16 +274,17 @@ class IPAClientTest(unittest.TestCase):
     def test_get_dns_record_payload(self):
         """Test that get_dns_record formats payload correctly.
         """
-        # With idnsname
         self.test_client.get_dns_record(idnsname='_tcp._ssh.cellname')
         self.test_client._post.assert_called_with(
             payload={'id': 0,
-                     'method': 'dnsrecord_find',
+                     'method': 'dnsrecord_show',
                      'params': [['foo.com', '_tcp._ssh.cellname'],
-                                {'version': '2.28',
-                                 'sizelimit': 0}]})
-        # Without idnsname
-        self.test_client.get_dns_record()
+                                {'version': '2.28'}]})
+
+    def test_search_dns_record_payload(self):
+        """Test that search_dns_record formats payload correctly.
+        """
+        self.test_client.search_dns_record()
         self.test_client._post.assert_called_with(
             payload={'id': 0,
                      'method': 'dnsrecord_find',
