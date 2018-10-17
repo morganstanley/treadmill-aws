@@ -34,7 +34,7 @@ def _write_env_file(conf_file, userdata, prefixes=()):
     """Read userdata and print environment variables for each."""
     for key, value in userdata.items():
         for prefix in prefixes:
-            if key.startswith(prefix):
+            if key.startswith(prefix) and value:
                 conf_file.write('{}={}\n'.format(key.upper(), value))
 
 
@@ -42,7 +42,7 @@ def _exec(userdata, args, prefixes=()):
     """Set environment from user data and exec."""
     for key, value in userdata.items():
         for prefix in prefixes:
-            if key.startswith(prefix):
+            if key.startswith(prefix) and value:
                 os.environ[key.upper()] = value
     os.execvp(args[0], args)
 
