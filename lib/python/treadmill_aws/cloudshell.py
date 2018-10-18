@@ -24,36 +24,24 @@ from treadmill import gssapiprotocol
 _LOGGER = logging.getLogger(__name__)
 
 
-def _server_list(ctx, server, port, srv_name, dns_domain=None):
-    if server and isinstance(port, int):
-        return [[server, port]]
-
+def _from_srvrec(ctx, srv_name, dns_domain=None):
     dns_server = list(ctx.obj['dns_server'])
     dns_port = ctx.obj['dns_port']
     if dns_domain:
         srv_name = srv_name + '.' + dns_domain
 
-    srv_records = dnsutils.srv(srv_name, [dns_server, dns_port], True)
+    srv_records = dnsutils.srv(srv_name, [dns_server, dns_port])
     if not srv_records:
         sys.exit('No srv records for %s' % srv_name)
 
-    server_list = []
-    for server_port in srv_records:
-        server = server_port[0]
-        port = server_port[1]
-        server_list.append([server, port])
-
-    return server_list
+    return [tuple(server_port[:2]) for server_port in srv_records]
 
 
 def _gssapiprotocol_loop(request, server_list):
     """Iterate gssaprotocol service instances."""
     sprinc = 'host'
 
-    for server_port in server_list:
-        server = server_port[0]
-        port = server_port[1]
-
+    for server, port in server_list:
         _LOGGER.debug('Connecting to %s:%d', server, port)
         client = gssapiprotocol.GSSAPILineClient(server,
                                                  port,
@@ -84,7 +72,11 @@ def _ipa525_fetch(ctx, user, krb5_realm, krbcc=None):
     server = ctx.obj['ipa525_server']
     port = ctx.obj['ipa525_port']
     srv_name = '%s.%s' % (ctx.obj['ipa525_srv_name'], krb5_realm)
-    server_list = _server_list(ctx, server, port, srv_name)
+    if server and isinstance(port, int):
+        server_list = [(server, port)]
+    else:
+        server_list = _from_srvrec(ctx, srv_name)
+
     _LOGGER.debug('ipa525 request: %r', server_list)
     response = _gssapiprotocol_loop(request, server_list)
 
@@ -153,11 +145,13 @@ def _awscredential_fetch(ctx, user, account, awscc=None):
     server = ctx.obj['awscredential_server']
     port = ctx.obj['awscredential_port']
     srv_name = '{}.{}'.format(ctx.obj['awscredential_srv_name'], account)
-    server_list = _server_list(ctx,
-                               server,
-                               port,
-                               srv_name,
-                               ctx.obj['dns_domain'])
+
+    if server and isinstance(port, int):
+        server_list = [(server, port)]
+    else:
+        server_list = _from_srvrec(ctx, srv_name,
+                                   dns_domain=ctx.obj['dns_domain'])
+
     _LOGGER.debug('awscredential request: %r', server_list)
     response = _gssapiprotocol_loop(request, server_list)
 
