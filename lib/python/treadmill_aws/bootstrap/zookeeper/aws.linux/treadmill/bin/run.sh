@@ -44,4 +44,3 @@ export PATH={{ _alias.s6 }}/bin:$PATH
 exec \
     {{ _alias.s6_envdir }} {{ dir }}/treadmill/env \
     {{ _alias.s6_svscan }} {{ dir }}/treadmill/init
-

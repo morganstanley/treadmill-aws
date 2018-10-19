@@ -142,5 +142,3 @@ olcDbIndex: {{ attr }} {{ kind }}
 {%- for backend in backends %}
     {{- backend_config(backend, replica_ids) }}
 {%- endfor %}
-
-
