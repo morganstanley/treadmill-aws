@@ -36,6 +36,7 @@ restart-apps = treadmill_aws.cli.admin.cell.restart_apps
 subnet = treadmill_aws.cli.admin.cell.subnet
 docker = treadmill_aws.cli.admin.cell.docker
 nodes = treadmill_aws.cli.admin.cell.nodes
+deploy = treadmill_aws.cli.admin.cell.deploy
 
 [treadmill_aws.cli.aws]
 image = treadmill_aws.cli.aws.image
