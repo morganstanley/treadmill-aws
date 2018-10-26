@@ -5,7 +5,7 @@
     endpoints: [http]
     data:
         - alias=adminapi
-        - scope=cell
+        - scope=global
 {{ proid }}.dns.cellapi:
     pattern: {{ proid }}.cellapi.*
     group-type: dns
