@@ -1,4 +1,6 @@
-"""Common AWS helper functions."""
+"""Common AWS helper functions.
+"""
+from datetime import datetime
 
 
 class NotUniqueError(Exception):
@@ -50,3 +52,27 @@ def int2str(number, base=16, symbol=None):
     basestr = ('-' if negative else '') + symbol[remainder] + basestr
 
     return basestr
+
+
+def datetime_from_suffix(word, base=16, symbol=None):
+    """Convert an alphanumerical string into a datetime object
+    """
+    if not symbol:
+        symbol = '0123456789abcdefghijklmnopqrstuvwxyz'
+    if len(symbol) < 2:
+        raise ValueError('Length of symbol list should be >= 2')
+    if base < 2 or base > len(symbol):
+        raise ValueError('Base must be in range 2-{}'.format(len(symbol)))
+
+    number = None
+    step = 0
+    for char in reversed(word):
+        if number not in symbol:
+            raise ValueError
+        if number is None:
+            number = symbol.index(char) * pow(base, step)
+        else:
+            number += symbol.index(char) * pow(base, step)
+        step += 1
+
+    return datetime.fromtimestamp(float(number) / 10000000)
