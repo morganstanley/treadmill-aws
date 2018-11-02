@@ -27,7 +27,7 @@ DEFAULTS = {
     'treadmill_core_cpu_shares': '1%',
     'treadmill_core_mem': '2G',
     'treadmill_cpu_shares': '90%',
-    'treadmill_mem': '-2G',
+    'treadmill_mem': '-4G',
     'localdisk_img_location': '{{ dir }}',
     'localdisk_img_size': None,
     'localdisk_block_dev': None,
