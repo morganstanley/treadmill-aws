@@ -25,7 +25,7 @@ DEFAULTS = {
     'treadmill_apps_cpuset_cpus': '1-',
     'treadmill_core_cpuset_cpus': '0',
     'treadmill_core_cpu_shares': '1%',
-    'treadmill_core_mem': '1G',
+    'treadmill_core_mem': '2G',
     'treadmill_cpu_shares': '90%',
     'treadmill_mem': '-2G',
     'localdisk_img_location': '{{ dir }}',
