@@ -37,9 +37,8 @@ def _from_srvrec(ctx, srv_name, dns_domain=None):
     return [tuple(server_port[:2]) for server_port in srv_records]
 
 
-def _gssapiprotocol_loop(request, server_list):
+def _gssapiprotocol_loop(request, server_list, sprinc):
     """Iterate gssaprotocol service instances."""
-    sprinc = 'host'
 
     for server, port in server_list:
         _LOGGER.debug('Connecting to %s:%d', server, port)
@@ -64,7 +63,7 @@ def _gssapiprotocol_loop(request, server_list):
         return response
 
 
-def _ipa525_fetch(ctx, user, krb5_realm, krbcc=None):
+def _ipa525_fetch(ctx, user, krb5_realm, ipa525_sprinc, krbcc=None):
     """Fetch ipa credentials."""
 
     request = user
@@ -78,7 +77,7 @@ def _ipa525_fetch(ctx, user, krb5_realm, krbcc=None):
         server_list = _from_srvrec(ctx, srv_name)
 
     _LOGGER.debug('ipa525 request: %r', server_list)
-    response = _gssapiprotocol_loop(request, server_list)
+    response = _gssapiprotocol_loop(request, server_list, ipa525_sprinc)
 
     if krbcc:
         ccdir = os.path.dirname(krbcc)
@@ -107,13 +106,13 @@ def _ipa525_fetch(ctx, user, krb5_realm, krbcc=None):
     return krbcc
 
 
-def _ipa525_login(ctx, user, krb5_realm, krbcc):
+def _ipa525_login(ctx, user, krb5_realm, ipa525_sprinc, krbcc):
     """Fetch ipa credentials and spawn shell."""
 
     if krbcc:
-        _ipa525_fetch(ctx, user, krb5_realm, krbcc)
+        _ipa525_fetch(ctx, user, krb5_realm, ipa525_sprinc, krbcc)
     else:
-        krbcc = _ipa525_fetch(ctx, user, krb5_realm)
+        krbcc = _ipa525_fetch(ctx, user, krb5_realm, ipa525_sprinc)
 
     if 'KRB5CCNAME' in os.environ:
         os.environ['CLOUDSHELL_KRB5CCNAME_SAVED'] = os.environ['KRB5CCNAME']
@@ -124,7 +123,7 @@ def _ipa525_login(ctx, user, krb5_realm, krbcc):
     return krbcc
 
 
-def _ipa525_refresh(ctx):
+def _ipa525_refresh(ctx, ipa525_sprinc):
     """Refresh ipa credentials."""
 
     user = os.environ['CLOUDSHELL_USER_SAVED']
@@ -133,11 +132,11 @@ def _ipa525_refresh(ctx):
     krbcc = os.environ['KRB5CCNAME'].split(':')[1]
 
     os.environ['KRB5CCNAME'] = os.environ['CLOUDSHELL_KRB5CCNAME_SAVED']
-    _ipa525_fetch(ctx, user, krb5_realm, krbcc)
+    _ipa525_fetch(ctx, user, krb5_realm, ipa525_sprinc, krbcc)
     os.environ['KRB5CCNAME'] = 'FILE:%s' % krbcc
 
 
-def _awscredential_fetch(ctx, user, account, awscc=None):
+def _awscredential_fetch(ctx, user, account, awscred_sprinc, awscc=None):
     """Fetch aws credentials."""
 
     request = user
@@ -153,7 +152,7 @@ def _awscredential_fetch(ctx, user, account, awscc=None):
                                    dns_domain=ctx.obj['dns_domain'])
 
     _LOGGER.debug('awscredential request: %r', server_list)
-    response = _gssapiprotocol_loop(request, server_list)
+    response = _gssapiprotocol_loop(request, server_list, awscred_sprinc)
 
     if awscc:
         ccdir = os.path.dirname(awscc)
@@ -202,27 +201,27 @@ def _awscredential_fetch(ctx, user, account, awscc=None):
         sys.exit(1)
 
 
-def _awscredential_login(ctx, user, account, awscc):
+def _awscredential_login(ctx, user, account, awscred_sprinc, awscc):
     """Get aws credentials."""
 
     if awscc:
-        _awscredential_fetch(ctx, user, account, awscc)
+        _awscredential_fetch(ctx, user, account, awscred_sprinc, awscc)
     else:
-        awscc = _awscredential_fetch(ctx, user, account)
+        awscc = _awscredential_fetch(ctx, user, account, awscred_sprinc)
 
     os.environ['AWS_SHARED_CREDENTIALS_FILE'] = awscc
     os.environ['CLOUDSHELL_AWS_ACCOUNT_SAVED'] = account
     return awscc
 
 
-def _awscredential_refresh(ctx):
+def _awscredential_refresh(ctx, awscred_sprinc):
     """Refresh aws credentials."""
 
     user = os.environ['CLOUDSHELL_USER_SAVED']
     account = os.environ['CLOUDSHELL_AWS_ACCOUNT_SAVED']
     awscc = os.environ['AWS_SHARED_CREDENTIALS_FILE']
 
-    _awscredential_fetch(ctx, user, account, awscc)
+    _awscredential_fetch(ctx, user, account, awscred_sprinc, awscc)
 
 
 @click.group()
@@ -306,6 +305,11 @@ def cloudshell(ctx,
               envvar='CLOUDSHELL_KRB5_REALM',
               required=False,
               help='IPA/Kerberos realm name.')
+@click.option('--ipa525-sprinc',
+              envvar='CLOUDSHELL_IPA525_SPRINC',
+              required=False,
+              default='host',
+              help='IPA525 krb5 sprinc name')
 @click.option('--krbcc',
               required=False,
               help='kerberos ticket file (destination).')
@@ -313,11 +317,23 @@ def cloudshell(ctx,
               envvar='CLOUDSHELL_AWS_ACCOUNT',
               required=False,
               help='AWS Account name.')
+@click.option('--awscred-sprinc',
+              envvar='CLOUDSHELL_AWSCRED_SPRINC',
+              required=False,
+              default='host',
+              help='awscredential krb5 sprinc name')
 @click.option('--awscc',
               required=False,
               help='aws credential file (destination).')
 @click.pass_context
-def cloudshell_fetch(ctx, user, krb5_realm, krbcc, aws_account, awscc):
+def cloudshell_fetch(ctx,
+                     user,
+                     krb5_realm,
+                     ipa525_sprinc,
+                     krbcc,
+                     aws_account,
+                     awscred_sprinc,
+                     awscc):
     """Fetch credentials."""
 
     if not krb5_realm and not aws_account:
@@ -327,12 +343,12 @@ def cloudshell_fetch(ctx, user, krb5_realm, krbcc, aws_account, awscc):
     if krb5_realm:
         if not krbcc:
             sys.exit('--krb5-realm requires --krbcc.')
-        _ipa525_fetch(ctx, user, krb5_realm, krbcc)
+        _ipa525_fetch(ctx, user, krb5_realm, ipa525_sprinc, krbcc)
 
     if aws_account:
         if not awscc:
             sys.exit('--aws-account requires --awscc.')
-        _awscredential_fetch(ctx, user, aws_account, awscc)
+        _awscredential_fetch(ctx, user, aws_account, awscred_sprinc, awscc)
 
 
 @cloudshell.command(name='login')
@@ -344,6 +360,11 @@ def cloudshell_fetch(ctx, user, krb5_realm, krbcc, aws_account, awscc):
               envvar='CLOUDSHELL_KRB5_REALM',
               required=False,
               help='IPA/Kerberos realm name.')
+@click.option('--ipa525-sprinc',
+              envvar='CLOUDSHELL_IPA525_SPRINC',
+              required=False,
+              default='host',
+              help='IPA525 sprinc name')
 @click.option('--krbcc',
               required=False,
               help='krb5 credential file (destination).')
@@ -351,6 +372,11 @@ def cloudshell_fetch(ctx, user, krb5_realm, krbcc, aws_account, awscc):
               envvar='CLOUDSHELL_AWS_ACCOUNT',
               required=False,
               help='AWS Account name.')
+@click.option('--awscred-sprinc',
+              envvar='CLOUDSHELL_AWSCRED_SPRINC',
+              required=False,
+              default='host',
+              help='awscredential krb5 sprinc name')
 @click.option('--awscc',
               required=False,
               help='aws credential file (destination).')
@@ -359,8 +385,10 @@ def cloudshell_fetch(ctx, user, krb5_realm, krbcc, aws_account, awscc):
 def cloudshell_login(ctx,
                      user,
                      krb5_realm,
+                     ipa525_sprinc,
                      krbcc,
                      aws_account,
+                     awscred_sprinc,
                      awscc,
                      command):
     """Fetch credentials and spawn shell."""
@@ -373,10 +401,14 @@ def cloudshell_login(ctx,
             'ERROR: must specify --krb5-realm or --aws-account (or both).')
 
     if krb5_realm:
-        krbcc = _ipa525_login(ctx, user, krb5_realm, krbcc)
+        krbcc = _ipa525_login(ctx, user, krb5_realm, ipa525_sprinc, krbcc)
 
     if aws_account:
-        awscc = _awscredential_login(ctx, user, aws_account, awscc)
+        awscc = _awscredential_login(ctx,
+                                     user,
+                                     aws_account,
+                                     awscred_sprinc,
+                                     awscc)
 
     if not command:
         command = [os.environ['SHELL']]
@@ -397,18 +429,28 @@ def cloudshell_login(ctx,
 
 
 @cloudshell.command(name='refresh')
+@click.option('--ipa525-sprinc',
+              envvar='CLOUDSHELL_IPA525_SPRINC',
+              required=False,
+              default='host',
+              help='IPA525 sprinc name')
+@click.option('--awscred-sprinc',
+              envvar='CLOUDSHELL_AWSCRED_SPRINC',
+              required=False,
+              default='host',
+              help='awscredential krb5 sprinc name')
 @click.pass_context
-def cloudshell_refresh(ctx):
+def cloudshell_refresh(ctx, ipa525_sprinc, awscred_sprinc):
     """Refresh credentials from spawned shell."""
 
     if 'CLOUDSHELL' not in os.environ:
         sys.exit('"refresh" from outside of cloudshell? Did you mean "login"?')
 
     if 'CLOUDSHELL_KRB5_REALM_SAVED' in os.environ:
-        _ipa525_refresh(ctx)
+        _ipa525_refresh(ctx, ipa525_sprinc)
 
     if 'CLOUDSHELL_AWS_ACCOUNT_SAVED' in os.environ:
-        _awscredential_refresh(ctx)
+        _awscredential_refresh(ctx, awscred_sprinc)
 
 
 def run():
