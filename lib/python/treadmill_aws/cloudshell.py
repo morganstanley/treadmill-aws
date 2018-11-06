@@ -24,11 +24,9 @@ from treadmill import gssapiprotocol
 _LOGGER = logging.getLogger(__name__)
 
 
-def _from_srvrec(ctx, srv_name, dns_domain=None):
+def _from_srvrec(ctx, srv_name):
     dns_server = list(ctx.obj['dns_server'])
     dns_port = ctx.obj['dns_port']
-    if dns_domain:
-        srv_name = srv_name + '.' + dns_domain
 
     srv_records = dnsutils.srv(srv_name, [dns_server, dns_port])
     if not srv_records:
@@ -72,6 +70,11 @@ def _ipa525_fetch(ctx, user, krb5_realm, krbcc=None):
     port = ctx.obj['ipa525_port']
     srv_name = '{}.{}'.format(ctx.obj['ipa525_srv_name'], krb5_realm)
     sprinc = ctx.obj['ipa525_sprinc']
+
+    if ctx.obj['ipa525_srv_name']:
+        srv_name = ctx.obj['ipa525_srv_name']
+    else:
+        srv_name = '_ipa525._tcp.%s' % krb5_realm
 
     if server and isinstance(port, int):
         server_list = [(server, port)]
@@ -145,14 +148,19 @@ def _awscredential_fetch(ctx, user, account, awscc=None):
 
     server = ctx.obj['awscredential_server']
     port = ctx.obj['awscredential_port']
-    srv_name = '{}.{}'.format(ctx.obj['awscredential_srv_name'], account)
     sprinc = ctx.obj['awscredential_sprinc']
+
+    if ctx.obj['awscredential_srv_name']:
+        srv_name = ctx.obj['awscredential_srv_name']
+    else:
+        srv_name = '{}.{}'.format(ctx.obj['awscredential_srv_name'], account)
+        if ctx.obj['dns_domain']:
+            srv_name = srv_name + '.' + ctx.obj['dns_domain']
 
     if server and isinstance(port, int):
         server_list = [(server, port)]
     else:
-        server_list = _from_srvrec(ctx, srv_name,
-                                   dns_domain=ctx.obj['dns_domain'])
+        server_list = _from_srvrec(ctx, srv_name)
 
     _LOGGER.debug('awscredential request: %r', server_list)
     response = _gssapiprotocol_loop(request, server_list, sprinc)
@@ -257,7 +265,6 @@ def _awscredential_refresh(ctx):
               help='awscredential port.')
 @click.option('--ipa525-srv-name',
               envvar='CLOUDSHELL_IPA525_SRV_NAME',
-              default='_ipa525._tcp',
               help='ipa525 srv record name')
 @click.option('--ipa525-sprinc',
               envvar='CLOUDSHELL_IPA525_SPRINC',
