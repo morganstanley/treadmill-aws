@@ -254,6 +254,7 @@ class IPAClientTest(unittest.TestCase):
             payload={'method': 'dnsrecord_add',
                      'params': [['foo.com', '_tcp._ssh.cellname'],
                                 {'srvrecord': '10 10 10 host.foo.com',
+                                 'dnsttl': 5,
                                  'version': '2.28'}],
                      'id': 0})
 

@@ -12,6 +12,7 @@ from treadmill_aws import noproxy
 _LOGGER = logging.getLogger(__name__)
 _KERBEROS_AUTH = requests_kerberos.HTTPKerberosAuth()
 _API_VERSION = '2.28'
+_DEFAULT_TTL = 5
 
 
 def get_ipa_server_from_dns(domain):
@@ -216,12 +217,14 @@ class IPAClient():
                 for hosts in resp['result']['result']
                 for result in hosts['fqdn']]
 
-    def add_dns_record(self, record_type, record_name, record_value):
+    def add_dns_record(self, record_type, record_name, record_value,
+                       ttl=_DEFAULT_TTL):
         """Add new DNS record to IPA server.
         """
         payload = {'method': 'dnsrecord_add',
                    'params': [[self.domain, record_name],
                               {record_type: record_value,
+                               'dnsttl': ttl,
                                'version': _API_VERSION}],
                    'id': 0}
         return self._post(payload=payload).json()
@@ -262,19 +265,23 @@ class IPAClient():
                    'id': 0}
         return self._post(payload=payload).json()
 
-    def add_srv_record(self, idnsname, host, port, weight=0, priority=0):
+    def add_srv_record(self, idnsname, host, port, weight=0, priority=0,
+                       ttl=_DEFAULT_TTL):
         """Add SRV record."""
         record = '{weight} {priority} {port} {host}'.format(
             weight=weight,
             priority=priority,
             port=port,
-            host=host
+            host=host,
         )
-        _LOGGER.debug('Adding SRV record: %s %s', idnsname, record)
+        _LOGGER.debug(
+            'Adding SRV record: %s %s, ttl=%s', idnsname, record, ttl
+        )
         self.add_dns_record(
             record_type='srvrecord',
             record_name=idnsname,
-            record_value=record
+            record_value=record,
+            ttl=ttl
         )
 
     def delete_srv_record(self, idnsname, host, port, weight=0, priority=0):
@@ -292,13 +299,14 @@ class IPAClient():
             record_value=record
         )
 
-    def add_txt_record(self, idnsname, record):
+    def add_txt_record(self, idnsname, record, ttl=_DEFAULT_TTL):
         """Add TXT record."""
         _LOGGER.debug('Adding TXT record: %s %s', idnsname, record)
         self.add_dns_record(
             record_type='txtrecord',
             record_name=idnsname,
-            record_value=record
+            record_value=record,
+            ttl=ttl
         )
 
     def delete_txt_record(self, idnsname, record):
