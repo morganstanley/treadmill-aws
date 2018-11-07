@@ -11,6 +11,7 @@ import getpass
 import json
 import logging
 import os
+import random
 import subprocess
 import sys
 import tempfile
@@ -32,6 +33,7 @@ def _from_srvrec(ctx, srv_name):
     if not srv_records:
         sys.exit('No srv records for %s' % srv_name)
 
+    random.shuffle(srv_records)
     return [tuple(server_port[:2]) for server_port in srv_records]
 
 
