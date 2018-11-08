@@ -70,6 +70,8 @@ app-dns-ipa = treadmill_aws.sproc.app_dns
 ipakeytab = treadmill_aws.sproc.ipakeytab
 ipa525 = treadmill_aws.sproc.ipa525
 krb5keytab-proxy = treadmill_aws.sproc.krb5keytabproxy
+gc = treadmill_aws.sproc.garbage_collector
+
 
 [treadmill.bootstrap]
 aliases.aws = treadmill_aws.bootstrap.aws_aliases
@@ -90,3 +92,7 @@ aws = treadmill_aws.logging
 
 [treadmill.features]
 krb5keytab = treadmill_aws.features.krb5keytab:Krb5KeytabFeature
+
+[treadmill_aws.garbage_collector]
+ipa = treadmill_aws.garbage_collector:ipa
+ldap = treadmill_aws.garbage_collector:ldap
