@@ -70,7 +70,6 @@ def _ipa525_fetch(ctx, user, krb5_realm, krbcc=None):
 
     server = ctx.obj['ipa525_server']
     port = ctx.obj['ipa525_port']
-    srv_name = '{}.{}'.format(ctx.obj['ipa525_srv_name'], krb5_realm)
     sprinc = ctx.obj['ipa525_sprinc']
 
     if ctx.obj['ipa525_srv_name']:
@@ -155,7 +154,7 @@ def _awscredential_fetch(ctx, user, account, awscc=None):
     if ctx.obj['awscredential_srv_name']:
         srv_name = ctx.obj['awscredential_srv_name']
     else:
-        srv_name = '{}.{}'.format(ctx.obj['awscredential_srv_name'], account)
+        srv_name = '{}.{}'.format('_awscredential._tcp', account)
         if ctx.obj['dns_domain']:
             srv_name = srv_name + '.' + ctx.obj['dns_domain']
 
@@ -249,7 +248,6 @@ def _awscredential_refresh(ctx):
               help='awscredential port.')
 @click.option('--awscredential-srv-name',
               envvar='CLOUDSHELL_AWSCREDENTIAL_SRV_NAME',
-              default='_awscredential._tcp',
               help='awscredential srv record name.')
 @click.option('--awscredential-sprinc',
               envvar='CLOUDSHELL_AWSCREDENTIAL_SPRINC',
