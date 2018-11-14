@@ -74,6 +74,9 @@ def _ipa525_fetch(ctx, user, krb5_realm, krbcc=None):
 
     if ctx.obj['ipa525_srv_name']:
         srv_name = ctx.obj['ipa525_srv_name']
+        if isinstance(ctx.obj['dns_domain'], str):
+            srv_name = srv_name.replace('{dns_domain}', ctx.obj['dns_domain'])
+        srv_name = srv_name.replace('{krb5_realm}', krb5_realm)
     else:
         srv_name = '_ipa525._tcp.%s' % krb5_realm
 
@@ -153,6 +156,9 @@ def _awscredential_fetch(ctx, user, account, awscc=None):
 
     if ctx.obj['awscredential_srv_name']:
         srv_name = ctx.obj['awscredential_srv_name']
+        if isinstance(ctx.obj['dns_domain'], str):
+            srv_name = srv_name.replace('{dns_domain}', ctx.obj['dns_domain'])
+        srv_name = srv_name.replace('{aws_account}', account)
     else:
         srv_name = '{}.{}'.format('_awscredential._tcp', account)
         if ctx.obj['dns_domain']:
