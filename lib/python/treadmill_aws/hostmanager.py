@@ -22,10 +22,11 @@ _LOGGER = logging.getLogger(__name__)
 _EC2_DELETE_BATCH = 50
 
 
-def _instance_tags(hostname, role):
-    """Create list of AWS tags from manifest."""
-    tags = [{'Key': 'Name', 'Value': hostname.lower()},
-            {'Key': 'Role', 'Value': role.lower()}]
+def _instance_tags(hostname, role, tags):
+    """Appends generated info to list of AWS tags.
+    """
+    tags.append({'Key': 'Name', 'Value': hostname.lower()})
+    tags.append({'Key': 'Role', 'Value': role.lower()})
     return [{'ResourceType': 'instance', 'Tags': tags}]
 
 
@@ -61,7 +62,7 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
                 secgroup_ids, instance_type, subnets, disk,
                 instance_vars, role=None, instance_profile=None,
                 hostgroups=None, hostname=None, ip_address=None,
-                eni=None, key=None, on_demand=False):
+                eni=None, key=None, tags=None, on_demand=False):
     """Adds host defined in manifest to IPA, then adds the OTP from the
        IPA reply to the manifest and creates EC2 instance.
     """
@@ -79,6 +80,9 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
 
     account_aliases = awscontext.GLOBAL.iam.list_account_aliases()
     location = account_aliases['AccountAliases'].pop()
+    if tags is None:
+        tags = []
+
     hosts = []
     for _ in range(count):
         host_ctx = instance_vars.copy()
@@ -96,7 +100,7 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
         for hostgroup in hostgroups:
             ipa_client.hostgroup_add_member(hostgroup, host_ctx['hostname'])
 
-        tags = _instance_tags(host_ctx['hostname'], role)
+        host_tags = _instance_tags(host_ctx['hostname'], role, tags)
 
         random.shuffle(subnets)
 
@@ -121,7 +125,7 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
                     image_id=image_id,
                     instance_type=instance_type,
                     key=key,
-                    tags=tags,
+                    tags=host_tags,
                     secgroup_ids=secgroup_ids,
                     subnet_id=subnet,
                     instance_profile=instance_profile,
