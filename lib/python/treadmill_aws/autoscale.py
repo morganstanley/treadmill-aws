@@ -8,7 +8,6 @@ from __future__ import unicode_literals
 from collections import namedtuple
 import logging
 import math
-import random
 
 from treadmill import admin
 from treadmill import context
@@ -72,15 +71,7 @@ def create_n_servers(count, partition=None):
 
     key = None
 
-    subnet_seed = random.randint(0, len(subnets))
-
     for idx in range(0, count):
-        # TODO: need to catch exception that there is no space in the subnet.
-        #       if subnet is out of space, we need to retry with next subnet
-        #       id (and remove the subnet id from consideration for the rest
-        #       of the process).
-        subnet_id = subnets[(subnet_seed + idx) % len(subnets)]
-
         hostnames = hostmanager.create_host(
             ipa_client=ipa_client,
             ec2_conn=ec2_conn,
@@ -91,7 +82,7 @@ def create_n_servers(count, partition=None):
             key=key,
             secgroup_ids=secgroup_id,
             instance_type=instance_type,
-            subnet_id=subnet_id,
+            subnets=subnets,
             role='node',
             instance_vars=instance_vars,
             instance_profile=instance_profile,

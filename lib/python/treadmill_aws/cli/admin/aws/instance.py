@@ -155,7 +155,7 @@ def init():
             key=key,
             secgroup_ids=secgroup_id,
             instance_type=size,
-            subnet_id=subnet_id,
+            subnets=[subnet_id],
             role=role,
             instance_vars=instance_vars,
             instance_profile=instance_profile,
