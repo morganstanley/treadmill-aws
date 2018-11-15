@@ -34,7 +34,7 @@ class API:
                 role=role,
                 secgroup_ids=secgroup,
                 instance_type=size,
-                subnet_id=subnet,
+                subnets=[subnet],
                 disk=disk,
                 instance_vars=None)
 

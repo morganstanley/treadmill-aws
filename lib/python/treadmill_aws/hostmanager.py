@@ -5,6 +5,8 @@ import random
 import time
 import yaml
 
+from botocore.exceptions import ClientError
+
 from treadmill import admin
 from treadmill import context
 from treadmill import sysinfo
@@ -55,7 +57,7 @@ def generate_hostname(domain, hostname):
 
 
 def create_host(ec2_conn, ipa_client, image_id, count, domain,
-                secgroup_ids, instance_type, subnet_id, disk,
+                secgroup_ids, instance_type, subnets, disk,
                 instance_vars, role=None, instance_profile=None,
                 hostgroups=None, hostname=None, ip_address=None,
                 eni=None, key=None):
@@ -91,41 +93,57 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
             ipa_client.hostgroup_add_member(hostgroup, host_ctx['hostname'])
 
         tags = _instance_tags(host_ctx['hostname'], role)
-        _LOGGER.debug(
-            'Create EC2 instance: %s %s %s %s %r %r %s %s %s %s',
-            host_ctx['hostname'],
-            image_id,
-            instance_type,
-            key,
-            secgroup_ids,
-            subnet_id,
-            instance_profile,
-            disk,
-            ip_address,
-            eni
-        )
 
-        ec2client.create_instance(
-            ec2_conn,
-            user_data=user_data,
-            image_id=image_id,
-            instance_type=instance_type,
-            key=key,
-            tags=tags,
-            secgroup_ids=secgroup_ids,
-            subnet_id=subnet_id,
-            instance_profile=instance_profile,
-            disk=disk,
-            ip_address=ip_address,
-            eni=eni
-        )
-        hosts.append(host_ctx['hostname'])
+        random.shuffle(subnets)
 
+        for subnet in subnets:
+            _LOGGER.debug(
+                'Create EC2 instance: %s %s %s %s %r %r %s %s %s %s',
+                host_ctx['hostname'],
+                image_id,
+                instance_type,
+                key,
+                secgroup_ids,
+                subnet,
+                instance_profile,
+                disk,
+                ip_address,
+                eni
+            )
+            try:
+                ec2client.create_instance(
+                    ec2_conn,
+                    user_data=user_data,
+                    image_id=image_id,
+                    instance_type=instance_type,
+                    key=key,
+                    tags=tags,
+                    secgroup_ids=secgroup_ids,
+                    subnet_id=subnet,
+                    instance_profile=instance_profile,
+                    disk=disk,
+                    ip_address=ip_address,
+                    eni=eni
+                )
+                hosts.append(host_ctx['hostname'])
+                break
+            except ClientError:
+                if ClientError.response['Error']['Code'] == (
+                        'InsufficientFreeAddressesInSubnet'):
+                    _LOGGER.debug('Subnet full, trying next')
+                    continue
+                elif ClientError.response['Error']['Code'] == (
+                        'InsufficientInstanceCapacity'):
+                    _LOGGER.debug('Instance not available in AZ, trying next')
+                    continue
     return hosts
 
 
 def delete_hosts(ec2_conn, ipa_client, hostnames):
-    """ Unenrolls hosts from IPA and AWS """
+    """ Unenrolls hosts from IPA and AWS
+        EC2 imposes a maximum limit on the number of instances that can be
+        selected using filters; delete instances in batches of 50
+    """
     for hostname in hostnames:
         _LOGGER.debug('Unenroll host from IPA: %s', hostname)
         try:
@@ -134,7 +152,10 @@ def delete_hosts(ec2_conn, ipa_client, hostnames):
             _LOGGER.debug('Host not found: %s', hostname)
 
     _LOGGER.debug('Delete instances: %r', hostnames)
-    ec2client.delete_instances(ec2_conn, hostnames=hostnames)
+    ec2_chunks = len(hostnames) // 50 + 1
+    for i in range(ec2_chunks):
+        batch = hostnames[i * 50:(i + 1) * 50]
+        ec2client.delete_instances(ec2_conn=ec2_conn, hostnames=batch)
 
 
 def find_hosts(ipa_client, pattern=None):
@@ -200,7 +221,7 @@ def create_zk(
                 domain=ipa_domain,
                 secgroup_ids=data['secgroup'],
                 instance_type=instance_type,
-                subnet_id=subnet_id,
+                subnets=[subnet_id],
                 disk=30,
                 instance_vars=instance_vars,
                 role='zookeeper',
