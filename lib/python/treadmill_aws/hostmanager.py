@@ -5,7 +5,7 @@ import random
 import time
 import yaml
 
-from botocore.exceptions import ClientError
+from botocore import exceptions as botoexc
 
 from treadmill import admin
 from treadmill import context
@@ -19,6 +19,7 @@ from treadmill_aws import ipaclient
 
 
 _LOGGER = logging.getLogger(__name__)
+_EC2_DELETE_BATCH = 50
 
 
 def _instance_tags(hostname, role):
@@ -127,12 +128,12 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
                 )
                 hosts.append(host_ctx['hostname'])
                 break
-            except ClientError:
-                if ClientError.response['Error']['Code'] == (
+            except botoexc.ClientError:
+                if botoexc.ClientError.response['Error']['Code'] == (
                         'InsufficientFreeAddressesInSubnet'):
                     _LOGGER.debug('Subnet full, trying next')
                     continue
-                elif ClientError.response['Error']['Code'] == (
+                elif botoexc.ClientError.response['Error']['Code'] == (
                         'InsufficientInstanceCapacity'):
                     _LOGGER.debug('Instance not available in AZ, trying next')
                     continue
@@ -142,7 +143,8 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
 def delete_hosts(ec2_conn, ipa_client, hostnames):
     """ Unenrolls hosts from IPA and AWS
         EC2 imposes a maximum limit on the number of instances that can be
-        selected using filters; delete instances in batches of 50
+        selected using filters (200); delete instances in batches of
+        _EC2_DELETE_BATCH
     """
     for hostname in hostnames:
         _LOGGER.debug('Unenroll host from IPA: %s', hostname)
@@ -152,9 +154,9 @@ def delete_hosts(ec2_conn, ipa_client, hostnames):
             _LOGGER.debug('Host not found: %s', hostname)
 
     _LOGGER.debug('Delete instances: %r', hostnames)
-    ec2_chunks = len(hostnames) // 50 + 1
-    for i in range(ec2_chunks):
-        batch = hostnames[i * 50:(i + 1) * 50]
+    while hostnames:
+        batch = hostnames[:_EC2_DELETE_BATCH]
+        hostnames = hostnames[_EC2_DELETE_BATCH:]
         ec2client.delete_instances(ec2_conn=ec2_conn, hostnames=batch)
 
 
