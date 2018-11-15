@@ -7,8 +7,11 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import logging
+import socket
 
 import click
+
+from treadmill.syscall import krb5
 
 from treadmill_aws import ipa525
 
@@ -31,14 +34,16 @@ def init():
                   help='Client Kerberos realm.')
     @click.option('--server-realm',
                   envvar='IPA525_SERVER_REALM',
-                  required=True,
-                  help='Server Kerberos realm.')
-    @click.option('--admin-group',
-                  envvar='IPA525_ADMIN_GROUP',
                   required=False,
-                  help='IPA 525 admin group.')
-    def ipa525server(port, client_realm, server_realm, admin_group):
+                  help='Server Kerberos realm.')
+    @click.option('-A', '--authz', help='Authoriztion server socket',
+                  required=False,
+                  envvar='IPA525_AUTHZ_SOCK')
+    def ipa525server(port, client_realm, server_realm, authz):
         """Run IPA525 credential daemon."""
-        ipa525.run_server(port, client_realm, server_realm, admin_group)
+        if not server_realm:
+            server_realm = krb5.get_host_realm(socket.getfqdn())[0]
+
+        ipa525.run_server(port, client_realm, server_realm, authz)
 
     return ipa525server
