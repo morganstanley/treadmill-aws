@@ -128,12 +128,12 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
                 )
                 hosts.append(host_ctx['hostname'])
                 break
-            except botoexc.ClientError:
-                if botoexc.ClientError.response['Error']['Code'] == (
+            except botoexc.ClientError as error:
+                if error.response['Error']['Code'] == (
                         'InsufficientFreeAddressesInSubnet'):
                     _LOGGER.debug('Subnet full, trying next')
                     continue
-                elif botoexc.ClientError.response['Error']['Code'] == (
+                elif error.response['Error']['Code'] == (
                         'InsufficientInstanceCapacity'):
                     _LOGGER.debug('Instance not available in AZ, trying next')
                     continue
