@@ -8,6 +8,7 @@ from treadmill import context
 from treadmill_aws.awscontext import GLOBAL
 
 _LOGGER = logging.getLogger(__name__)
+_ACCOUNT = GLOBAL.iam.list_account_aliases().get('AccountAliases').pop()
 
 
 class LDAP:
@@ -15,6 +16,7 @@ class LDAP:
     @staticmethod
     def list():
         """List LDAP server records that are not valid ec2 instances"""
+        _LOGGER.info('fetched server list from LDAP')
         client = admin.Server(context.GLOBAL.ldap.conn)
         return {host.get("_id") for host in client.list({})}
 
@@ -30,7 +32,8 @@ class IPA:
     @staticmethod
     def list():
         """List IPA server records that are not valid ec2 instances"""
-        return set(GLOBAL.ipaclient.get_hosts())
+        _LOGGER.info('fetched server list from IPA')
+        return set(GLOBAL.ipaclient.get_hosts(nshostlocation=_ACCOUNT))
 
     @staticmethod
     def delete(hostname):
