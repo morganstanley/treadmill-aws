@@ -6,6 +6,7 @@ import unittest
 
 import mock
 
+from treadmill_aws import awscontext
 from treadmill_aws import hostmanager
 
 
@@ -32,12 +33,16 @@ class HostmanagerTest(unittest.TestCase):
 
     def test_create_host(self):
         """Test that hostname logic is processed correctly."""
-        fake_ipa_response = {'result': {'result': {'randompassword': '123'}}}
 
         def _test(count, hostname):
+            awscontext.GLOBAL = mock.MagicMock()
             ec2_conn = mock.MagicMock()
             ipa_client = mock.MagicMock()
-            ipa_client.enroll_host.return_value = fake_ipa_response
+
+            awscontext.GLOBAL.iam.list_account_aliases.return_value = {
+                "AccountAliases": ["foo"]}
+            ipa_client.enroll_host.return_value = {
+                'result': {'result': {'randompassword': '123'}}}
 
             return hostmanager.create_host(
                 ec2_conn=ec2_conn,
