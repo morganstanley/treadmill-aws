@@ -77,6 +77,8 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
     if hostname is None:
         hostname = '{}-{}'.format(role.lower(), '{time}')
 
+    account_aliases = awscontext.GLOBAL.iam.list_account_aliases()
+    location = account_aliases['AccountAliases'].pop()
     hosts = []
     for _ in range(count):
         host_ctx = instance_vars.copy()
@@ -86,7 +88,8 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
         if host_ctx['hostname'] in hosts:
             raise IndexError("Duplicate hostname")
 
-        ipa_host = ipa_client.enroll_host(hostname=host_ctx['hostname'])
+        ipa_host = ipa_client.enroll_host(host_ctx['hostname'],
+                                          location=location)
         host_ctx['otp'] = ipa_host['result']['result']['randompassword']
         user_data = render_manifest(host_ctx)
 
