@@ -202,13 +202,13 @@ class IPAClient():
                    'id': 0}
         return self._post(payload=payload).json()
 
-    def get_hosts(self, pattern=None):
+    def get_hosts(self, pattern=None, **kwargs):
         """Retrieve host records from IPA server.
         """
+        query = {'version': _API_VERSION, 'sizelimit': 0}
+        query.update(kwargs)
         payload = {'method': 'host_find',
-                   'params': [[pattern],
-                              {'version': _API_VERSION,
-                               'sizelimit': 0}],
+                   'params': [[pattern], query],
                    'id': 0}
         resp = self._post(payload=payload).json()
 

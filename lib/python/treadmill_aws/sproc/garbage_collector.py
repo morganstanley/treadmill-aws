@@ -39,13 +39,13 @@ def _run_gc(gc_plugins, interval):
     plugins = {name: plugin_manager.load(_MODULE, name) for name in gc_plugins}
     servers = {name: set() for name in gc_plugins}
     while True:
-        for name, plugin in plugins:
+        for name, plugin in plugins.items():
             servers[name] = plugin.list()
 
         _LOGGER.debug('snoozing for %d minutes', interval / 60)
         time.sleep(interval)
 
-        for name, plugin in plugins:
+        for name, plugin in plugins.items():
             _LOGGER.info('%s cleanup started', name.upper())
             for server in servers[name] - _ec2_instances():
                 plugin.delete(server)
