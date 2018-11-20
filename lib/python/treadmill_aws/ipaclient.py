@@ -182,14 +182,15 @@ class IPAClient():
         check_response(response)
         return response
 
-    def enroll_host(self, hostname):
+    def enroll_host(self, hostname, **kwargs):
         """Enroll new host with IPA server.
         """
+        options = {'force': True,
+                   'random': True,
+                   'version': _API_VERSION}
+        options.update(kwargs)
         payload = {'method': 'host_add',
-                   'params': [[hostname],
-                              {'force': True,
-                               'random': True,
-                               'version': _API_VERSION}],
+                   'params': [[hostname], options],
                    'id': 0}
         return self._post(payload=payload).json()
 
@@ -205,10 +206,10 @@ class IPAClient():
     def get_hosts(self, pattern=None, **kwargs):
         """Retrieve host records from IPA server.
         """
-        query = {'version': _API_VERSION, 'sizelimit': 0}
-        query.update(kwargs)
+        options = {'version': _API_VERSION, 'sizelimit': 0}
+        options.update(kwargs)
         payload = {'method': 'host_find',
-                   'params': [[pattern], query],
+                   'params': [[pattern], options],
                    'id': 0}
         resp = self._post(payload=payload).json()
 
