@@ -89,7 +89,7 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
             raise IndexError("Duplicate hostname")
 
         ipa_host = ipa_client.enroll_host(host_ctx['hostname'],
-                                          location=location)
+                                          nshostlocation=location)
         host_ctx['otp'] = ipa_host['result']['result']['randompassword']
         user_data = render_manifest(host_ctx)
 
