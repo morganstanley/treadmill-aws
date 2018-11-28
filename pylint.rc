@@ -61,7 +61,8 @@ disable=
     R0914,too-many-locals,
     R1705,no-else-return,  # Designed to reduce nesting but code less readable.
     W0511,fixme,
-    W0612,unused-variable
+    W0612,unused-variable,
+    W0107,unnecessary-pass-statement
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option

@@ -319,6 +319,36 @@ class IPAClient():
             record_value=record
         )
 
+    def add_ptr_record(
+            self,
+            record_zone,
+            record_type,
+            record_name,
+            record_value,
+            ttl=_DEFAULT_TTL):
+        """Add new PTR record to IPA DNS server. """
+        payload = {'method': 'dnsrecord_add',
+                   'params': [[record_zone, record_name],
+                              {record_type: record_value,
+                               'dnsttl': ttl,
+                               'version': _API_VERSION}],
+                   'id': 0}
+        return self._post(payload=payload).json()
+
+    def delete_ptr_record(
+            self,
+            record_zone,
+            record_type,
+            record_name,
+            record_value):
+        """Delete PTR record from IPA DNS server."""
+        payload = {'method': 'dnsrecord_del',
+                   'params': [[record_zone, record_name],
+                              {record_type: record_value,
+                               'version': _API_VERSION}],
+                   'id': 0}
+        return self._post(payload=payload).json()
+
     def add_user(self, user_name, first_name, last_name, user_type):
         """Add new user to IPA server.
         """
