@@ -126,6 +126,39 @@ class InstancePrettyFormatter:
             return format_item(item)
 
 
+class SpotPrettyFormatter:
+    """Pretty table formatter for Spot Instance Requests."""
+
+    @staticmethod
+    def format(item):
+        """Return pretty-formatted item."""
+
+        item_schema = [
+            ('id', 'id', None),
+            ('status', 'state', None),
+            ('code', 'status_code', None),
+            ('changed', 'status_timestamp', None),
+            ('zone', 'az', None),
+            ('subnet', 'subnet', None),
+            ('type', 'instance_type', None),
+            ('instance_id', 'instance_id', None),
+            ('ami_id', 'ami_id', None),
+            ('hostname', 'hostname', None),
+            ('launch', 'instance_launch', None),
+            ('state', 'instance_status', None),
+        ]
+
+        list_schema = item_schema
+
+        format_item = tablefmt.make_dict_to_table(item_schema)
+        format_list = tablefmt.make_list_to_table(list_schema)
+
+        if isinstance(item, list):
+            return format_list(item)
+        else:
+            return format_item(item)
+
+
 class RolePrettyFormatter:
     """Pretty table formatter for AWS roles."""
 

@@ -28,7 +28,8 @@ class EC2ClientTest(unittest.TestCase):
             tags=[],
             secgroup_ids='sg-foo12345',
             subnet_id='subnet-foo12345',
-            disk=1
+            disk=1,
+            on_demand=True
         )
 
         self.assertEqual(ec2_conn.run_instances.call_count, 1)
@@ -46,6 +47,45 @@ class EC2ClientTest(unittest.TestCase):
             BlockDeviceMappings=[{'DeviceName': '/dev/sda1',
                                   'Ebs': {'VolumeSize': 1,
                                           'VolumeType': 'gp2'}}]
+        )
+
+        ec2_conn.reset_mock()
+        # ensure that a spot instance is created
+        ec2client.create_instance(
+            ec2_conn,
+            user_data='foo',
+            image_id='ami-foo12345',
+            instance_type='t2.micro',
+            key='foo',
+            tags=[],
+            secgroup_ids='sg-foo12345',
+            subnet_id='subnet-foo12345',
+            disk=1,
+            on_demand=False
+        )
+
+        self.assertEqual(ec2_conn.run_instances.call_count, 1)
+        ec2_conn.run_instances.assert_called_with(
+            ImageId='ami-foo12345',
+            InstanceType='t2.micro',
+            KeyName='foo',
+            MaxCount=1,
+            MinCount=1,
+            NetworkInterfaces=[{'Groups': ['sg-foo12345'],
+                                'SubnetId': 'subnet-foo12345',
+                                'DeviceIndex': 0}],
+            TagSpecifications=[],
+            UserData='foo',
+            BlockDeviceMappings=[{'DeviceName': '/dev/sda1',
+                                  'Ebs': {'VolumeSize': 1,
+                                          'VolumeType': 'gp2'}}],
+            InstanceMarketOptions={
+                'MarketType': 'spot',
+                'SpotOptions': {
+                    'SpotInstanceType': 'one-time',
+                    'InstanceInterruptionBehavior': 'terminate'
+                }
+            }
         )
 
     @mock.patch('treadmill_aws.ec2client.list_instances',
