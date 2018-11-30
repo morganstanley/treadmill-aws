@@ -123,11 +123,17 @@ def init():
         '--eni',
         help='Elastic Network ID; e.g. eni-xxxxxxxx',
     )
+    @click.option(
+        '--on-demand',
+        is_flag=True,
+        required=False,
+        help='Request an on_demand instance',
+    )
     @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
     def create(
-            image, image_account, count, disk_size,
-            key, role, ip_address, eni, secgroup, size, subnet, data,
-            instance_profile, hostgroup, hostname):
+            image, image_account, count, disk_size, key, role, ip_address, eni,
+            on_demand, secgroup, size, subnet, data, instance_profile,
+            hostgroup, hostname):
         """Create instance(s)"""
         ipa_client = awscontext.GLOBAL.ipaclient
         ec2_conn = awscontext.GLOBAL.ec2
@@ -162,7 +168,8 @@ def init():
             hostgroups=hostgroup,
             hostname=hostname,
             ip_address=ip_address,
-            eni=eni
+            eni=eni,
+            on_demand=on_demand
         )
         for host_created in hosts_created:
             click.echo(host_created)
