@@ -16,10 +16,20 @@ class HostmanagerTest(unittest.TestCase):
 
     def test_instance_tags(self):
         """Test that tags are rendered correctly."""
+        # Test 1) Empty additional tag list
         self.assertEqual(
-            hostmanager._instance_tags('host.foo.com', 'foo'),
+            hostmanager._instance_tags('host.foo.com', 'foo', []),
             [{'ResourceType': 'instance',
               'Tags': [{'Key': 'Name', 'Value': 'host.foo.com'},
+                       {'Key': 'Role', 'Value': 'foo'}]}]
+        )
+        # Test 2) Additional Tags
+        self.assertListEqual(
+            hostmanager._instance_tags('host.foo.com', 'foo',
+                                       [{'Key': 'bar', 'Value': 'baz'}]),
+            [{'ResourceType': 'instance',
+              'Tags': [{'Key': 'bar', 'Value': 'baz'},
+                       {'Key': 'Name', 'Value': 'host.foo.com'},
                        {'Key': 'Role', 'Value': 'foo'}]}]
         )
 

@@ -69,6 +69,9 @@ def create_n_servers(count, partition=None):
         'treadmill_krb_realm': krb5.get_host_realm(sysinfo.hostname())[0],
     }
 
+    # FIXME: Add Partition: $partition to tags when Autoscaler is cell aware
+    tags = [{'Cell': context.GLOBAL.cell}]
+
     key = None
 
     for idx in range(0, count):
@@ -89,7 +92,8 @@ def create_n_servers(count, partition=None):
             hostgroups=hostgroups,
             hostname=hostname_template,
             ip_address=None,
-            eni=None
+            eni=None,
+            tags=tags
         )
 
         # Count is one, but it is more robust to treat it as list.
