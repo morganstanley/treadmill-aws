@@ -70,7 +70,7 @@ def create_n_servers(count, partition=None):
     }
 
     # FIXME: Add Partition: $partition to tags when Autoscaler is cell aware
-    tags = [{'Cell': context.GLOBAL.cell}]
+    tags = [{'Key': 'Cell', 'Value': context.GLOBAL.cell}]
 
     key = None
 
