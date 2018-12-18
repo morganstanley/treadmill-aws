@@ -22,12 +22,19 @@ _LOGGER = logging.getLogger(__name__)
 _EC2_DELETE_BATCH = 50
 
 
-def _instance_tags(hostname, role, tags):
-    """Appends generated info to list of AWS tags.
+def _instance_tags(hostname, role, tags=None):
+    """Return instance tags (common tags + instance name and role).
     """
-    tags.append({'Key': 'Name', 'Value': hostname.lower()})
-    tags.append({'Key': 'Role', 'Value': role.lower()})
-    return [{'ResourceType': 'instance', 'Tags': tags}]
+    if tags is None:
+        tags = []
+
+    return [{
+        'ResourceType': 'instance',
+        'Tags': tags + [
+            {'Key': 'Name', 'Value': hostname.lower()},
+            {'Key': 'Role', 'Value': role.lower()},
+        ],
+    }]
 
 
 def render_manifest(key_value_pairs):
@@ -80,8 +87,6 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
 
     account_aliases = awscontext.GLOBAL.iam.list_account_aliases()
     location = account_aliases['AccountAliases'].pop()
-    if tags is None:
-        tags = []
 
     hosts = []
     for _ in range(count):
@@ -145,6 +150,8 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
                         'InsufficientInstanceCapacity'):
                     _LOGGER.debug('Instance not available in AZ, trying next')
                     continue
+                else:
+                    raise
     return hosts
 
 
