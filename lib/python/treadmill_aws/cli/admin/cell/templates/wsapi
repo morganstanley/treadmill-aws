@@ -14,6 +14,7 @@ services:
         --running \
         --scheduled \
         --trace \
+        --server-trace \
         --identity-groups
   name: zk2fs
   restart:
@@ -26,7 +27,7 @@ services:
         --logging-conf daemon_container.json \
       websocket \
         --fs-root /var/run/zk2fs \
-        -m endpoint,state,trace,identity-group
+        -m endpoint,state,trace,server-trace,identity-group
   name: websocket
   restart:
     limit: 5

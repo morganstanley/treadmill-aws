@@ -6,18 +6,22 @@ services:
 - name: scheduler
   command: |
     unset PYTHONPATH;
-    mkdir -p /var/tmp/treadmill/appevents
+    mkdir -p /var/tmp/treadmill/events/app
+    mkdir -p /var/tmp/treadmill/events/server
     exec /opt/treadmill/bin/treadmill sproc scheduler \
-        --events-dir /var/tmp/treadmill/appevents
+        --app-events-dir /var/tmp/treadmill/events/app \
+        --server-events-dir /var/tmp/treadmill/events/server
   restart:
     limit: 5
     interval: 60
-- name: appevents
+- name: events-publisher
   command: |
     unset PYTHONPATH;
-    mkdir -p /var/tmp/treadmill/appevents
-    exec /opt/treadmill/bin/treadmill sproc \
-        appevents /var/tmp/treadmill/appevents
+    mkdir -p /var/tmp/treadmill/events/app
+    mkdir -p /var/tmp/treadmill/events/server
+    exec /opt/treadmill/bin/treadmill sproc events-publisher \
+        --app-events-dir /var/tmp/treadmill/events/app \
+        --server-events-dir /var/tmp/treadmill/events/server
   restart:
     limit: 5
     interval: 60
