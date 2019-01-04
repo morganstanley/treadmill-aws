@@ -15,7 +15,7 @@ _LOGGER = logging.getLogger(__name__)
 def create_instance(ec2_conn, user_data, image_id, instance_type,
                     tags, secgroup_ids, subnet_id, disk, key=None,
                     instance_profile=None, ip_address=None, eni=None,
-                    on_demand=False):
+                    spot=False):
     """Create new instance."""
     args = {
         'TagSpecifications': tags,
@@ -32,7 +32,7 @@ def create_instance(ec2_conn, user_data, image_id, instance_type,
             'Ebs': {'VolumeSize': disk, 'VolumeType': 'gp2'}}]
     }
 
-    if not on_demand:
+    if spot:
         args['InstanceMarketOptions'] = {
             'MarketType': 'spot',
             'SpotOptions': {

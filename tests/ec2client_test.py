@@ -29,7 +29,7 @@ class EC2ClientTest(unittest.TestCase):
             secgroup_ids='sg-foo12345',
             subnet_id='subnet-foo12345',
             disk=1,
-            on_demand=True
+            spot=False
         )
 
         self.assertEqual(ec2_conn.run_instances.call_count, 1)
@@ -61,7 +61,7 @@ class EC2ClientTest(unittest.TestCase):
             secgroup_ids='sg-foo12345',
             subnet_id='subnet-foo12345',
             disk=1,
-            on_demand=False
+            spot=True
         )
 
         self.assertEqual(ec2_conn.run_instances.call_count, 1)
