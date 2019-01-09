@@ -27,7 +27,7 @@ services:
     interval: 60
   command: |
     unset PYTHONPATH;
-    echo 'groups: ["treadmill", "treadmill.${proid}"]' > /tmp/authz.cfg.yml
+    echo 'groups: ["treadmill", "treadmill.{proid}"]' > /tmp/authz.cfg.yml
     exec /opt/treadmill/bin/treadmill \
       sproc restapi \
         -s /tmp/authz.sock \
