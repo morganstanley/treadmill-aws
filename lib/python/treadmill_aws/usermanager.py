@@ -73,6 +73,7 @@ def create_iam_user(iam_conn, user_name, policy):
         iam_user = iamclient.create_user(
             iam_conn=iam_conn,
             user_name=user_name,
+            path='/'
         )
 
     try:
@@ -82,6 +83,7 @@ def create_iam_user(iam_conn, user_name, policy):
         iam_role = iamclient.create_role(
             iam_conn=iam_conn,
             role_name=user_name,
+            path='/',
             policy_document=json.dumps(policy)
         )
 

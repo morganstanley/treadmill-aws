@@ -6,10 +6,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import yaml
-
 from treadmill.formatter import tablefmt
-from treadmill import yamlwrapper as yaml
 
 
 def _fmt_tags():
@@ -30,6 +27,101 @@ def _fmt_tags():
         )
 
     return _fmt
+
+
+def _fmt_list():
+    """Output formatter list."""
+
+    def _fmt(items):
+        """Format list."""
+        schema = [
+            ('item', None, None),
+        ]
+        return tablefmt.list_to_table(
+            items, schema, header=False, align=None
+        )
+
+    return _fmt
+
+
+def _fmt_trusted_entities(policy):
+
+    def _root_is_trusted(statement):
+        return bool((statement['Action'] == 'sts:AssumeRole' and
+                     statement['Effect'] == 'Allow' and
+                     'AWS' in statement['Principal']))
+
+    def _service_is_trusted(statement):
+        return bool((statement['Action'] == 'sts:AssumeRole' and
+                     statement['Effect'] == 'Allow' and
+                     'Service' in statement['Principal']))
+
+    def _saml_is_trusted(statement):
+        return bool((statement['Action'] == 'sts:AssumeRoleWithSAML' and
+                     statement['Effect'] == 'Allow'))
+
+    def _trusted_entities(pol):
+        entities = []
+        for statement in pol['Statement']:
+            if _root_is_trusted(statement):
+                entities.append({'Type': 'Account',
+                                 'Entity': statement['Principal']['AWS']})
+            if _service_is_trusted(statement):
+                entities.append({'Type': 'Service',
+                                 'Entity': statement['Principal']['Service']})
+            if _saml_is_trusted(statement):
+                if 'Federated' in statement['Principal']:
+                    princ_list = statement['Principal']['Federated']
+                    if isinstance(princ_list, str):
+                        entities.append({'Type': 'SAMLProvider',
+                                         'Entity': princ_list})
+                    else:
+                        princ_list.sort()
+                        for principal in princ_list:
+                            entities.append({'Type': 'SAMLProvider',
+                                             'Entity': principal})
+        return entities
+
+    items = _trusted_entities(policy)
+
+    schema = [
+        ('Type', 'Type', None),
+        ('Entity', 'Entity', None)
+    ]
+    return tablefmt.list_to_table(items, schema, header=False, align=None)
+
+
+def _fmt_attached_policies(policies):
+    def _fpolicies(policies):
+        fpolicies = []
+        for policy in policies:
+            if policy['PolicyArn']. startswith('arn:aws:iam::aws:policy/'):
+                pn = policy['PolicyArn'].replace('arn:aws:iam::aws:policy/',
+                                                 '')
+                fpolicies.append({
+                    'Type': 'global',
+                    'PolicyName': pn,
+                    'PolicyArn': policy['PolicyArn']
+                })
+            else:
+                fpolicies.append({
+                    'Type': 'local',
+                    'PolicyName': policy['PolicyName'],
+                    'PolicyArn': policy['PolicyArn']
+                })
+        return fpolicies
+
+    items = _fpolicies(policies)
+    schema = [
+        ('Type', 'Type', None),
+        ('PolicyName', 'PolicyName', None),
+        ('PolicyArn', 'PolicyArn', None),
+    ]
+    return tablefmt.list_to_table(items,
+                                  schema,
+                                  header=False,
+                                  align=None,
+                                  sortby='PolicyName')
 
 
 class SubnetPrettyFormatter:
@@ -126,54 +218,32 @@ class InstancePrettyFormatter:
             return format_item(item)
 
 
-class SpotPrettyFormatter:
-    """Pretty table formatter for Spot Instance Requests."""
-
-    @staticmethod
-    def format(item):
-        """Return pretty-formatted item."""
-
-        item_schema = [
-            ('id', 'id', None),
-            ('status', 'state', None),
-            ('code', 'status_code', None),
-            ('changed', 'status_timestamp', None),
-            ('zone', 'az', None),
-            ('subnet', 'subnet', None),
-            ('type', 'instance_type', None),
-            ('instance_id', 'instance_id', None),
-            ('ami_id', 'ami_id', None),
-            ('hostname', 'hostname', None),
-            ('launch', 'instance_launch', None),
-            ('state', 'instance_status', None),
-        ]
-
-        list_schema = item_schema
-
-        format_item = tablefmt.make_dict_to_table(item_schema)
-        format_list = tablefmt.make_list_to_table(list_schema)
-
-        if isinstance(item, list):
-            return format_list(item)
-        else:
-            return format_item(item)
-
-
 class RolePrettyFormatter:
     """Pretty table formatter for AWS roles."""
 
     @staticmethod
     def format(item):
         """Return pretty-formatted item."""
+
         list_schema = [
-            ('name', 'RoleName', None),
-            ('id', 'RoleId', None),
-            ('path', 'Path', None),
+            ('RoleName', 'RoleName', None),
+            ('Arn', 'Arn', None),
+            ('MaxSessionDuration', 'MaxSessionDuration', None),
+            ('CreateDate', 'CreateDate', None),
         ]
 
-        # TODO: add role policy document schema.
-        item_schema = list_schema + [
-            ('arn', 'Arn', None),
+        item_schema = [
+            ('RoleName', 'RoleName', None),
+            ('Path', 'Path', None),
+            ('Arn', 'Arn', None),
+            ('MaxSessionDuration', 'MaxSessionDuration', None),
+            ('CreateDate', 'CreateDate', None),
+            ('RoleId', 'RoleId', None),
+            ('TrustedEntities',
+             'AssumeRolePolicyDocument',
+             _fmt_trusted_entities),
+            ('RolePolicies', 'RolePolicies', None),
+            ('AttachedPolicies', 'AttachedPolicies', _fmt_attached_policies),
         ]
 
         format_item = tablefmt.make_dict_to_table(item_schema)
@@ -272,19 +342,25 @@ class IpaUserPrettyFormatter:
 
 
 class AwsUserPrettyFormatter:
-    """Pretty table formatter for IPA user."""
+    """Pretty table formatter for AWS users."""
 
     @staticmethod
     def format(item):
         """Return pretty-formatted item."""
+
         list_schema = [
-            ('id', 'User', lambda _: _['UserName']),
+            ('UserName', 'UserName', None),
+            ('Arn', 'Arn', None),
         ]
 
         item_schema = [
-            ('id', 'user', lambda _: _['UserName']),
-            ('user', 'user', yaml.dump),
-            ('role', 'role', yaml.dump),
+            ('UserName', 'UserName', None),
+            ('Path', 'Path', None),
+            ('Arn', 'Arn', None),
+            ('CreateDate', 'CreateDate', None),
+            ('UserId', 'UserId', None),
+            ('UserPolicies', 'UserPolicies', None),
+            ('AttachedPolicies', 'AttachedPolicies', _fmt_attached_policies),
         ]
 
         format_item = tablefmt.make_dict_to_table(item_schema)
