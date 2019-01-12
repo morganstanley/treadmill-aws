@@ -144,5 +144,8 @@ class UsermanagerTest(unittest.TestCase):
 
         iam_conn.create_user.assert_called_with(UserName='foo', Path='/')
         iam_conn.create_role.assert_called_with(
-            RoleName='foo', Path='/', AssumeRolePolicyDocument='"xxx"'
+            RoleName='foo',
+            Path='/',
+            AssumeRolePolicyDocument='"xxx"',
+            MaxSessionDuration=3600
         )
