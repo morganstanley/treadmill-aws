@@ -6,7 +6,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import grp
 import json
 import logging
 import pwd
@@ -23,7 +22,7 @@ _LOGGER = logging.getLogger(__name__)
 _DEFAULT_DURATION_SEC = 43200
 
 
-def run_server(port, account_id, admin_group, realm):
+def run_server(port, realm):
     """Runs AWS Credential server."""
     # TODO: pylint complains the function is too long, need to refactor.
     #
@@ -49,10 +48,10 @@ def run_server(port, account_id, admin_group, realm):
     class AWSCredentialServer(gssapiprotocol.GSSAPILineServer):
         """AWS Credential server."""
 
-        def __init__(self, account_id, admin_group, realm):
-            self.account_id = account_id
-            self.admin_group = admin_group
+        def __init__(self, realm):
+            sts = awscontext.GLOBAL.sts
             self.realm = realm
+            self.account_id = sts.get_caller_identity().get('Account')
             gssapiprotocol.GSSAPILineServer.__init__(self)
 
         def _validate_request(self, request):
@@ -66,33 +65,6 @@ def run_server(port, account_id, admin_group, realm):
                 raise ValueError("user [%s] is not defined" % request)
 
         def _authorize(self, requestor, request):
-
-            # admin can request anything (hence request is not considered)
-            if self._authorize_admin(requestor):
-                return
-
-            self._authorize_self(requestor, request)
-
-        def _authorize_admin(self, requestor):
-
-            if admin_group is None:
-                return False
-
-            requestor_name, requestor_inst, requestor_realm = \
-                _parse_name(requestor)
-
-            try:
-                if requestor_name in grp.getgrnam(self.admin_group).gr_mem \
-                        and requestor_inst == '' \
-                        and requestor_realm == self.realm:
-                    return True
-            except KeyError as err:
-                _LOGGER.warning(
-                    'admin group [%s] does not exist', self.admin_group)
-
-            return False
-
-        def _authorize_self(self, requestor, request):
 
             requestor_name, requestor_inst, requestor_realm = \
                 _parse_name(requestor)
@@ -109,6 +81,11 @@ def run_server(port, account_id, admin_group, realm):
                 raise ValueError(
                     'Requestor [%s] is not in authorized realm [%s]' %
                     (requestor, self.realm))
+
+            _LOGGER.info(
+                'AWS credential request for [%s] from [%s]: authorized',
+                request,
+                requestor)
 
         def _get_credential(self, requestor, role, lifetime):
 
@@ -137,7 +114,7 @@ def run_server(port, account_id, admin_group, realm):
             request = data.decode()
             lifetime = self.peercred_lifetime()
             _LOGGER.info(
-                'Processing AWS credential request for [%s] from [%s]',
+                'AWS credential request for [%s] from [%s]: received',
                 request,
                 requestor)
 
@@ -148,6 +125,10 @@ def run_server(port, account_id, admin_group, realm):
                 response = {}
                 response['status'] = "success"
                 response['result'] = credential
+                _LOGGER.info(
+                    'AWS credential request for [%s] from [%s]: successful',
+                    request,
+                    requestor)
             except ValueError as err:
                 _LOGGER.error(repr(err))
                 response = {}
@@ -168,18 +149,12 @@ def run_server(port, account_id, admin_group, realm):
     class AWSCredentialServerFactory(protocol.Factory):
         """AWSCredentialServer factory."""
 
-        def __init__(self, account_id, admin_group, realm):
+        def __init__(self, realm):
             protocol.Factory.__init__(self)
-            self.account_id = account_id
-            self.admin_group = admin_group
             self.realm = realm
 
         def buildProtocol(self, addr):
-            return AWSCredentialServer(self.account_id,
-                                       self.admin_group,
-                                       self.realm)
+            return AWSCredentialServer(self.realm)
 
-    reactor.listenTCP(
-        port, AWSCredentialServerFactory(
-            account_id, admin_group, realm))
+    reactor.listenTCP(port, AWSCredentialServerFactory(realm))
     reactor.run()
