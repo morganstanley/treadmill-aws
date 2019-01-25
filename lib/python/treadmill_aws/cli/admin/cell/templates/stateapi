@@ -11,7 +11,7 @@ services:
       restapi \
         -p 8000 \
         --title 'Treadmill_Query_API' \
-        -m state,endpoint \
+        -m state,endpoint,scheduler \
         --workers 1 \
         --cors-origin='(?i).*\.{{ cors }}'
   name: state-api
