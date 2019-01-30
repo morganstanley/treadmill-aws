@@ -8,6 +8,7 @@ from __future__ import unicode_literals
 import collections
 import logging
 import math
+import re
 import time
 
 from treadmill import admin
@@ -61,6 +62,9 @@ def create_n_servers(count, partition=None):
         partition if partition else 'node',
         '{time}'
     )
+
+    # Sanitize DNS name
+    hostname_template = re.sub(r'[^a-zA-Z0-9-{}]', '', hostname_template)
 
     instance_vars = {
         'treadmill_cell': context.GLOBAL.cell,
@@ -250,9 +254,10 @@ def _select_extra_servers(servers, state, max_extra_servers=None):
 
 
 def _scale_partition(server_app_ratio, autoscale_conf, apps, servers):
-    min_servers = autoscale_conf['min_servers']
-    max_servers = autoscale_conf['max_servers']
-    server_app_ratio = autoscale_conf.get('server_app_ratio', server_app_ratio)
+    min_servers = int(autoscale_conf['min_servers'])
+    max_servers = int(autoscale_conf['max_servers'])
+    server_app_ratio = float(autoscale_conf.get('server_app_ratio',
+                                                server_app_ratio))
 
     _LOGGER.debug('Apps: %r', apps)
     _LOGGER.debug('Servers: %r', servers)

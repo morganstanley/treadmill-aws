@@ -399,3 +399,22 @@ class CellDataFormatter:
             return format_list(item)
         else:
             return format_item(item)
+
+
+class PartDataFormatter:
+    """Pretty table formatter for partition data."""
+
+    @staticmethod
+    def format(item):
+        """Return pretty-formatted item."""
+        schema = [
+            ('autoscale', 'autoscale', None),
+        ]
+
+        format_item = tablefmt.make_dict_to_table(schema)
+        format_list = tablefmt.make_list_to_table(schema)
+
+        if isinstance(item, list):
+            return format_list(item)
+        else:
+            return format_item(item)
