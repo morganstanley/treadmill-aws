@@ -72,8 +72,9 @@ def create_n_servers(count, partition=None):
         'treadmill_krb_realm': krb5.get_host_realm(sysinfo.hostname())[0],
     }
 
-    # FIXME: Add Partition: $partition to tags when Autoscaler is cell aware
-    tags = [{'Key': 'Cell', 'Value': context.GLOBAL.cell}]
+    tags = [{'Key': 'Cell', 'Value': context.GLOBAL.cell},
+            {'Key': 'Partition',
+             'Value': partition if partition else '_default'}]
 
     key = None
 
