@@ -32,6 +32,7 @@ configure-monitors = treadmill_aws.cli.admin.cell.configure_monitors
 configure-appgroups = treadmill_aws.cli.admin.cell.configure_appgroups
 configure-dns = treadmill_aws.cli.admin.cell.configure_dns
 configure-data = treadmill_aws.cli.admin.cell.configure_data
+configure-partition = treadmill_aws.cli.admin.cell.configure_partition
 restart-apps = treadmill_aws.cli.admin.cell.restart_apps
 subnet = treadmill_aws.cli.admin.cell.subnet
 docker = treadmill_aws.cli.admin.cell.docker
@@ -63,6 +64,7 @@ aws_secgroup = treadmill_aws.formatter:SecgroupPrettyFormatter
 aws_user = treadmill_aws.formatter:AwsUserPrettyFormatter
 ipa_user = treadmill_aws.formatter:IpaUserPrettyFormatter
 aws_cell_data = treadmill_aws.formatter:CellDataFormatter
+aws_part_data = treadmill_aws.formatter:PartDataFormatter
 
 
 [treadmill.sproc]
