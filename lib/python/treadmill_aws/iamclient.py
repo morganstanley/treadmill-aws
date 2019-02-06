@@ -25,11 +25,52 @@ def delete_user(iam_conn, user_name):
 
 
 def list_users(iam_conn, path_prefix):
-    """List IAM users.
-    """
-    response = iam_conn.list_users(PathPrefix=path_prefix)
-    # TODO: handle errors.
-    return response['Users']
+    """List IAM users."""
+
+    users = []
+    marker = None
+
+    while True:
+        if marker:
+            response = iam_conn.list_users(PathPrefix=path_prefix,
+                                           Marker=marker)
+        else:
+            response = iam_conn.list_users(PathPrefix=path_prefix)
+        for user in response['Users']:
+            users.append(user)
+        if not response['IsTruncated']:
+            break
+        marker = response['Marker']
+
+    return users
+
+
+def list_groups_for_user(iam_conn, user_name):
+    """List groups for IAM user."""
+
+    groups = []
+    marker = None
+
+    while True:
+        if marker:
+            response = iam_conn.list_groups_for_user(UserName=user_name,
+                                                     Marker=marker)
+        else:
+            response = iam_conn.list_groups_for_user(UserName=user_name)
+        for group in response['Groups']:
+            groups.append(group['GroupName'])
+        if not response['IsTruncated']:
+            break
+        marker = response['Marker']
+
+    return groups
+
+
+def remove_user_from_group(iam_conn, user_name, group_name):
+    """Remove IAM user from group."""
+
+    iam_conn.remove_user_from_group(UserName=user_name,
+                                    GroupName=group_name)
 
 
 def get_user(iam_conn, user_name):
@@ -169,10 +210,24 @@ def delete_role(iam_conn, role_name):
 
 
 def list_roles(iam_conn, path_prefix):
-    """List roles."""
-    response = iam_conn.list_roles(PathPrefix=path_prefix)
-    # TODO: handle errors.
-    return response['Roles']
+    """List IAM roles."""
+
+    roles = []
+    marker = None
+
+    while True:
+        if marker:
+            response = iam_conn.list_roles(PathPrefix=path_prefix,
+                                           Marker=marker)
+        else:
+            response = iam_conn.list_roles(PathPrefix=path_prefix)
+        for role in response['Roles']:
+            roles.append(role)
+        if not response['IsTruncated']:
+            break
+        marker = response['Marker']
+
+    return roles
 
 
 def get_role(iam_conn, role_name):

@@ -83,12 +83,16 @@ def _generate_trust_document(trust_root,
 
 def _set_role_policy(iam_conn, role_name, role_policy):
     new_pols = []
+
+    if role_policy == [':']:
+        role_policy = []
+
     for pol in role_policy:
         policy_name, policy_file = pol.split(':', 2)
         new_pols.append(policy_name)
         with io.open(policy_file) as f:
             policy_document = f.read()
-        _LOGGER.info('updated/created role policy: %s', policy_name)
+        _LOGGER.info('set/updated inline policy: %s', policy_name)
         iamclient.put_role_policy(iam_conn,
                                   role_name,
                                   policy_name,
@@ -96,7 +100,7 @@ def _set_role_policy(iam_conn, role_name, role_policy):
     all_pols = iamclient.list_role_policies(iam_conn, role_name)
     for policy_name in all_pols:
         if policy_name not in new_pols:
-            _LOGGER.info('removing role policy: %s', policy_name)
+            _LOGGER.info('removing inline policy: %s', policy_name)
             iamclient.delete_role_policy(iam_conn,
                                          role_name,
                                          policy_name)
@@ -105,6 +109,9 @@ def _set_role_policy(iam_conn, role_name, role_policy):
 def _set_attached_policy(iam_conn, role_name, attached_policy):
     sts = awscontext.GLOBAL.sts
     accountid = sts.get_caller_identity().get('Account')
+
+    if attached_policy == [':']:
+        attached_policy = []
 
     del_pols = {}
     for policy in iamclient.list_attached_role_policies(iam_conn,
@@ -124,6 +131,7 @@ def _set_attached_policy(iam_conn, role_name, attached_policy):
 
     for policy_arn in del_pols:
         if policy_arn not in new_pols:
+            _LOGGER.info('detaching policy: %s', policy_arn)
             iamclient.detach_role_policy(iam_conn,
                                          role_name,
                                          policy_arn)
@@ -131,6 +139,7 @@ def _set_attached_policy(iam_conn, role_name, attached_policy):
             del new_pols[policy_arn]
 
     for policy_arn in new_pols:
+        _LOGGER.info('attaching policy: %s', policy_arn)
         iamclient.attach_role_policy(iam_conn, role_name, policy_arn)
 
 
@@ -188,7 +197,7 @@ def init():
                   required=False,
                   help='AWS services allowed to assume role, e.g., '
                        'ec2.amazonaws.com')
-    @click.option('--role-policy',
+    @click.option('--inline-policy',
                   type=cli.LIST,
                   required=False,
                   help='Inline role policy name:file')
@@ -207,7 +216,7 @@ def init():
                   trust_root,
                   trusted_service,
                   trusted_saml_provider,
-                  role_policy,
+                  inline_policy,
                   attached_policy,
                   role_name):
         """Create/configure/get IAM role."""
@@ -247,8 +256,8 @@ def init():
                                                     role_name,
                                                     trust_document)
 
-        if role_policy:
-            _set_role_policy(iam_conn, role_name, role_policy)
+        if inline_policy:
+            _set_role_policy(iam_conn, role_name, inline_policy)
 
         if attached_policy:
             _set_attached_policy(iam_conn, role_name, attached_policy)
@@ -287,14 +296,13 @@ def init():
         if force:
             role_policies = iamclient.list_role_policies(iam_conn, role_name)
             for policy in role_policies:
-                _LOGGER.info('deleting role policy: %s', policy)
+                _LOGGER.info('deleting inline policy: %s', policy)
                 iamclient.delete_role_policy(iam_conn, role_name, policy)
 
             attached_pols = iamclient.list_attached_role_policies(iam_conn,
                                                                   role_name)
             for policy in attached_pols:
-                _LOGGER.info('detaching managed policy: %s',
-                             policy['PolicyName'])
+                _LOGGER.info('detaching policy: %s', policy['PolicyArn'])
                 iamclient.detach_role_policy(iam_conn,
                                              role_name,
                                              policy['PolicyArn'])
