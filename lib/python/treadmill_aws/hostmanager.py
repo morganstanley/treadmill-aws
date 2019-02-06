@@ -228,6 +228,8 @@ def create_zk(
         'treadmill_profile': 'aws',
         'treadmill_krb_realm': krb5.get_host_realm(sysinfo.hostname())[0],
         'treadmill_zookeeper_myid': str(master['idx']),
+        'treadmill_zookeeper_admins': ','.join(set([cell['username'],
+                                                    data['aws_admin']]))
     }
 
     # Build user-data and start new instance

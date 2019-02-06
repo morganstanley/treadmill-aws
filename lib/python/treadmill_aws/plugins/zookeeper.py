@@ -16,9 +16,6 @@ from treadmill import utils
 from treadmill import sysinfo
 from treadmill.syscall import krb5
 
-_ROLES = {
-    'admin': 'admins',
-}
 
 _DEFAULT_ZK_SERVICE = 'zookeeper'
 
@@ -78,26 +75,17 @@ class SASLZkClient(zkutils.ZkClient):
 
     def make_role_acl(self, role, perm):
         """Create role acl in zookeeper.
-
-        Roles are sourced from our LDAP lookup plugin, in the format
-        'role/<role>.
         """
-        # TODO: enable role ACLs when role authorizer is implemented. Until
-        #       then, allow any authenticated user.
-        #
-        # credential = 'role/{0}'.format(_ROLES.get(role, role))
-        # return kazoo.security.make_acl(
-        #     scheme='sasl',
-        #     credential=credential,
-        #     read='r' in perm,
-        #     write='w' in perm,
-        #     create='c' in perm,
-        #     delete='d' in perm,
-        #     admin='a' in perm
-        # )
-
-        # pylint: disable=useless-super-delegation
-        return super().make_role_acl(role, perm)
+        filename = '/'.join(['/treadmill/roles', role])
+        return kazoo.security.make_acl(
+            scheme='sasl',
+            credential='file://%s' % filename,
+            read='r' in perm,
+            write='w' in perm,
+            create='c' in perm,
+            delete='d' in perm,
+            admin='a' in perm
+        )
 
     def make_host_acl(self, host, perm):
         """Create host acl in zookeeper.
