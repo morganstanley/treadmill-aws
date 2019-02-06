@@ -47,7 +47,9 @@ def init():
     @click.option('--realm', help='Nodes kerberos realm.')
     @click.option('--instance-profile', help='Instance profile.')
     @click.option('--subnets', help='List of subnets.', type=cli.LIST)
-    @click.option('--s3-registry-region', help='S3 registry bucket region.')
+    @click.option('--aws-account', help='AWS account.')
+    @click.option('--aws-admin', help='AWS privileged user.')
+    @click.option('--aws-region', help='AWS region.')
     @click.option('--s3-registry-bucket', help='S3 registry bucket name.')
     def configure_data_cmd(docker_registries,
                            image,
@@ -58,7 +60,9 @@ def init():
                            realm,
                            instance_profile,
                            subnets,
-                           s3_registry_region,
+                           aws_account,
+                           aws_admin,
+                           aws_region,
                            s3_registry_bucket):
         """Configure cell data."""
         admin_cell = admin.Cell(context.GLOBAL.ldap.conn)
@@ -74,9 +78,9 @@ def init():
         modified = _set(data, 'realm', realm) or modified
         modified = _set(data, 'instance_profile', instance_profile) or modified
         modified = _set(data, 'subnets', subnets) or modified
-        modified = _set(data,
-                        's3_registry_region',
-                        s3_registry_region) or modified
+        modified = _set(data, 'aws_account', aws_account) or modified
+        modified = _set(data, 'aws_admin', aws_admin) or modified
+        modified = _set(data, 'aws_region', aws_region) or modified
         modified = _set(data,
                         's3_registry_bucket',
                         s3_registry_bucket) or modified

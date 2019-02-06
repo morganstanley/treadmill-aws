@@ -21,7 +21,7 @@ data_dir:
 
     storage:
       s3:
-        region: {{ data.s3_registry_region }}
+        region: {{ data.aws_region }}
         bucket: {{ data.s3_registry_bucket }}
         secure: true
         chunksize: 5242880

@@ -8,3 +8,5 @@
 {{ proid }}.trace-cleanup.{{ cell }}: 3
 {{ proid }}.cellsync.{{ cell }}: 3
 {{ proid }}.app-dns.{{ cell }}: 3
+{{ data.aws_admin }}.autoscaler.{{ cell }}: 1
+{{ data.aws_admin }}.gc.{{ cell }}: 1
