@@ -242,7 +242,7 @@ class RolePrettyFormatter:
             ('TrustedEntities',
              'AssumeRolePolicyDocument',
              _fmt_trusted_entities),
-            ('RolePolicies', 'RolePolicies', None),
+            ('InlinePolicies', 'RolePolicies', None),
             ('AttachedPolicies', 'AttachedPolicies', _fmt_attached_policies),
         ]
 
@@ -359,7 +359,7 @@ class AwsUserPrettyFormatter:
             ('Arn', 'Arn', None),
             ('CreateDate', 'CreateDate', None),
             ('UserId', 'UserId', None),
-            ('UserPolicies', 'UserPolicies', None),
+            ('InlinePolicies', 'UserPolicies', None),
             ('AttachedPolicies', 'AttachedPolicies', _fmt_attached_policies),
         ]
 
