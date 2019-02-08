@@ -1,0 +1,44 @@
+---
+memory: 1G
+cpu: 10%
+disk: 500M
+services:
+- name: autoscaler
+  restart:
+    limit: 5
+    interval: 60
+  command: |
+    exec /opt/treadmill/bin/treadmill \
+      sproc \
+        --logging-conf daemon_container.json \
+      autoscale
+- name: aws-credentials
+  restart:
+    limit: 5
+    interval: 60
+  command: |
+    exec sh -c $(/opt/treadmill/bin/cloudshell \
+      --debug \
+      fetch \
+        --awscc $AWS_CONFIG_FILE && sleep 3600)
+environ:
+- name: AWS_ACCOUNT
+  value: {{ data.aws_account }}
+- name: AWS_CA_BUNDLE
+  value: /etc/pki/tls/cert.pem
+- name: AWS_CONFIG_FILE
+  value: /var/tmp/awscc_{{ data.aws_admin }}
+- name: AWS_DEFAULT_REGION
+  value: {{ data.aws_region }}
+- name: CLOUDSHELL_AWS_ACCOUNT
+  value: {{ data.aws_account }}
+- name: KRB5CCNAME
+  value: /var/spool/tickets/{{ data.aws_admin }}
+- name: KRB5_KTNAME
+  value: /var/spool/keytabs/{{ data.aws_admin }}
+- name: TREADMILL_IPA_CERTS
+  value: /etc/ipa/ca.crt
+affinity_limits:
+  server: 1
+tickets:
+- {{ data.aws_admin }}@{{ krb_realm }}

@@ -388,7 +388,9 @@ class CellDataFormatter:
             ('realm', 'realm', None),
             ('instance-profile', 'instance_profile', None),
             ('subnets', 'subnets', ','.join),
-            ('s3_registry_region', 's3_registry_region', None),
+            ('aws_account', 'aws_account', None),
+            ('aws_admin', 'aws_admin', None),
+            ('aws_region', 'aws_region', None),
             ('s3_registry_bucket', 's3_registry_bucket', None),
         ]
 
