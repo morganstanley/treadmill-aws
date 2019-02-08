@@ -1,6 +1,7 @@
 """Autoscale Treadmill cell based on scheduler queue."""
 
 import logging
+import multiprocessing
 import time
 
 import click
@@ -36,10 +37,19 @@ def init():
         default=_DEFAULT_SERVER_APP_RATIO,
         help='Default server/app ratio.'
     )
-    def autoscale_cmd(interval, server_app_ratio):
+    @click.option(
+        '--workers', required=False, type=int,
+        help='Number of worker processes to use to create hosts in parallel.'
+    )
+    def autoscale_cmd(interval, server_app_ratio, workers):
         """Autoscale Treadmill cell based on scheduler queue."""
+        pool = None
+        if workers:
+            pool = multiprocessing.Pool(processes=workers)
+            pool.workers = workers
+
         while True:
-            autoscale.scale(server_app_ratio)
+            autoscale.scale(server_app_ratio, pool=pool)
             time.sleep(interval)
 
     return autoscale_cmd

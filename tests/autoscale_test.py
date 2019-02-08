@@ -60,7 +60,9 @@ class AutoscaleTest(unittest.TestCase):
 
         autoscale.scale(0.5)
 
-        autoscale.create_n_servers.assert_called_once_with(2, 'partition')
+        autoscale.create_n_servers.assert_called_once_with(
+            2, 'partition', pool=None
+        )
         autoscale.delete_servers_by_name.assert_not_called()
 
         autoscale.create_n_servers.reset_mock()
@@ -83,7 +85,9 @@ class AutoscaleTest(unittest.TestCase):
 
         autoscale.scale(0.5)
 
-        autoscale.create_n_servers.assert_called_once_with(9, 'partition')
+        autoscale.create_n_servers.assert_called_once_with(
+            9, 'partition', pool=None
+        )
         autoscale.delete_servers_by_name.assert_not_called()
 
         autoscale.create_n_servers.reset_mock()
@@ -126,7 +130,9 @@ class AutoscaleTest(unittest.TestCase):
 
         autoscale.scale(0.5)
 
-        autoscale.create_n_servers.assert_called_once_with(3, 'partition')
+        autoscale.create_n_servers.assert_called_once_with(
+            3, 'partition', pool=None
+        )
         autoscale.delete_servers_by_name.assert_not_called()
 
     @mock.patch('treadmill_aws.autoscale.create_n_servers', mock.Mock())
@@ -232,7 +238,9 @@ class AutoscaleTest(unittest.TestCase):
 
         autoscale.scale(0.5)
 
-        autoscale.create_n_servers.assert_called_once_with(1, 'partition')
+        autoscale.create_n_servers.assert_called_once_with(
+            1, 'partition', pool=None
+        )
         autoscale.delete_servers_by_name.assert_called_once_with(['server4'])
 
     @mock.patch('treadmill_aws.autoscale.create_n_servers', mock.Mock())
@@ -256,7 +264,9 @@ class AutoscaleTest(unittest.TestCase):
 
         autoscale.scale(0.5)
 
-        autoscale.create_n_servers.assert_called_once_with(3, 'partition')
+        autoscale.create_n_servers.assert_called_once_with(
+            3, 'partition', pool=None
+        )
         autoscale.delete_servers_by_name.assert_not_called()
 
         autoscale.create_n_servers.reset_mock()
@@ -292,7 +302,9 @@ class AutoscaleTest(unittest.TestCase):
 
         autoscale.scale(0.5)
 
-        autoscale.create_n_servers.assert_called_once_with(2, 'partition')
+        autoscale.create_n_servers.assert_called_once_with(
+            2, 'partition', pool=None
+        )
         autoscale.delete_servers_by_name.assert_not_called()
 
     @mock.patch('treadmill_aws.autoscale.create_n_servers', mock.Mock())

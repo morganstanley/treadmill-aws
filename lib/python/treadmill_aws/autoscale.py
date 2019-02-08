@@ -6,17 +6,20 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import collections
+import functools
 import logging
 import math
 import re
 import time
 
-from treadmill import admin
+from botocore import exceptions as botoexc
+
 from treadmill import context
 from treadmill import sysinfo
 from treadmill import restclient
 from treadmill.syscall import krb5
 
+from treadmill_aws import aws
 from treadmill_aws import awscontext
 from treadmill_aws import hostmanager
 from treadmill_aws import ec2client
@@ -31,18 +34,96 @@ _SCHEDULER_SERVERS_URL = '/scheduler/servers'
 _SERVER_START_INTERVAL = 5 * 60
 
 
-def create_n_servers(count, partition=None):
+class ExpiredTokenError(Exception):
+    """Error indicating that AWS token expired."""
+    pass
+
+
+def check_expired_token(func):
+    """Decorator to simplify handling of expired token error."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except botoexc.ClientError as err:
+            if err.response['Error']['Code'] == 'ExpiredToken':
+                raise ExpiredTokenError
+            raise
+    return wrapper
+
+
+@check_expired_token
+def _create_hosts(hostnames, subnets, cell, partition, **host_params):
+    hosts_created = []
+    for hostname in hostnames:
+        _LOGGER.info('Creating host %s', hostname)
+        hostmanager.create_host(
+            ipa_client=awscontext.GLOBAL.ipaclient,
+            ec2_conn=awscontext.GLOBAL.ec2,
+            hostname=hostname,
+            subnets=subnets,
+            **host_params
+        )
+        admin_srv = context.GLOBAL.admin.server()
+        admin_srv.create(
+            hostname,
+            {'cell': cell, 'partition': partition}
+        )
+        hosts_created.append(hostname)
+    return hosts_created
+
+
+def _create_hosts_no_exc(hostnames, subnets, cell, partition, **host_params):
+    try:
+        hosts_created = _create_hosts(
+            hostnames, subnets, cell, partition, **host_params
+        )
+        return hosts_created, None
+    except ExpiredTokenError as err:
+        _LOGGER.exception('Error creating hosts: %r', hostnames)
+        return None, err
+    except Exception as err:  # pylint: disable=broad-except
+        _LOGGER.exception('Error creating hosts: %r', hostnames)
+        # Make sure error can be pickled (e.g. botocore exceptions can't).
+        return None, Exception(str(err))
+
+
+def _generate_hostnames(domain, cell, partition, count):
+    hostname_template = '{}-{}-{}'.format(cell, partition, '{time}')
+
+    # Sanitize DNS name.
+    hostname_template = re.sub(r'[^a-zA-Z0-9-{}]', '', hostname_template)
+
+    # Generate hostnames in a loop, append seq. no. in case time is not unique.
+    return [
+        hostmanager.generate_hostname(
+            domain,
+            '{}{}'.format(hostname_template, i)
+        )
+        for i in range(count)
+    ]
+
+
+def _split_list(lst, num_parts):
+    parts = [lst[i::num_parts] for i in range(num_parts)]
+    return [part for part in parts if part]
+
+
+@aws.profile
+@check_expired_token
+def create_n_servers(count, partition=None, pool=None):
     """Create new servers in the cell."""
 
-    ipa_client = awscontext.GLOBAL.ipaclient
+    partition = partition or '_default'  # FIXME: Import name from treadmill.
+
     ec2_conn = awscontext.GLOBAL.ec2
     sts_conn = awscontext.GLOBAL.sts
     ipa_domain = awscontext.GLOBAL.ipa_domain
-    admin_srv = admin.Server(context.GLOBAL.ldap.conn)
-    admin_cell = admin.Cell(context.GLOBAL.ldap.conn)
-    cell = admin_cell.get(context.GLOBAL.cell)
 
-    data = cell['data']
+    admin_srv = context.GLOBAL.admin.server()
+    admin_cell = context.GLOBAL.admin.cell()
+    cell = context.GLOBAL.cell
+    data = admin_cell.get(cell)['data']
 
     image_id = data['image']
     if not image_id.startswith('ami-'):
@@ -57,17 +138,10 @@ def create_n_servers(count, partition=None):
     hostgroups = data['hostgroups']
     instance_profile = data['instance_profile']
     disk_size = int(data['disk_size'])
-    hostname_template = '{}-{}-{}'.format(
-        context.GLOBAL.cell,
-        partition if partition else 'node',
-        '{time}'
-    )
-
-    # Sanitize DNS name
-    hostname_template = re.sub(r'[^a-zA-Z0-9-{}]', '', hostname_template)
+    nshostlocation = data['aws_account']
 
     instance_vars = {
-        'treadmill_cell': context.GLOBAL.cell,
+        'treadmill_cell': cell,
         'treadmill_ldap': ','.join(context.GLOBAL.ldap.url),
         'treadmill_ldap_suffix': context.GLOBAL.ldap_suffix,
         'treadmill_dns_domain': context.GLOBAL.dns_domain,
@@ -76,50 +150,56 @@ def create_n_servers(count, partition=None):
         'treadmill_krb_realm': krb5.get_host_realm(sysinfo.hostname())[0],
     }
 
-    tags = [{'Key': 'Cell', 'Value': context.GLOBAL.cell},
-            {'Key': 'Partition',
-             'Value': partition if partition else '_default'}]
+    tags = [
+        {'Key': 'Cell', 'Value': cell},
+        {'Key': 'Partition', 'Value': partition},
+    ]
 
-    key = None
-
-    for idx in range(0, count):
-        hostnames = hostmanager.create_host(
-            ipa_client=ipa_client,
-            ec2_conn=ec2_conn,
-            image_id=image_id,
-            count=1,
-            disk=disk_size,
-            domain=ipa_domain,
-            key=key,
-            secgroup_ids=secgroup_id,
-            instance_type=instance_type,
+    hostnames = _generate_hostnames(ipa_domain, cell, partition, count)
+    host_params = dict(
+        image_id=image_id,
+        count=1,
+        disk=disk_size,
+        domain=ipa_domain,
+        key=None,
+        secgroup_ids=secgroup_id,
+        instance_type=instance_type,
+        role='node',
+        instance_vars=instance_vars,
+        instance_profile=instance_profile,
+        hostgroups=hostgroups,
+        ip_address=None,
+        eni=None,
+        tags=tags,
+        nshostlocation=nshostlocation
+    )
+    if pool:
+        func = functools.partial(
+            _create_hosts_no_exc,
             subnets=subnets,
-            role='node',
-            instance_vars=instance_vars,
-            instance_profile=instance_profile,
-            hostgroups=hostgroups,
-            hostname=hostname_template,
-            ip_address=None,
-            eni=None,
-            tags=tags
+            cell=cell,
+            partition=partition,
+            **host_params
+        )
+        hosts_created = []
+        for res, err in pool.map(func, _split_list(hostnames, pool.workers)):
+            if err:
+                raise err
+            hosts_created.extend(res)
+        return hosts_created
+    else:
+        return _create_hosts(
+            hostnames, subnets, cell, partition, **host_params
         )
 
-        # Count is one, but it is more robust to treat it as list.
-        for hostname in hostnames:
-            print(hostname)
-            attrs = {
-                'cell': context.GLOBAL.cell,
-                'partition': partition
-            }
-            admin_srv.create(hostname, attrs)
 
-
+@check_expired_token
 def delete_n_servers(count, partition=None):
     """Delete old servers."""
     ipa_client = awscontext.GLOBAL.ipaclient
     ec2_conn = awscontext.GLOBAL.ec2
 
-    admin_srv = admin.Server(context.GLOBAL.ldap.conn)
+    admin_srv = context.GLOBAL.admin.server()
     servers = admin_srv.list({'cell': context.GLOBAL.cell,
                               'partition': partition})
 
@@ -135,6 +215,7 @@ def delete_n_servers(count, partition=None):
         admin_srv.delete(hostname)
 
 
+@check_expired_token
 def delete_servers_by_name(servers):
     """Delete servers by name."""
     ipa_client = awscontext.GLOBAL.ipaclient
@@ -148,7 +229,7 @@ def delete_servers_by_name(servers):
         hostnames=servers
     )
 
-    admin_srv = admin.Server(context.GLOBAL.ldap.conn)
+    admin_srv = context.GLOBAL.admin.server()
     for server in servers:
         admin_srv.delete(server)
 
@@ -322,7 +403,7 @@ def _scale_partition(server_app_ratio, autoscale_conf, apps, servers):
     return new_servers, extra_servers
 
 
-def scale(server_app_ratio):
+def scale(server_app_ratio, pool=None):
     """Autoscale cell capacity."""
     _LOGGER.info('Getting cell state')
     apps_by_partition, servers_by_partition = _get_state()
@@ -347,9 +428,11 @@ def scale(server_app_ratio):
                     servers_by_partition.get(partition_name, [])
                 )
                 if new_servers > 0:
-                    create_n_servers(new_servers, partition_name)
+                    create_n_servers(new_servers, partition_name, pool=pool)
                 if extra_servers:
                     delete_servers_by_name(extra_servers)
+            except ExpiredTokenError:
+                raise
             except Exception as err:  # pylint: disable=broad-except
                 _LOGGER.exception('Error while scaling partition %s: %r',
                                   partition_name, err)
