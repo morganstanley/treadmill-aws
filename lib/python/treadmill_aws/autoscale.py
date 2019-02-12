@@ -9,7 +9,10 @@ import collections
 import logging
 import math
 import re
+import sys
 import time
+
+from botocore import exceptions as botoexc
 
 from treadmill import admin
 from treadmill import context
@@ -350,6 +353,10 @@ def scale(server_app_ratio):
                     create_n_servers(new_servers, partition_name)
                 if extra_servers:
                     delete_servers_by_name(extra_servers)
+            except botoexc.ClientError as error:
+                if error.response['Error']['Code'] == ('ExpiredToken'):
+                    _LOGGER.exception('AWS credentials expired, exiting.')
+                    sys.exit(1)
             except Exception as err:  # pylint: disable=broad-except
                 _LOGGER.exception('Error while scaling partition %s: %r',
                                   partition_name, err)
