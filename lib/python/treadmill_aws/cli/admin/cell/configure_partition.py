@@ -58,9 +58,9 @@ def init():
             data = {}
 
         autoscale = data.get('autoscale', {})
-        if autoscale_max:
+        if autoscale_max is not False:
             autoscale['max_servers'] = autoscale_max
-        if autoscale_min:
+        if autoscale_min is not False:
             autoscale['min_servers'] = autoscale_min
         if app_ratio:
             autoscale['server_app_ratio'] = app_ratio
