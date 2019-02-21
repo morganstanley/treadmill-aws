@@ -33,14 +33,6 @@ class HostmanagerTest(unittest.TestCase):
                        {'Key': 'Role', 'Value': 'foo'}]}]
         )
 
-    def test_render_manifest(self):
-        """Test that YAML is rendered correctly."""
-        self.assertEqual(
-            hostmanager.render_manifest({'otp': 'abc123',
-                                         'hostname': 'host.foo.com'}),
-            "#cloud-config\n'hostname': 'host.foo.com'\n'otp': 'abc123'\n"
-        )
-
     def test_create_host(self):
         """Test that hostname logic is processed correctly."""
 
@@ -67,7 +59,9 @@ class HostmanagerTest(unittest.TestCase):
                 count=count,
                 domain='foo.com',
                 role='bar',
-                hostname=hostname)
+                hostname=hostname,
+                nshostlocation='baz'
+            )
 
         # Case 1: Shortname defined, count = 1, returns FQDN
         result = _test(count=1,

@@ -12,6 +12,7 @@ from . import aws
 _LOGGER = logging.getLogger(__name__)
 
 
+@aws.profile
 def create_instance(ec2_conn, user_data, image_id, instance_type,
                     tags, secgroup_ids, subnet_id, disk, key=None,
                     instance_profile=None, ip_address=None, eni=None,

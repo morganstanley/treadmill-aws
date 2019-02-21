@@ -19,6 +19,7 @@ from treadmill_aws import ipaclient
 
 
 _LOGGER = logging.getLogger(__name__)
+
 _EC2_DELETE_BATCH = 50
 
 
@@ -37,11 +38,16 @@ def _instance_tags(hostname, role, tags=None):
     }]
 
 
-def render_manifest(key_value_pairs):
-    """Returns formatted cloud-init from dictionary k:v pairs"""
+def _instance_user_data(hostname, otp, instance_vars):
+    """Return instance user data (common instance vars + hostname and otp)."""
+
+    key_value_pairs = instance_vars.copy()
+    key_value_pairs['hostname'] = hostname
+    key_value_pairs['otp'] = otp
 
     return "#cloud-config\n" + yaml.dump(
-        key_value_pairs, default_flow_style=False, default_style='\'')
+        key_value_pairs, default_flow_style=False, default_style='\''
+    )
 
 
 def generate_hostname(domain, hostname):
@@ -62,97 +68,105 @@ def generate_hostname(domain, hostname):
     if hostname[-1] == '-':
         hostname = '{}{}'.format(hostname, '{time}')
 
-    return '{}.{}'.format(hostname.format(time=b32time), domain)
+    hostname = hostname.format(time=b32time)
+
+    if not hostname.endswith(domain):
+        hostname = '{}.{}'.format(hostname, domain)
+
+    return hostname
 
 
+@aws.profile
+def create_otp(ipa_client, hostname, hostgroups, nshostlocation=None):
+    """Create OTP."""
+    _LOGGER.info('Creating OTP for %s', hostname)
+
+    if not nshostlocation:
+        # FIXME: Make sure nshostlocation is always passed and remove that.
+        account_aliases = awscontext.GLOBAL.iam.list_account_aliases()
+        nshostlocation = account_aliases['AccountAliases'].pop()
+
+    ipa_host = ipa_client.enroll_host(hostname, nshostlocation=nshostlocation)
+    otp = ipa_host['result']['result']['randompassword']
+
+    for hostgroup in hostgroups:
+        ipa_client.hostgroup_add_member(hostgroup, hostname)
+
+    return otp
+
+
+@aws.profile
 def create_host(ec2_conn, ipa_client, image_id, count, domain,
                 secgroup_ids, instance_type, subnets, disk,
                 instance_vars, role=None, instance_profile=None,
                 hostgroups=None, hostname=None, ip_address=None,
-                eni=None, key=None, tags=None, spot=False):
+                eni=None, key=None, tags=None, spot=False,
+                nshostlocation=None):
     """Adds host defined in manifest to IPA, then adds the OTP from the
        IPA reply to the manifest and creates EC2 instance.
     """
-    if hostgroups is None:
-        hostgroups = []
+    hostgroups = hostgroups or []
+    instance_vars = instance_vars or {}
 
     if role is None:
         role = 'generic'
 
-    if instance_vars is None:
-        instance_vars = {}
-
     if hostname is None:
         hostname = '{}-{}'.format(role.lower(), '{time}')
 
-    account_aliases = awscontext.GLOBAL.iam.list_account_aliases()
-    location = account_aliases['AccountAliases'].pop()
+    instance_params = dict(
+        image_id=image_id,
+        instance_type=instance_type,
+        key=key,
+        secgroup_ids=secgroup_ids,
+        instance_profile=instance_profile,
+        disk=disk,
+        ip_address=ip_address,
+        eni=eni,
+        spot=spot
+    )
 
-    hosts = []
+    hosts_created = []
     for _ in range(count):
-        host_ctx = instance_vars.copy()
+        host = generate_hostname(domain=domain, hostname=hostname)
+        if host in hosts_created:
+            raise IndexError('Duplicate hostname')
 
-        host_ctx['hostname'] = generate_hostname(domain=domain,
-                                                 hostname=hostname)
-        if host_ctx['hostname'] in hosts:
-            raise IndexError("Duplicate hostname")
+        otp = create_otp(
+            ipa_client, host, hostgroups,
+            nshostlocation=nshostlocation
+        )
 
-        ipa_host = ipa_client.enroll_host(host_ctx['hostname'],
-                                          nshostlocation=location)
-        host_ctx['otp'] = ipa_host['result']['result']['randompassword']
-        user_data = render_manifest(host_ctx)
+        instance_user_data = _instance_user_data(host, otp, instance_vars)
+        instance_tags = _instance_tags(host, role, tags)
 
-        for hostgroup in hostgroups:
-            ipa_client.hostgroup_add_member(hostgroup, host_ctx['hostname'])
-
-        host_tags = _instance_tags(host_ctx['hostname'], role, tags)
-
-        random.shuffle(subnets)
-
-        for subnet in subnets:
-            _LOGGER.debug(
-                'Create EC2 instance: %s %s %s %s %r %r %s %s %s %s',
-                host_ctx['hostname'],
-                image_id,
-                instance_type,
-                key,
-                secgroup_ids,
-                subnet,
-                instance_profile,
-                disk,
-                ip_address,
-                eni
+        for subnet in random.sample(subnets, len(subnets)):
+            _LOGGER.info(
+                'Creating EC2 instance %s in subnet %s: %r %r %r',
+                host, subnet, instance_vars, instance_tags, instance_params
             )
             try:
                 ec2client.create_instance(
                     ec2_conn,
-                    user_data=user_data,
-                    image_id=image_id,
-                    instance_type=instance_type,
-                    key=key,
-                    tags=host_tags,
-                    secgroup_ids=secgroup_ids,
                     subnet_id=subnet,
-                    instance_profile=instance_profile,
-                    disk=disk,
-                    ip_address=ip_address,
-                    eni=eni,
-                    spot=spot
+                    user_data=instance_user_data,
+                    tags=instance_tags,
+                    **instance_params
                 )
-                hosts.append(host_ctx['hostname'])
+                hosts_created.append(host)
                 break
-            except botoexc.ClientError as error:
-                if error.response['Error']['Code'] == (
-                        'InsufficientFreeAddressesInSubnet'):
-                    _LOGGER.debug('Subnet full, trying next')
+            except botoexc.ClientError as err:
+                if err.response['Error']['Code'] in (
+                        'InsufficientFreeAddressesInSubnet',
+                        'InsufficientInstanceCapacity',
+                ):
+                    _LOGGER.error('Trying next subnet: %s', err)
+                    subnets.remove(subnet)
                     continue
-                elif error.response['Error']['Code'] == (
-                        'InsufficientInstanceCapacity'):
-                    _LOGGER.debug('Instance not available in AZ, trying next')
-                    continue
-                else:
-                    raise
-    return hosts
+                raise
+        else:
+            raise Exception('No free subnets available')
+    return hosts_created
 
 
 def delete_hosts(ec2_conn, ipa_client, hostnames):

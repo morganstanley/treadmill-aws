@@ -1,6 +1,13 @@
 """Common AWS helper functions.
 """
+import functools
+import logging
+import time
+
 from datetime import datetime
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class NotUniqueError(Exception):
@@ -76,3 +83,15 @@ def datetime_from_suffix(word, base=16, symbol=None):
         step += 1
 
     return datetime.fromtimestamp(float(number) / 10000000)
+
+
+def profile(func):
+    """Decorator to profile a function."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        res = func(*args, **kwargs)
+        exec_time = time.time() - start_time
+        _LOGGER.debug('%s exec time: %s', func.__name__, exec_time)
+        return res
+    return wrapper
