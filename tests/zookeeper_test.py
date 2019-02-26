@@ -67,19 +67,9 @@ class ZookeeperTest(unittest.TestCase):
         zk = zksasl.SASLZkClient()
         zk.make_role_acl('servers', 'ra')
 
-        # TODO: re-enable when role support is added.
-        #
-        # make_acl_mock.assert_called_once_with(
-        #    scheme='sasl', credential='role/servers', read=True,
-        #    write=False, delete=False, create=False, admin=True
-        # )
         make_acl_mock.assert_called_once_with(
-            'world', 'anyone',
-            read=True,
-            write=False,
-            delete=False,
-            create=False,
-            admin=True
+            scheme='sasl', credential='file:///treadmill/roles/servers',
+            read=True, write=False, delete=False, create=False, admin=True
         )
 
     @mock.patch('kazoo.security.make_acl')

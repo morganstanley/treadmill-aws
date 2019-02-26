@@ -25,6 +25,7 @@ DEFAULTS = {
     'zk_distro': '/opt/zookeeper',
     'keytab': '{{ dir }}/treadmill/zookeeper/zookeeper.keytab',
     'zkroot': '{{ dir }}/treadmill/zookeeper',
+    'zk_admins': '{{ zk_admins }}'
 }
 
 ALIASES = aliases.ALIASES
