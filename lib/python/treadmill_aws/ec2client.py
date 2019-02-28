@@ -161,7 +161,8 @@ def get_instance(ec2_conn, ids=None, tags=None, hostnames=None, state=None):
     if not instances:
         raise exc.NotFoundError(
             'No instance with hostname {} found.'.format(hostnames))
-    elif len(instances) > 1:
+    
+    if len(instances) > 1:
         raise aws.NotUniqueError()
 
     return instances.pop(0)
