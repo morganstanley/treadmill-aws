@@ -49,8 +49,9 @@ def init():
 
     @click.option('--cell', required=True, envvar='TREADMILL_CELL')
     @click.option('--rotate', is_flag=True)
+    @click.option('--instance_profile', help='EC2 Instance Profile')
     @deploy_grp.command(name='zk')
-    def zk_cmd(cell, rotate):
+    def zk_cmd(cell, instance_profile, rotate):
         """Manage Zookeeper servers"""
         ec2_conn = awscontext.GLOBAL.ec2
         ipa_client = awscontext.GLOBAL.ipaclient
@@ -68,6 +69,7 @@ def init():
                 cli.out(
                     hostmanager.create_zk(
                         ec2_conn=ec2_conn,
+                        instance_profile=instance_profile,
                         ipa_client=ipa_client,
                         master=master))
 
@@ -78,6 +80,7 @@ def init():
                 return
 
             cli.out(hostmanager.rotate_zk(ec2_conn=ec2_conn,
+                                          instance_profile=instance_profile,
                                           ipa_client=ipa_client,
                                           ec2_instances=ec2_instances,
                                           masters=masters))
