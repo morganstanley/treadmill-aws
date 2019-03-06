@@ -207,7 +207,8 @@ def create_zk(
         master,
         subnet_id=None,
         ip_address=None,
-        instance_type=None):
+        instance_type=None,
+        instance_profile=None):
     """ Create new Zookeeper """
     sts_conn = awscontext.GLOBAL.sts
     ipa_domain = awscontext.GLOBAL.ipa_domain
@@ -232,8 +233,12 @@ def create_zk(
     if not instance_type:
         instance_type = 'm5.large'
 
+    if not instance_profile:
+        instance_profile = 'zk-server'
+
     # Instance vars
     instance_vars = {
+        'instance_profile': instance_profile,
         'treadmill_cell': context.GLOBAL.cell,
         'treadmill_ldap': ','.join(context.GLOBAL.ldap.url),
         'treadmill_ldap_suffix': context.GLOBAL.ldap_suffix,
@@ -265,7 +270,7 @@ def create_zk(
     return master['hostname']
 
 
-def rotate_zk(ec2_conn, ipa_client, masters, ec2_instances):
+def rotate_zk(ec2_conn, ec2_instances, instance_profile, ipa_client, masters):
     """ Determine which Zookeeper instance to rotate"""
 
     # Get oldest EC2 instance by LaunchTime
@@ -281,18 +286,20 @@ def rotate_zk(ec2_conn, ipa_client, masters, ec2_instances):
                   if x.get('hostname') == old_master_hostname)
 
     return replace_zk(ec2_conn=ec2_conn,
+                      instance_profile=instance_profile,
                       ipa_client=ipa_client,
                       master=master,
                       old_master=old_master)
 
 
-def replace_zk(ec2_conn, ipa_client, master, old_master):
+def replace_zk(ec2_conn, instance_profile, ipa_client, master, old_master):
     """ Delete and recreate oldest Zookeeper in quorum """
     # Remove server
     delete_hosts(ec2_conn, ipa_client, [master['hostname']])
 
     # Create server
     return create_zk(ec2_conn=ec2_conn,
+                     instance_profile=instance_profile,
                      ipa_client=ipa_client,
                      master=master,
                      instance_type=old_master.get('InstanceType', None),
