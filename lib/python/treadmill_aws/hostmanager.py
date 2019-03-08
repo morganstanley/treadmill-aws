@@ -5,8 +5,6 @@ import random
 import time
 import yaml
 
-from botocore import exceptions as botoexc
-
 from treadmill import admin
 from treadmill import context
 from treadmill import sysinfo
@@ -81,6 +79,8 @@ def create_otp(ipa_client, hostname, hostgroups, nshostlocation=None):
     """Create OTP."""
     _LOGGER.info('Creating OTP for %s', hostname)
 
+    hostgroups = hostgroups or []
+
     if not nshostlocation:
         # FIXME: Make sure nshostlocation is always passed and remove that.
         account_aliases = awscontext.GLOBAL.iam.list_account_aliases()
@@ -97,15 +97,14 @@ def create_otp(ipa_client, hostname, hostgroups, nshostlocation=None):
 
 @aws.profile
 def create_host(ec2_conn, ipa_client, image_id, count, domain,
-                secgroup_ids, instance_type, subnets, disk,
+                secgroup_ids, instance_type, subnet, disk,
                 instance_vars, role=None, instance_profile=None,
                 hostgroups=None, hostname=None, ip_address=None,
                 eni=None, key=None, tags=None, spot=False,
-                nshostlocation=None):
+                nshostlocation=None, otp=None):
     """Adds host defined in manifest to IPA, then adds the OTP from the
        IPA reply to the manifest and creates EC2 instance.
     """
-    hostgroups = hostgroups or []
     instance_vars = instance_vars or {}
 
     if role is None:
@@ -132,40 +131,27 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
         if host in hosts_created:
             raise IndexError('Duplicate hostname')
 
-        otp = create_otp(
-            ipa_client, host, hostgroups,
-            nshostlocation=nshostlocation
-        )
+        if not otp:
+            otp = create_otp(
+                ipa_client, host, hostgroups,
+                nshostlocation=nshostlocation
+            )
 
         instance_user_data = _instance_user_data(host, otp, instance_vars)
         instance_tags = _instance_tags(host, role, tags)
 
-        for subnet in random.sample(subnets, len(subnets)):
-            _LOGGER.info(
-                'Creating EC2 instance %s in subnet %s: %r %r %r',
-                host, subnet, instance_vars, instance_tags, instance_params
-            )
-            try:
-                ec2client.create_instance(
-                    ec2_conn,
-                    subnet_id=subnet,
-                    user_data=instance_user_data,
-                    tags=instance_tags,
-                    **instance_params
-                )
-                hosts_created.append(host)
-                break
-            except botoexc.ClientError as err:
-                if err.response['Error']['Code'] in (
-                        'InsufficientFreeAddressesInSubnet',
-                        'InsufficientInstanceCapacity',
-                ):
-                    _LOGGER.error('Trying next subnet: %s', err)
-                    subnets.remove(subnet)
-                    continue
-                raise
-        else:
-            raise Exception('No free subnets available')
+        _LOGGER.info(
+            'Creating EC2 instance %s in subnet %s: %r %r %r',
+            host, subnet, instance_vars, instance_tags, instance_params
+        )
+        ec2client.create_instance(
+            ec2_conn,
+            subnet_id=subnet,
+            user_data=instance_user_data,
+            tags=instance_tags,
+            **instance_params
+        )
+        hosts_created.append(host)
     return hosts_created
 
 
@@ -259,7 +245,7 @@ def create_zk(
                 domain=ipa_domain,
                 secgroup_ids=data['secgroup'],
                 instance_type=instance_type,
-                subnets=[subnet_id],
+                subnet=subnet_id,
                 disk=30,
                 instance_vars=instance_vars,
                 role='zookeeper',
