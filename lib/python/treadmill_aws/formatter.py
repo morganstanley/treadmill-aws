@@ -411,6 +411,14 @@ class PartDataFormatter:
         """Return pretty-formatted item."""
         schema = [
             ('autoscale', 'autoscale', None),
+            ('image', 'image', None),
+            ('size', 'size', None),
+            ('disk-size', 'disk_size', None),
+            ('hostgroups', 'hostgroups', ','.join),
+            ('secgroup', 'secgroup', None),
+            ('instance-profile', 'instance_profile', None),
+            ('subnets', 'subnets', ','.join),
+            ('s3_registry_bucket', 's3_registry_bucket', None),
         ]
 
         format_item = tablefmt.make_dict_to_table(schema)

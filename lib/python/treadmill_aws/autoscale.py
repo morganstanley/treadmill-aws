@@ -12,6 +12,7 @@ import math
 import re
 import time
 
+from ldap3.core import exceptions as ldap_exceptions
 from botocore import exceptions as botoexc
 
 from treadmill import context
@@ -123,22 +124,30 @@ def create_n_servers(count, partition=None, pool=None):
     admin_srv = context.GLOBAL.admin.server()
     admin_cell = context.GLOBAL.admin.cell()
     cell = context.GLOBAL.cell
-    data = admin_cell.get(cell)['data']
+    cell_data = admin_cell.get(cell)['data']
 
-    image_id = data['image']
+    admin_part = context.GLOBAL.admin.partition()
+    try:
+        _ldap_data = admin_part.get([partition, cell], dirty=True)
+        partition_data = _ldap_data.get('data', {})
+    except ldap_exceptions.LDAPNoSuchObjectResult:
+        partition_data = {}
+
+    image_id = partition_data.get('image', cell_data['image'])
     if not image_id.startswith('ami-'):
         account = sts_conn.get_caller_identity().get('Account')
         image_id = ec2client.get_image(
             ec2_conn, owners=[account], name=image_id
         )['ImageId']
 
-    instance_type = data['size']
-    subnets = data['subnets']
-    secgroup_id = data['secgroup']
-    hostgroups = data['hostgroups']
-    instance_profile = data['instance_profile']
-    disk_size = int(data['disk_size'])
-    nshostlocation = data['aws_account']
+    instance_type = partition_data.get('size', cell_data['size'])
+    subnets = partition_data.get('subnets', cell_data['subnets'])
+    secgroup_id = partition_data.get('secgroup', cell_data['secgroup'])
+    hostgroups = partition_data.get('hostgroups', cell_data['hostgroups'])
+    instance_profile = partition_data.get('instance_profile',
+                                          cell_data['instance_profile'])
+    disk_size = int(partition_data.get('disk_size', cell_data['disk_size']))
+    nshostlocation = cell_data['aws_account']
 
     instance_vars = {
         'treadmill_cell': cell,
