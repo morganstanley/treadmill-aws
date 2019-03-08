@@ -43,6 +43,7 @@ def check_expired_token(func):
     """Decorator to simplify handling of expired token error."""
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
+        """Wrapper function."""
         try:
             return func(*args, **kwargs)
         except botoexc.ClientError as err:
