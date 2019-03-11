@@ -9,6 +9,7 @@ import collections
 import functools
 import logging
 import math
+import random
 import re
 import time
 
@@ -53,22 +54,79 @@ def check_expired_token(func):
     return wrapper
 
 
-@check_expired_token
-def _create_hosts(hostnames, subnets, cell, partition, **host_params):
-    hosts_created = []
-    for hostname in hostnames:
-        _LOGGER.info('Creating host %s', hostname)
+def _create_host(ipa_client, ec2_conn, hostname, subnet,
+                 spot, spot_fallback, otp, **host_params):
+    try:
         hostmanager.create_host(
-            ipa_client=awscontext.GLOBAL.ipaclient,
-            ec2_conn=awscontext.GLOBAL.ec2,
+            ipa_client=ipa_client,
+            ec2_conn=ec2_conn,
             hostname=hostname,
-            subnets=subnets,
+            subnet=subnet,
+            spot=spot,
+            otp=otp,
             **host_params
         )
-        admin_srv = context.GLOBAL.admin.server()
+        return 'spot' if spot else 'on-demand'
+    except botoexc.ClientError as err:
+        if err.response['Error']['Code'] == 'SpotMaxPriceTooLow':
+            if spot and spot_fallback:
+                _LOGGER.error('Spot not feasible, trying on-demand: %r', err)
+                hostmanager.create_host(
+                    ipa_client=ipa_client,
+                    ec2_conn=ec2_conn,
+                    hostname=hostname,
+                    subnet=subnet,
+                    spot=False,
+                    otp=otp,
+                    **host_params
+                )
+                return 'on-demand'
+        raise
+
+
+@check_expired_token
+def _create_hosts(hostnames, subnets, cell, partition, **host_params):
+    admin_srv = context.GLOBAL.admin.server()
+    ipa_client = awscontext.GLOBAL.ipaclient
+    ec2_conn = awscontext.GLOBAL.ec2
+    avail_subnets = subnets.copy()
+    hosts_created = []
+
+    for hostname, spot, spot_fallback in hostnames:
+        _LOGGER.info('Creating host %s, spot: %s, spot fallback: %s',
+                     hostname, spot, spot_fallback)
+
+        otp = hostmanager.create_otp(
+            ipa_client, hostname, host_params['hostgroups'],
+            nshostlocation=host_params['nshostlocation']
+        )
+
+        for subnet in random.sample(avail_subnets, len(avail_subnets)):
+            try:
+                lifecycle = _create_host(
+                    ipa_client, ec2_conn, hostname, subnet,
+                    spot, spot_fallback, otp, **host_params
+                )
+                break
+            except botoexc.ClientError as err:
+                if err.response['Error']['Code'] in (
+                        'InsufficientFreeAddressesInSubnet',
+                        'InsufficientInstanceCapacity',
+                ):
+                    _LOGGER.error('Subnet exhausted, trying next: %r', err)
+                    avail_subnets.remove(subnet)
+                    continue
+                raise
+        else:
+            raise Exception('No free subnets available')
+
         admin_srv.create(
             hostname,
-            {'cell': cell, 'partition': partition}
+            {
+                'cell': cell,
+                'partition': partition,
+                'data': {'lifecycle': lifecycle},
+            }
         )
         hosts_created.append(hostname)
     return hosts_created
@@ -89,20 +147,41 @@ def _create_hosts_no_exc(hostnames, subnets, cell, partition, **host_params):
         return None, Exception(str(err))
 
 
-def _generate_hostnames(domain, cell, partition, count):
+def _generate_hostnames(domain, cell, partition, count,
+                        min_on_demand=None, max_on_demand=None):
     hostname_template = '{}-{}-{}'.format(cell, partition, '{time}')
 
     # Sanitize DNS name.
     hostname_template = re.sub(r'[^a-zA-Z0-9-{}]', '', hostname_template)
 
+    # All hosts are on-demand by default.
+    if min_on_demand is None and max_on_demand is None:
+        min_on_demand = max_on_demand = count
+
+    hostnames = []
     # Generate hostnames in a loop, append seq. no. in case time is not unique.
-    return [
-        hostmanager.generate_hostname(
+    # For each generated hostname, figure instance lifecycle (on-demand/spot):
+    # - First min_on_demand are on-demand.
+    # - Next max_on_demand - min_on_demand are spot, can fallback to on-demand.
+    # - Remaining ones are spot.
+    for i in range(count):
+        hostname = hostmanager.generate_hostname(
             domain,
             '{}{}'.format(hostname_template, i)
         )
-        for i in range(count)
-    ]
+        if min_on_demand:
+            spot = spot_fallback = False
+            min_on_demand -= 1
+            if max_on_demand:
+                max_on_demand -= 1
+        elif max_on_demand:
+            spot = spot_fallback = True
+            max_on_demand -= 1
+        else:
+            spot = True
+            spot_fallback = False
+        hostnames.append((hostname, spot, spot_fallback))
+    return hostnames
 
 
 def _split_list(lst, num_parts):
@@ -112,10 +191,16 @@ def _split_list(lst, num_parts):
 
 @aws.profile
 @check_expired_token
-def create_n_servers(count, partition=None, pool=None):
+def create_n_servers(count, partition=None,
+                     min_on_demand=None, max_on_demand=None, pool=None):
     """Create new servers in the cell."""
 
     partition = partition or '_default'  # FIXME: Import name from treadmill.
+
+    _LOGGER.info(
+        'Creating %d servers in %s partition, min on-demand: %d, max: %d',
+        count, partition, min_on_demand, max_on_demand
+    )
 
     ec2_conn = awscontext.GLOBAL.ec2
     sts_conn = awscontext.GLOBAL.sts
@@ -164,7 +249,11 @@ def create_n_servers(count, partition=None, pool=None):
         {'Key': 'Partition', 'Value': partition},
     ]
 
-    hostnames = _generate_hostnames(ipa_domain, cell, partition, count)
+    hostnames = _generate_hostnames(
+        ipa_domain, cell, partition, count,
+        min_on_demand=min_on_demand,
+        max_on_demand=max_on_demand
+    )
     host_params = dict(
         image_id=image_id,
         count=1,
@@ -287,6 +376,7 @@ def _get_state():
     )
     for server in servers:
         server_name = server['_id']
+        server_data = server.get('data', {})
         server_create_timestamp = server['_create_timestamp']
 
         # If server didn't report it's state, it's either new/starting or down.
@@ -304,6 +394,7 @@ def _get_state():
             'state': server_state,
             'create_timestamp': server_create_timestamp,
             'num_apps': num_apps_by_server[server_name],
+            'lifecycle': server_data.get('lifecycle', 'on-demand'),
         })
 
     return apps_by_partition, servers_by_partition
@@ -343,12 +434,8 @@ def _select_extra_servers(servers, state, max_extra_servers=None):
     return extra_servers
 
 
-def _scale_partition(server_app_ratio, autoscale_conf, apps, servers):
-    min_servers = int(autoscale_conf['min_servers'])
-    max_servers = int(autoscale_conf['max_servers'])
-    server_app_ratio = float(autoscale_conf.get('server_app_ratio',
-                                                server_app_ratio))
-
+def _scale_partition(server_app_ratio, min_servers, max_servers,
+                     apps, servers):
     _LOGGER.debug('Apps: %r', apps)
     _LOGGER.debug('Servers: %r', servers)
 
@@ -412,7 +499,7 @@ def _scale_partition(server_app_ratio, autoscale_conf, apps, servers):
     return new_servers, extra_servers
 
 
-def scale(server_app_ratio, pool=None):
+def scale(default_server_app_ratio, pool=None):
     """Autoscale cell capacity."""
     _LOGGER.info('Getting cell state')
     apps_by_partition, servers_by_partition = _get_state()
@@ -427,21 +514,50 @@ def scale(server_app_ratio, pool=None):
         except KeyError:
             autoscale_conf = None
 
-        if autoscale_conf:
-            try:
-                _LOGGER.info('Scaling partition %s: %r',
-                             partition_name, autoscale_conf)
-                new_servers, extra_servers = _scale_partition(
-                    server_app_ratio, autoscale_conf,
-                    apps_by_partition.get(partition_name, []),
-                    servers_by_partition.get(partition_name, [])
+        if not autoscale_conf:
+            continue
+
+        try:
+            _LOGGER.info('Scaling partition %s: %r',
+                         partition_name, autoscale_conf)
+
+            min_servers = autoscale_conf['min_servers']
+            max_servers = autoscale_conf['max_servers']
+            max_on_demand_servers = autoscale_conf.get('max_on_demand_servers')
+            server_app_ratio = float(
+                autoscale_conf.get(
+                    'server_app_ratio', default_server_app_ratio
                 )
-                if new_servers > 0:
+            )
+
+            apps = apps_by_partition.get(partition_name, [])
+            servers = servers_by_partition.get(partition_name, [])
+
+            new_servers, extra_servers = _scale_partition(
+                server_app_ratio, min_servers, max_servers, apps, servers
+            )
+
+            if new_servers > 0:
+                if max_on_demand_servers is None:
                     create_n_servers(new_servers, partition_name, pool=pool)
-                if extra_servers:
-                    delete_servers_by_name(extra_servers)
-            except ExpiredTokenError:
-                raise
-            except Exception as err:  # pylint: disable=broad-except
-                _LOGGER.exception('Error while scaling partition %s: %r',
-                                  partition_name, err)
+                else:
+                    curr_cnt = len([
+                        server for server in servers
+                        if server['lifecycle'] == 'on-demand'
+                    ])
+                    _LOGGER.info('Current on-demand servers: %d', curr_cnt)
+                    min_on_demand = max(0, min_servers - curr_cnt)
+                    max_on_demand = max(0, max_on_demand_servers - curr_cnt)
+                    create_n_servers(
+                        new_servers, partition_name,
+                        min_on_demand=min_on_demand,
+                        max_on_demand=max_on_demand,
+                        pool=pool
+                    )
+            if extra_servers:
+                delete_servers_by_name(extra_servers)
+        except ExpiredTokenError:
+            raise
+        except Exception as err:  # pylint: disable=broad-except
+            _LOGGER.exception('Error while scaling partition %s: %r',
+                              partition_name, err)

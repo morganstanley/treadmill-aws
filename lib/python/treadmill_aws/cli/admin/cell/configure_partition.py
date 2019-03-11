@@ -19,14 +19,17 @@ from treadmill import cli
 _LOGGER = logging.getLogger(__name__)
 
 
-def _set(data, name, value):
-    """Safely set data attribute. Delete if user set attribute to '-'"""
-    if not value:
+def _set(data, name, value, unset_value=None):
+    """Safely set data attribute or unset if user set it to a special value."""
+    if value is None:
         return False
 
-    if value in ('-', ['-']):
-        value = None
-    data[name] = value
+    if unset_value is not None and value == unset_value:
+        data.pop(name, None)
+    elif value in ('-', ['-']):
+        data.pop(name, None)
+    else:
+        data[name] = value
     return True
 
 
@@ -39,6 +42,8 @@ def init():
                    help='Pass "-" to revert attribute to cell default')
     @click.option('--autoscale-max', type=int,
                   help='Autoscaler maximum server count.')
+    @click.option('--autoscale-max-on-demand', type=int,
+                  help='Autoscaler maximum on-demand server count.')
     @click.option('--autoscale-min', type=int,
                   help='Autoscaler minimum server count.')
     @click.option('--app-ratio', type=float,
@@ -53,6 +58,7 @@ def init():
     @click.option('--s3-registry-bucket', help='S3 registry bucket name.')
     @click.argument('partition')
     def configure_partition_cmd(autoscale_max,
+                                autoscale_max_on_demand,
                                 autoscale_min,
                                 app_ratio,
                                 image,
@@ -75,12 +81,11 @@ def init():
             data = {}
 
         autoscale = data.get('autoscale', {})
-        if autoscale_max is not None:
-            autoscale['max_servers'] = autoscale_max
-        if autoscale_min is not None:
-            autoscale['min_servers'] = autoscale_min
-        if app_ratio:
-            autoscale['server_app_ratio'] = app_ratio
+        _set(autoscale, 'max_servers', autoscale_max, unset_value=-1)
+        _set(autoscale, 'max_on_demand_servers', autoscale_max_on_demand,
+             unset_value=-1)
+        _set(autoscale, 'min_servers', autoscale_min, unset_value=-1)
+        _set(autoscale, 'server_app_ratio', app_ratio, unset_value=0.0)
 
         modified = _set(data, 'autoscale', autoscale)
         modified = _set(data, 'image', image) or modified

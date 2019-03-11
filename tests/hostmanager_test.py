@@ -53,7 +53,7 @@ class HostmanagerTest(unittest.TestCase):
                 key='foo',
                 secgroup_ids='foo',
                 instance_type='foo',
-                subnets=['foo'],
+                subnet=['foo'],
                 disk='foo',
                 instance_vars=None,
                 count=count,
