@@ -7,6 +7,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import logging
+import time
 
 import click
 
@@ -29,8 +30,16 @@ def init():
                   multiple=True,
                   required=True,
                   help='Kerberos realm of authorized users.')
-    def awscredentialserver(port, realm):
+    @click.option('--utc-timestamps',
+                  envvar='AWSCREDENTIAL_UTC',
+                  is_flag=True,
+                  help='if logging timestampes, log as UTC.')
+    def awscredentialserver(port, realm, utc_timestamps):
         """Run AWS credential daemon."""
+
+        if utc_timestamps:
+            logging.Formatter.converter = time.gmtime
+
         awscredential.run_server(port, realm)
 
     return awscredentialserver

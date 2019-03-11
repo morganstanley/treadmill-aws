@@ -8,8 +8,9 @@ from __future__ import unicode_literals
 
 import json
 import logging
-import pwd
 import re
+
+import botocore
 
 from twisted.internet import reactor
 from twisted.internet import protocol
@@ -52,17 +53,17 @@ def run_server(port, realm):
             sts = awscontext.GLOBAL.sts
             self.realm = realm
             self.account_id = sts.get_caller_identity().get('Account')
+            self.iamuser = sts.get_caller_identity().get('Arn')
             gssapiprotocol.GSSAPILineServer.__init__(self)
 
         def _validate_request(self, request):
 
-            # should verify it is a valid IAM role
-            # but it will fail downstream if it is not
-            # for now we just validate that it is a valid user
-            try:
-                uid = pwd.getpwnam(request)
-            except KeyError:
-                raise ValueError("user [%s] is not defined" % request)
+            # as per "Limitations on IAM Entities and Objects"
+            pattern = r'^[a-zA-Z0-9+=,.@_-]{1,64}$'
+            match = re.search(pattern, request)
+            if not match:
+                raise ValueError("name [%s] does not meet character "
+                                 "restrictions for IAM role" % request)
 
         def _authorize(self, requestor, request):
 
@@ -129,8 +130,17 @@ def run_server(port, realm):
                     'AWS credential request for [%s] from [%s]: successful',
                     request,
                     requestor)
+            except botocore.exceptions.ClientError as err:
+                code = err.response['Error']['Code']
+                msg = err.response['Error']['Message']
+                _LOGGER.error(err)
+                _LOGGER.error('sts.assume_role(%s) by [%s] failed: [%s]',
+                              request, self.iamuser, code)
+                response = {}
+                response['status'] = "failure"
+                response['result'] = {'why': "internal server error"}
             except ValueError as err:
-                _LOGGER.error(repr(err))
+                _LOGGER.error(err)
                 response = {}
                 response['status'] = "failure"
                 response['result'] = {'why': str(err)}

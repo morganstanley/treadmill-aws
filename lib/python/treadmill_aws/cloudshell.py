@@ -37,6 +37,15 @@ def _from_srvrec(ctx, srv_name):
     return [tuple(server_port[:2]) for server_port in srv_records]
 
 
+def _server_list(hostport_list):
+    server_list = []
+    hostports = hostport_list.split(',')
+    for hostport in hostports:
+        host, port = hostport.split(':')
+        server_list.append((host, int(port)))
+    return server_list
+
+
 def _gssapiprotocol_loop(request, server_list, sprinc):
     """Iterate gssaprotocol service instances."""
 
@@ -62,30 +71,34 @@ def _gssapiprotocol_loop(request, server_list, sprinc):
         response = json.loads(line)
         return response
 
+    response = {}
+    response['status'] = 'failure'
+    response['result'] = {}
+    response['result']['why'] = 'unable to connect to any servers'
+    return response
+
 
 def _ipa525_fetch(ctx, user, krb5_realm, krbcc=None):
     """Fetch ipa credentials."""
 
     request = user
 
-    server = ctx.obj['ipa525_server']
-    port = ctx.obj['ipa525_port']
-    sprinc = ctx.obj['ipa525_sprinc']
-
-    if ctx.obj['ipa525_srv_name']:
-        srv_name = ctx.obj['ipa525_srv_name']
-        if isinstance(ctx.obj['dns_domain'], str):
-            srv_name = srv_name.replace('{dns_domain}', ctx.obj['dns_domain'])
-        srv_name = srv_name.replace('{krb5_realm}', krb5_realm)
+    if ctx.obj['ipa525_server']:
+        server_list = _server_list(ctx.obj['ipa525_server'])
     else:
-        srv_name = '_ipa525._tcp.%s' % krb5_realm
-
-    if server and isinstance(port, int):
-        server_list = [(server, port)]
-    else:
+        if ctx.obj['ipa525_srv_name']:
+            srv_name = ctx.obj['ipa525_srv_name']
+            if isinstance(ctx.obj['dns_domain'], str):
+                srv_name = srv_name.replace('{dns_domain}',
+                                            ctx.obj['dns_domain'])
+            srv_name = srv_name.replace('{krb5_realm}', krb5_realm)
+        else:
+            srv_name = '_ipa525._tcp.%s' % krb5_realm
+        _LOGGER.debug('ipa525 srv_name: %s', srv_name)
         server_list = _from_srvrec(ctx, srv_name)
 
     _LOGGER.debug('ipa525 request: %r', server_list)
+    sprinc = ctx.obj['ipa525_sprinc']
     response = _gssapiprotocol_loop(request, server_list, sprinc)
 
     if krbcc:
@@ -109,7 +122,8 @@ def _ipa525_fetch(ctx, user, krb5_realm, krbcc=None):
             _LOGGER.debug('krb credential written to %s', krbcc)
 
     else:
-        click.echo(yaml.dump(response), err=True)
+        click.echo(yaml.dump(response, default_flow_style=False),
+                   err=True, nl=False)
         sys.exit(1)
 
     return krbcc
@@ -150,26 +164,24 @@ def _awscredential_fetch(ctx, user, account, awscc=None):
 
     request = user
 
-    server = ctx.obj['awscredential_server']
-    port = ctx.obj['awscredential_port']
-    sprinc = ctx.obj['awscredential_sprinc']
-
-    if ctx.obj['awscredential_srv_name']:
-        srv_name = ctx.obj['awscredential_srv_name']
-        if isinstance(ctx.obj['dns_domain'], str):
-            srv_name = srv_name.replace('{dns_domain}', ctx.obj['dns_domain'])
-        srv_name = srv_name.replace('{aws_account}', account)
+    if ctx.obj['awscredential_server']:
+        server_list = _server_list(ctx.obj['awscredential_server'])
     else:
-        srv_name = '{}.{}'.format('_awscredential._tcp', account)
-        if ctx.obj['dns_domain']:
-            srv_name = srv_name + '.' + ctx.obj['dns_domain']
-
-    if server and isinstance(port, int):
-        server_list = [(server, port)]
-    else:
+        if ctx.obj['awscredential_srv_name']:
+            srv_name = ctx.obj['awscredential_srv_name']
+            if isinstance(ctx.obj['dns_domain'], str):
+                srv_name = srv_name.replace('{dns_domain}',
+                                            ctx.obj['dns_domain'])
+            srv_name = srv_name.replace('{aws_account}', account)
+        else:
+            srv_name = '{}.{}'.format('_awscredential._tcp', account)
+            if ctx.obj['dns_domain']:
+                srv_name = srv_name + '.' + ctx.obj['dns_domain']
+        _LOGGER.debug('awscredential srv_name: %s', srv_name)
         server_list = _from_srvrec(ctx, srv_name)
 
     _LOGGER.debug('awscredential request: %r', server_list)
+    sprinc = ctx.obj['awscredential_sprinc']
     response = _gssapiprotocol_loop(request, server_list, sprinc)
 
     if awscc:
@@ -215,7 +227,8 @@ def _awscredential_fetch(ctx, user, account, awscc=None):
             _LOGGER.debug('aws credential written to %s', credfile.name)
             return credfile.name
     else:
-        click.echo(yaml.dump(response), err=True)
+        click.echo(yaml.dump(response, default_flow_style=False),
+                   err=True, nl=False)
         sys.exit(1)
 
 
@@ -247,11 +260,6 @@ def _awscredential_refresh(ctx):
               envvar='CLOUDSHELL_AWSCREDENTIAL_SERVER',
               required=False,
               help='awscredential server.')
-@click.option('--awscredential-port',
-              envvar='CLOUDSHELL_AWSCREDENTIAL_PORT',
-              required=False,
-              type=click.IntRange(0, 65535),
-              help='awscredential port.')
 @click.option('--awscredential-srv-name',
               envvar='CLOUDSHELL_AWSCREDENTIAL_SRV_NAME',
               help='awscredential srv record name.')
@@ -264,11 +272,6 @@ def _awscredential_refresh(ctx):
               envvar='CLOUDSHELL_IPA525_SERVER',
               required=False,
               help='ipa525 server.')
-@click.option('--ipa525-port',
-              envvar='CLOUDSHELL_IPA525_PORT',
-              required=False,
-              type=click.IntRange(0, 65535),
-              help='awscredential port.')
 @click.option('--ipa525-srv-name',
               envvar='CLOUDSHELL_IPA525_SRV_NAME',
               help='ipa525 srv record name')
@@ -299,11 +302,9 @@ def _awscredential_refresh(ctx):
 @click.pass_context
 def cloudshell(ctx,
                awscredential_server,
-               awscredential_port,
                awscredential_srv_name,
                awscredential_sprinc,
                ipa525_server,
-               ipa525_port,
                ipa525_srv_name,
                ipa525_sprinc,
                dns_domain,
@@ -312,11 +313,9 @@ def cloudshell(ctx,
                debug):
     """Cloudshell SSO."""
     ctx.obj['awscredential_server'] = awscredential_server
-    ctx.obj['awscredential_port'] = awscredential_port
     ctx.obj['awscredential_srv_name'] = awscredential_srv_name
     ctx.obj['awscredential_sprinc'] = awscredential_sprinc
     ctx.obj['ipa525_server'] = ipa525_server
-    ctx.obj['ipa525_port'] = ipa525_port
     ctx.obj['ipa525_srv_name'] = ipa525_srv_name
     ctx.obj['ipa525_sprinc'] = ipa525_sprinc
     ctx.obj['dns_server'] = dns_server

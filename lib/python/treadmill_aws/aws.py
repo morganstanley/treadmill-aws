@@ -89,6 +89,7 @@ def profile(func):
     """Decorator to profile a function."""
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
+        """Wrapper function."""
         start_time = time.time()
         res = func(*args, **kwargs)
         exec_time = time.time() - start_time
