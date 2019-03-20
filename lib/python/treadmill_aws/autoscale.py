@@ -199,7 +199,7 @@ def create_n_servers(count, partition=None,
     partition = partition or '_default'  # FIXME: Import name from treadmill.
 
     _LOGGER.info(
-        'Creating %d servers in %s partition, min on-demand: %d, max: %d',
+        'Creating %s servers in %s partition, min on-demand: %s, max: %s',
         count, partition, min_on_demand, max_on_demand
     )
 
