@@ -1,9 +1,10 @@
 """Global AWS context."""
 
 import logging
-import socket
 
 import boto3
+
+from treadmill import sysinfo
 
 from treadmill_aws import ipaclient
 
@@ -85,7 +86,7 @@ class AWSContext:
     def ipa_domain(self):
         """Returns IPA domain."""
         if not self._ipa_domain:
-            self._ipa_domain = '.'.join(socket.getfqdn().split('.')[1:])
+            self._ipa_domain = '.'.join(sysinfo.hostname().split('.')[1:])
         return self._ipa_domain
 
     @ipa_domain.setter

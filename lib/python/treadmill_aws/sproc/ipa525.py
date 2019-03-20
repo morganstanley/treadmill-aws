@@ -7,10 +7,10 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import logging
-import socket
 
 import click
 
+from treadmill import sysinfo
 from treadmill.syscall import krb5
 
 from treadmill_aws import ipa525
@@ -42,7 +42,7 @@ def init():
     def ipa525server(port, client_realm, server_realm, authz):
         """Run IPA525 credential daemon."""
         if not server_realm:
-            server_realm = krb5.get_host_realm(socket.getfqdn())[0]
+            server_realm = krb5.get_host_realm(sysinfo.hostname())[0]
 
         ipa525.run_server(port, client_realm, server_realm, authz)
 
