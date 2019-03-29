@@ -35,13 +35,19 @@ def init():
         '--account', required=False,
         help='Image account, defaults to current.'
     )
+    @click.option(
+        '--tags',
+        type=cli.DICT,
+        required=False,
+        help='Image tag in the format foo=bar,baz=qux'
+    )
     @click.argument(
         'image',
         required=False,
         type=aws_cli.IMAGE
     )
     @cli.admin.ON_EXCEPTIONS
-    def _list(account, image):
+    def _list(account, image, tags):
         """List images"""
         ec2_conn = awscontext.GLOBAL.ec2
         if not account:
@@ -50,7 +56,11 @@ def init():
             )
         if not image:
             image = {}
-        images = ec2client.list_images(ec2_conn, owners=[account], **image)
+
+        images = ec2client.list_images(ec2_conn,
+                                       tags=tags,
+                                       owners=[account],
+                                       **image)
         cli.out(formatter(images))
 
     @image.command()
