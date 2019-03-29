@@ -20,6 +20,7 @@ class IPAHelperTests(unittest.TestCase):
         """Fake IPA JSON-RPC response object.
         """
         text = ''
+        status_code = 200
         _json = {}
 
         def json(self=None):

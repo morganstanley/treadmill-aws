@@ -445,7 +445,8 @@ class PartDataFormatter:
         schema = [
             ('autoscale', 'autoscale', None),
             ('image', 'image', None),
-            ('size', 'size', None),
+            ('instance-types', 'instance_types', ','.join),
+            ('spot-instance-types', 'spot_instance_types', ','.join),
             ('disk-size', 'disk_size', None),
             ('hostgroups', 'hostgroups', ','.join),
             ('secgroup', 'secgroup', None),
