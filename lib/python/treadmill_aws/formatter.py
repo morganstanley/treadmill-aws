@@ -412,19 +412,20 @@ class CellDataFormatter:
     def format(item):
         """Return pretty-formatted item."""
         schema = [
-            ('image', 'image', None),
-            ('docker-registries', 'docker_registries', ','.join),
-            ('size', 'size', None),
-            ('disk-size', 'disk_size', None),
-            ('hostgroups', 'hostgroups', ','.join),
-            ('secgroup', 'secgroup', None),
-            ('realm', 'realm', None),
-            ('instance-profile', 'instance_profile', None),
-            ('subnets', 'subnets', ','.join),
             ('aws_account', 'aws_account', None),
             ('aws_admin', 'aws_admin', None),
             ('aws_region', 'aws_region', None),
+            ('docker-registries', 'docker_registries', ','.join),
+            ('disk-size', 'disk_size', None),
+            ('hostgroups', 'hostgroups', ','.join),
+            ('image', 'image', None),
+            ('instance-profile', 'instance_profile', None),
+            ('realm', 'realm', None),
+            ('secgroup', 'secgroup', None),
+            ('size', 'size', None),
+            ('subnets', 'subnets', ','.join),
             ('s3_registry_bucket', 's3_registry_bucket', None),
+            ('tls_certs', 'tls_certs', None),
         ]
 
         format_item = tablefmt.make_dict_to_table(schema)
