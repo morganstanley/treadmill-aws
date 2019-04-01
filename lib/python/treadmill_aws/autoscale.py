@@ -69,7 +69,10 @@ def _create_host(ipa_client, ec2_conn, hostname, subnet,
         )
         return 'spot' if spot else 'on-demand'
     except botoexc.ClientError as err:
-        if err.response['Error']['Code'] == 'SpotMaxPriceTooLow':
+        if err.response['Error']['Code'] in (
+                'SpotMaxPriceTooLow',
+                'InsufficientInstanceCapacity',
+        ):
             if spot and spot_fallback:
                 _LOGGER.error('Spot not feasible, trying on-demand: %r', err)
                 hostmanager.create_host(
