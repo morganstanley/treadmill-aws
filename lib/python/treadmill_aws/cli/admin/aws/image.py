@@ -51,9 +51,7 @@ def init():
         """List images"""
         ec2_conn = awscontext.GLOBAL.ec2
         if not account:
-            account = awscontext.GLOBAL.sts.get_caller_identity().get(
-                'Account'
-            )
+            account = 'self'
         if not image:
             image = {}
 
@@ -82,9 +80,7 @@ def init():
 
         owners = []
         if not account:
-            account = awscontext.GLOBAL.sts.get_caller_identity().get(
-                'Account'
-            )
+            account = 'self'
 
         image_obj = ec2client.get_image(ec2_conn, owners=[account], **image)
         cli.out(formatter(image_obj))
@@ -135,7 +131,6 @@ def init():
                secgroup, subnet, image, key):
         """Create image"""
         ec2_conn = awscontext.GLOBAL.ec2
-        sts_conn = awscontext.GLOBAL.sts
 
         cloud_init = ud.CloudInit()
         for filename in userdata:
@@ -152,7 +147,7 @@ def init():
         })
 
         base_image_id = aws_cli.admin.image_id(
-            ec2_conn, sts_conn, base_image, account=base_image_account)
+            ec2_conn, base_image, account=base_image_account)
         secgroup_id = aws_cli.admin.secgroup_id(ec2_conn, secgroup)
         subnet_id = aws_cli.admin.subnet_id(ec2_conn, subnet)
         tags = [{'ResourceType': 'instance',

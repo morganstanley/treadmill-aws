@@ -207,7 +207,6 @@ def create_n_servers(count, partition=None,
     )
 
     ec2_conn = awscontext.GLOBAL.ec2
-    sts_conn = awscontext.GLOBAL.sts
     ipa_domain = awscontext.GLOBAL.ipa_domain
 
     admin_srv = context.GLOBAL.admin.server()
@@ -224,9 +223,8 @@ def create_n_servers(count, partition=None,
 
     image_id = partition_data.get('image', cell_data['image'])
     if not image_id.startswith('ami-'):
-        account = sts_conn.get_caller_identity().get('Account')
         image_id = ec2client.get_image(
-            ec2_conn, owners=[account], name=image_id
+            ec2_conn, owners=['self'], name=image_id
         )['ImageId']
 
     instance_type = partition_data.get('size', cell_data['size'])
