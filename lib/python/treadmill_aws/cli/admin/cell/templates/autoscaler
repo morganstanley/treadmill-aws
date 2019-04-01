@@ -8,7 +8,11 @@ services:
     limit: 5
     interval: 60
   command: |
-    exec /opt/treadmill/bin/treadmill \
+    exec sh -c $(/opt/treadmill/bin/cloudshell \
+        --debug \
+      fetch \
+        --awscc $AWS_CONFIG_FILE \
+    && /opt/treadmill/bin/treadmill \
       sproc \
         --logging-conf daemon_container.json \
       autoscale
@@ -17,10 +21,11 @@ services:
     limit: 5
     interval: 60
   command: |
-    exec sh -c $(/opt/treadmill/bin/cloudshell \
+    exec sh -c $(/usr/bin/sleep 3600 && \
+      /opt/treadmill/bin/cloudshell \
       --debug \
       fetch \
-        --awscc $AWS_CONFIG_FILE && sleep 3600)
+        --awscc $AWS_CONFIG_FILE)
 environ:
 - name: AWS_ACCOUNT
   value: {{ data.aws_account }}
@@ -38,6 +43,8 @@ environ:
   value: /var/spool/keytabs/{{ data.aws_admin }}
 - name: TREADMILL_IPA_CERTS
   value: /etc/ipa/ca.crt
+- name: AUTOSCALER_WORKERS
+  value: 5
 affinity_limits:
   server: 1
 tickets:

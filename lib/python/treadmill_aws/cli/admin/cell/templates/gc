@@ -8,7 +8,11 @@ services:
     limit: 5
     interval: 60
   command: |
-    exec /opt/treadmill/bin/treadmill \
+    exec sh -c $(/opt/treadmill/bin/cloudshell \
+        --debug \
+      fetch \
+        --awscc $AWS_CONFIG_FILE \
+      && /opt/treadmill/bin/treadmill \
       sproc \
         --logging-conf daemon_container.json \
       gc \
@@ -18,11 +22,11 @@ services:
     limit: 5
     interval: 60
   command: |
-    exec sh -c $(/opt/treadmill/bin/cloudshell \
+    exec sh -c $(/usr/bin/sleep && \
+                /opt/treadmill/bin/cloudshell \
                    --debug \
                  fetch \
-                   --awscc $AWS_CONFIG_FILE \
-                 && sleep 3600)
+                   --awscc $AWS_CONFIG_FILE)
 environ:
 - name: AWS_ACCOUNT
   value: {{ data.aws_account }}
