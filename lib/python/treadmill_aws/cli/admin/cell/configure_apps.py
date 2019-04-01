@@ -47,14 +47,14 @@ def init():
         expose_value=False
     )
     @click.option('--apps', type=cli.LIST, help='List of apps to configure.')
-    def configure_apps(cors_origin, krb_realm, apps):
+    @click.option('--write-uri', help='LDAP URI')
+    def configure_apps(cors_origin, krb_realm, apps, write_uri):
         """Configure cell API."""
         ctx = CellCtx(cors=cors_origin, krb_realm=krb_realm)
         admin_app = admin.Application(context.GLOBAL.ldap.conn)
 
         # For apps that need write access to LDAP. The context LDAP must have
         # write access because this is what we use to write manifests here.
-        write_uri = admin_app.admin.write_uri
         ctx.admin_ldap_url = ','.join(write_uri) if write_uri else None
 
         if not apps:
