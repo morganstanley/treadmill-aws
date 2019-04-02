@@ -15,7 +15,7 @@ services:
     && /opt/treadmill/bin/treadmill \
       sproc \
         --logging-conf daemon_container.json \
-      autoscale
+      autoscale --workers $AUTOSCALER_WORKERS
 - name: aws-credentials
   restart:
     limit: 5
@@ -44,7 +44,7 @@ environ:
 - name: TREADMILL_IPA_CERTS
   value: /etc/ipa/ca.crt
 - name: AUTOSCALER_WORKERS
-  value: 5
+  value: '5'
 affinity_limits:
   server: 1
 tickets:
