@@ -5,7 +5,7 @@ disk: 1G
 services:
 - command: |
     unset PYTHONPATH;
-    exec /opt/treadmill/bin/treadmill sproc cellsync
+    exec /opt/treadmill/bin/treadmill sproc cellsync --interval 15
   name: cellsync
   restart:
     limit: 5
