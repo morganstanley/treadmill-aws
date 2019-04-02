@@ -8,25 +8,25 @@ services:
     limit: 5
     interval: 60
   command: |
-    exec sh -c $(/opt/treadmill/bin/cloudshell \
-        --debug \
-      fetch \
-        --awscc $AWS_CONFIG_FILE \
-      && /opt/treadmill/bin/treadmill \
-      sproc \
-        --logging-conf daemon_container.json \
-      gc \
-        --gc-plugins ipa,ldap
+    /opt/treadmill/bin/cloudshell \
+      --debug \
+    fetch \
+      --awscc $AWS_CONFIG_FILE \
+    && exec /opt/treadmill/bin/treadmill \
+    sproc \
+      --logging-conf daemon_container.json \
+    gc \
+      --gc-plugins ipa,ldap
 - name: aws-credentials
   restart:
     limit: 5
     interval: 60
   command: |
-    exec sh -c $(/usr/bin/sleep && \
-                /opt/treadmill/bin/cloudshell \
-                   --debug \
-                 fetch \
-                   --awscc $AWS_CONFIG_FILE)
+    /usr/bin/sleep 3600 \
+    && exec /opt/treadmill/bin/cloudshell \
+      --debug \
+    fetch \
+      --awscc $AWS_CONFIG_FILE
 environ:
 - name: AWS_ACCOUNT
   value: {{ data.aws_account }}
