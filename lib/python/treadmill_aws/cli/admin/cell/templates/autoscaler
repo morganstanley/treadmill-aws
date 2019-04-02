@@ -15,7 +15,7 @@ services:
     && /opt/treadmill/bin/treadmill \
       sproc \
         --logging-conf daemon_container.json \
-      autoscale --workers $AUTOSCALER_WORKERS
+      autoscale --workers $AUTOSCALER_WORKERS)
 - name: aws-credentials
   restart:
     limit: 5
