@@ -75,6 +75,7 @@ ipakeytab = treadmill_aws.sproc.ipakeytab
 ipa525 = treadmill_aws.sproc.ipa525
 krb5keytab-proxy = treadmill_aws.sproc.krb5keytabproxy
 gc = treadmill_aws.sproc.garbage_collector
+check-host-lookups = treadmill_aws.sproc.check_host_lookups
 
 
 [treadmill.bootstrap]

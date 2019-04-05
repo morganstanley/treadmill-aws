@@ -1,0 +1,10 @@
+command: |
+  exec \
+    {{ treadmill }}/bin/treadmill \
+    sproc check-host-lookups
+environ_dir: "{{ dir }}/env"
+monitor_policy:
+  limit: 5
+  interval: 60
+  tombstone:
+    path: "{{ dir }}/tombstones/init"
