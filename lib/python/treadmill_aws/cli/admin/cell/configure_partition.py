@@ -50,7 +50,10 @@ def init():
                   help='Autoscaler server-to-app ratio.')
     @click.option('--image', help='Default AMI image.')
     @click.option('--disk-size', help='Default image disk size.')
-    @click.option('--size', help='Default instance size.')
+    @click.option('--instance-types', type=cli.LIST,
+                  help='Instance types (ordered by preference).')
+    @click.option('--spot-instance-types', type=cli.LIST,
+                  help='Spot instance types (ordered by preference).')
     @click.option('--hostgroups', help='Node hostgroups.', type=cli.LIST)
     @click.option('--secgroup', help='Node security group.')
     @click.option('--instance-profile', help='Instance profile.')
@@ -63,7 +66,8 @@ def init():
                                 app_ratio,
                                 image,
                                 disk_size,
-                                size,
+                                instance_types,
+                                spot_instance_types,
                                 hostgroups,
                                 secgroup,
                                 instance_profile,
@@ -90,7 +94,10 @@ def init():
         modified = _set(data, 'autoscale', autoscale)
         modified = _set(data, 'image', image) or modified
         modified = _set(data, 'disk_size', disk_size) or modified
-        modified = _set(data, 'size', size) or modified
+        modified = _set(data, 'instance_types', instance_types) or modified
+        modified = _set(data,
+                        'spot_instance_types',
+                        spot_instance_types) or modified
         modified = _set(data, 'hostgroups', hostgroups) or modified
         modified = _set(data, 'secgroup', secgroup) or modified
         modified = _set(data, 'instance_profile', instance_profile) or modified

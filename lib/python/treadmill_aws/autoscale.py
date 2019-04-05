@@ -35,6 +35,36 @@ _SCHEDULER_SERVERS_URL = '/scheduler/servers'
 # Max time for server to register state after being created.
 _SERVER_START_INTERVAL = 5 * 60
 
+_CREATE_HOST_MAX_TRIES = 3
+
+
+class InstanceFeasibilityTracker:
+    """Tracks instance creation failures."""
+
+    def __init__(self):
+        self._excluded_subnets = set()
+        self._excluded_instances = set()
+
+    def feasible(self, instance_type, spot, subnet):
+        """Checks if it is feasible to try creating an instance."""
+        if subnet in self._excluded_subnets:
+            return False
+
+        if (instance_type, spot, subnet) in self._excluded_instances:
+            return False
+
+        return True
+
+    def exclude_instance(self, instance_type, spot, subnet):
+        """Exclude instance type + lifecycle within given subnet."""
+        self._excluded_instances.add(
+            (instance_type, spot, subnet)
+        )
+
+    def exclude_subnet(self, subnet):
+        """Exclude subnet."""
+        self._excluded_subnets.add(subnet)
+
 
 class ExpiredTokenError(Exception):
     """Error indicating that AWS token expired."""
@@ -55,91 +85,112 @@ def check_expired_token(func):
     return wrapper
 
 
-def _create_host(ipa_client, ec2_conn, hostname, subnet,
-                 spot, spot_fallback, otp, **host_params):
-    try:
-        hostmanager.create_host(
-            ipa_client=ipa_client,
-            ec2_conn=ec2_conn,
-            hostname=hostname,
-            subnet=subnet,
-            spot=spot,
-            otp=otp,
-            **host_params
-        )
-        return 'spot' if spot else 'on-demand'
-    except botoexc.ClientError as err:
-        if err.response['Error']['Code'] in (
-                'SpotMaxPriceTooLow',
-                'InsufficientInstanceCapacity',
-        ):
-            if spot and spot_fallback:
-                _LOGGER.error('Spot not feasible, trying on-demand: %r', err)
+def _create_host(ipa_client, ec2_conn, hostname, instance_type, spot, subnets,
+                 otp, tracker, **host_params):
+    for subnet in subnets:
+        if not tracker.feasible(instance_type, spot, subnet):
+            continue
+
+        _LOGGER.info('Creating host %s, type: %s, spot: %s, subnet: %s',
+                     hostname, instance_type, spot, subnet)
+
+        for i in range(_CREATE_HOST_MAX_TRIES):
+            try:
                 hostmanager.create_host(
                     ipa_client=ipa_client,
                     ec2_conn=ec2_conn,
                     hostname=hostname,
                     subnet=subnet,
-                    spot=False,
+                    instance_type=instance_type,
+                    spot=spot,
                     otp=otp,
                     **host_params
                 )
-                return 'on-demand'
-        raise
+                return {
+                    'hostname': hostname,
+                    'type': instance_type,
+                    'lifecycle': 'spot' if spot else 'on-demand',
+                    'subnet': subnet,
+                }
+            except botoexc.ClientError as err:
+                err_code = err.response['Error']['Code']
+                if err_code in (
+                        'SpotMaxPriceTooLow',
+                        'InsufficientInstanceCapacity'
+                ):
+                    _LOGGER.info('Instance not feasible, trying next: %r', err)
+                    tracker.exclude_instance(instance_type, spot, subnet)
+                    break
+                elif err_code == 'InsufficientFreeAddressesInSubnet':
+                    _LOGGER.info('Subnet exhausted, trying next: %r', err)
+                    tracker.exclude_subnet(subnet)
+                    break
+                elif err_code == 'InternalError':
+                    if i == _CREATE_HOST_MAX_TRIES - 1:
+                        raise
+                    _LOGGER.error('Internal error, retrying: %r', err)
+                else:
+                    raise
+    return None
 
 
 @check_expired_token
-def _create_hosts(hostnames, subnets, cell, partition, **host_params):
+def _create_hosts(hostnames, instance_types, subnets, cell, partition,
+                  **host_params):
     admin_srv = context.GLOBAL.admin.server()
     ipa_client = awscontext.GLOBAL.ipaclient
     ec2_conn = awscontext.GLOBAL.ec2
-    avail_subnets = subnets.copy()
+    subnets = subnets.copy()
     hosts_created = []
 
-    for hostname, spot, spot_fallback in hostnames:
-        _LOGGER.info('Creating host %s, spot: %s, spot fallback: %s',
-                     hostname, spot, spot_fallback)
+    tracker = InstanceFeasibilityTracker()
+
+    for hostname, try_spot, try_on_demand in hostnames:
+        _LOGGER.info('Creating host %s, try spot: %s, try on-demand: %s',
+                     hostname, try_spot, try_on_demand)
 
         otp = hostmanager.create_otp(
             ipa_client, hostname, host_params['hostgroups'],
             nshostlocation=host_params['nshostlocation']
         )
 
-        for subnet in random.sample(avail_subnets, len(avail_subnets)):
-            try:
-                lifecycle = _create_host(
-                    ipa_client, ec2_conn, hostname, subnet,
-                    spot, spot_fallback, otp, **host_params
-                )
+        random.shuffle(subnets)
+
+        for instance_type, spot in instance_types:
+            if spot and not try_spot:
+                continue
+
+            if not spot and not try_on_demand:
+                continue
+
+            host = _create_host(
+                ipa_client, ec2_conn, hostname, instance_type, spot, subnets,
+                otp, tracker, **host_params
+            )
+            if host:
                 break
-            except botoexc.ClientError as err:
-                if err.response['Error']['Code'] in (
-                        'InsufficientFreeAddressesInSubnet',
-                        'InsufficientInstanceCapacity',
-                ):
-                    _LOGGER.error('Subnet exhausted, trying next: %r', err)
-                    avail_subnets.remove(subnet)
-                    continue
-                raise
         else:
-            raise Exception('No free subnets available')
+            raise Exception('Failed to create host %s' % hostname)
 
         admin_srv.create(
-            hostname,
+            host['hostname'],
             {
                 'cell': cell,
                 'partition': partition,
-                'data': {'lifecycle': lifecycle},
+                'data': {
+                    'lifecycle': host['lifecycle'],
+                },
             }
         )
-        hosts_created.append(hostname)
+        hosts_created.append(host)
     return hosts_created
 
 
-def _create_hosts_no_exc(hostnames, subnets, cell, partition, **host_params):
+def _create_hosts_no_exc(hostnames, instance_types, subnets, cell, partition,
+                         **host_params):
     try:
         hosts_created = _create_hosts(
-            hostnames, subnets, cell, partition, **host_params
+            hostnames, instance_types, subnets, cell, partition, **host_params
         )
         return hosts_created, None
     except ExpiredTokenError as err:
@@ -174,23 +225,34 @@ def _generate_hostnames(domain, cell, partition, count,
             '{}{}'.format(hostname_template, i)
         )
         if min_on_demand:
-            spot = spot_fallback = False
+            try_spot = False
+            try_on_demand = True
             min_on_demand -= 1
             if max_on_demand:
                 max_on_demand -= 1
         elif max_on_demand:
-            spot = spot_fallback = True
+            try_spot = try_on_demand = True
             max_on_demand -= 1
         else:
-            spot = True
-            spot_fallback = False
-        hostnames.append((hostname, spot, spot_fallback))
+            try_spot = True
+            try_on_demand = False
+        hostnames.append((hostname, try_spot, try_on_demand))
     return hostnames
 
 
 def _split_list(lst, num_parts):
     parts = [lst[i::num_parts] for i in range(num_parts)]
     return [part for part in parts if part]
+
+
+def _instance_types(instance_types, spot_instance_types):
+    res = [
+        (instance_type, True) for instance_type in spot_instance_types
+    ]
+    res.extend([
+        (instance_type, False) for instance_type in instance_types
+    ])
+    return res
 
 
 @aws.profile
@@ -210,7 +272,6 @@ def create_n_servers(count, partition=None,
     sts_conn = awscontext.GLOBAL.sts
     ipa_domain = awscontext.GLOBAL.ipa_domain
 
-    admin_srv = context.GLOBAL.admin.server()
     admin_cell = context.GLOBAL.admin.cell()
     cell = context.GLOBAL.cell
     cell_data = admin_cell.get(cell)['data']
@@ -230,11 +291,18 @@ def create_n_servers(count, partition=None,
         )['ImageId']
 
     instance_type = partition_data.get('size', cell_data['size'])
+    instance_types = partition_data.get(
+        'instance_types', [instance_type]
+    )
+    spot_instance_types = partition_data.get(
+        'spot_instance_types', instance_types
+    )
     subnets = partition_data.get('subnets', cell_data['subnets'])
     secgroup_id = partition_data.get('secgroup', cell_data['secgroup'])
     hostgroups = partition_data.get('hostgroups', cell_data['hostgroups'])
-    instance_profile = partition_data.get('instance_profile',
-                                          cell_data['instance_profile'])
+    instance_profile = partition_data.get(
+        'instance_profile', cell_data['instance_profile']
+    )
     disk_size = int(partition_data.get('disk_size', cell_data['disk_size']))
     nshostlocation = cell_data['aws_account']
 
@@ -258,6 +326,9 @@ def create_n_servers(count, partition=None,
         min_on_demand=min_on_demand,
         max_on_demand=max_on_demand
     )
+    instance_types = _instance_types(
+        instance_types, spot_instance_types
+    )
     host_params = dict(
         image_id=image_id,
         count=1,
@@ -265,7 +336,6 @@ def create_n_servers(count, partition=None,
         domain=ipa_domain,
         key=None,
         secgroup_ids=secgroup_id,
-        instance_type=instance_type,
         role='node',
         instance_vars=instance_vars,
         instance_profile=instance_profile,
@@ -278,6 +348,7 @@ def create_n_servers(count, partition=None,
     if pool:
         func = functools.partial(
             _create_hosts_no_exc,
+            instance_types=instance_types,
             subnets=subnets,
             cell=cell,
             partition=partition,
@@ -291,7 +362,7 @@ def create_n_servers(count, partition=None,
         return hosts_created
     else:
         return _create_hosts(
-            hostnames, subnets, cell, partition, **host_params
+            hostnames, instance_types, subnets, cell, partition, **host_params
         )
 
 

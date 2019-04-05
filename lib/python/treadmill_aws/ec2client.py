@@ -138,7 +138,7 @@ def list_spot_requests(ec2_conn):
             status_timestamp=req['Status']["UpdateTime"],
             hostname=hostname,
             id=req['SpotInstanceRequestId'],
-            instance_id=req['InstanceId'],
+            instance_id=req.get('InstanceId'),
             instance_status=state,
             instance_type=req['LaunchSpecification']['InstanceType'],
             instance_launch=launch,
