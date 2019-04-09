@@ -125,10 +125,16 @@ def init():
         '--key',
         help='SSH key'
     )
+    @click.option(
+        '--tags',
+        type=cli.DICT,
+        required=False,
+        help='Image tag in the format foo=bar,baz=qux'
+    )
     @click.argument('image', required=True, type=str)
     @cli.admin.ON_EXCEPTIONS
     def create(base_image, base_image_account, userdata, instance_profile,
-               secgroup, subnet, image, key):
+               secgroup, subnet, image, key, tags):
         """Create image"""
         ec2_conn = awscontext.GLOBAL.ec2
 
@@ -150,9 +156,12 @@ def init():
             ec2_conn, base_image, account=base_image_account)
         secgroup_id = aws_cli.admin.secgroup_id(ec2_conn, secgroup)
         subnet_id = aws_cli.admin.subnet_id(ec2_conn, subnet)
-        tags = [{'ResourceType': 'instance',
-                 'Tags': [{'Key': 'Name',
-                           'Value': 'ImageBuild-{}'.format(image)}]}]
+
+        tags['Name'] = 'ImageBuild-{}'.format(image)
+        image_tags = [{'ResourceType': 'instance',
+                       'Tags': [{'Key': key, 'Value': val}
+                                for key, val in tags.items()]
+                       }]
 
         instance = ec2client.create_instance(
             ec2_conn,
@@ -160,7 +169,7 @@ def init():
             image_id=base_image_id,
             instance_type='t2.small',
             key=key,
-            tags=tags,
+            tags=image_tags,
             secgroup_ids=secgroup_id,
             subnet_id=subnet_id,
             instance_profile=instance_profile,
