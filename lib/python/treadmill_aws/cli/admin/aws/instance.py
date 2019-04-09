@@ -137,12 +137,11 @@ def init():
         """Create instance(s)"""
         ipa_client = awscontext.GLOBAL.ipaclient
         ec2_conn = awscontext.GLOBAL.ec2
-        sts_conn = awscontext.GLOBAL.sts
 
         ipa_domain = awscontext.GLOBAL.ipa_domain
 
         image_id = aws_cli.admin.image_id(
-            ec2_conn, sts_conn, image, image_account)
+            ec2_conn, image, image_account)
         secgroup_id = aws_cli.admin.secgroup_id(ec2_conn, secgroup)
         subnet_id = aws_cli.admin.subnet_id(ec2_conn, subnet)
 

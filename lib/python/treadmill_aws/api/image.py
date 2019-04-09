@@ -60,7 +60,6 @@ class API:
             _LOGGER.info('Create image: %s', image)
 
             ec2_conn = awscontext.GLOBAL.ec2
-            sts_conn = awscontext.GLOBAL.sts
 
             # Check if image exists. Create is async, so this is optimization
             # to return Found early.
@@ -80,7 +79,7 @@ class API:
 
             base_image = rsrc.get('base_image')
             base_image_id = aws_cli_admin.image_id(
-                ec2_conn, sts_conn, base_image, account=base_image_account)
+                ec2_conn, base_image, account=base_image_account)
             _LOGGER.info('base image id: %s', base_image_id)
 
             secgroup = rsrc.get('secgroup')
@@ -139,7 +138,6 @@ class API:
             _LOGGER.info('Create image: %s', image)
 
             ec2_conn = awscontext.GLOBAL.ec2
-            sts_conn = awscontext.GLOBAL.sts
             ec2client.delete_images(ec2_conn, name=image)
 
         self.list = _list

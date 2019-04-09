@@ -196,7 +196,6 @@ def create_zk(
         instance_type=None,
         instance_profile=None):
     """ Create new Zookeeper """
-    sts_conn = awscontext.GLOBAL.sts
     ipa_domain = awscontext.GLOBAL.ipa_domain
 
     admin_cell = admin.Cell(context.GLOBAL.ldap.conn)
@@ -205,9 +204,8 @@ def create_zk(
 
     image_id = data['image']
     if not image_id.startswith('ami-'):
-        account = sts_conn.get_caller_identity().get('Account')
         image_id = ec2client.get_image(
-            ec2_conn, owners=[account], name=image_id
+            ec2_conn, owners=['self'], name=image_id
         )['ImageId']
 
     # FIXME; subnet not unique among ZK, not AZ aware
