@@ -9,13 +9,12 @@ from __future__ import unicode_literals
 import logging
 
 import click
-from ldap3.core import exceptions as ldap_exceptions
-import six
 
 from treadmill import admin
 from treadmill import cli
 from treadmill import context
 from treadmill import yamlwrapper as yaml
+from treadmill.admin import exc as admin_exceptions
 from treadmill.scheduler import masterapi
 
 from treadmill_aws import cli as aws_cli
@@ -62,7 +61,7 @@ def init():
 
         # Configure apps identity groups
         identity_groups = _ident_groups(ctx)
-        for groupname, count in six.iteritems(identity_groups):
+        for groupname, count in identity_groups.items():
             masterapi.update_identity_group(
                 context.GLOBAL.zk.conn,
                 groupname,
@@ -76,7 +75,7 @@ def init():
             print(yaml.dump(app))
             try:
                 admin_app.create(fullname, app)
-            except ldap_exceptions.LDAPEntryAlreadyExistsResult:
+            except admin_exceptions.AlreadyExistsResult:
                 admin_app.replace(fullname, app)
 
     return configure_apps
