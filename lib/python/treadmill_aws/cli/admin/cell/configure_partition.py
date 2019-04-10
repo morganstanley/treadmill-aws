@@ -9,11 +9,11 @@ from __future__ import unicode_literals
 import logging
 
 import click
-from ldap3.core import exceptions as ldap_exceptions
 
 from treadmill import admin
 from treadmill import context
 from treadmill import cli
+from treadmill.admin import exc as admin_exceptions
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -81,7 +81,7 @@ def init():
         try:
             part_data = admin_part.get([partition, cell], dirty=True)
             data = part_data.get('data', {})
-        except ldap_exceptions.LDAPNoSuchObjectResult:
+        except admin_exceptions.NoSuchObjectResult:
             data = {}
 
         autoscale = data.get('autoscale', {})

@@ -13,12 +13,12 @@ import random
 import re
 import time
 
-from ldap3.core import exceptions as ldap_exceptions
 from botocore import exceptions as botoexc
 
 from treadmill import context
 from treadmill import sysinfo
 from treadmill import restclient
+from treadmill.admin import exc as admin_exceptions
 from treadmill.syscall import krb5
 
 from treadmill_aws import aws
@@ -279,7 +279,7 @@ def create_n_servers(count, partition=None,
     try:
         _ldap_data = admin_part.get([partition, cell], dirty=True)
         partition_data = _ldap_data.get('data', {})
-    except ldap_exceptions.LDAPNoSuchObjectResult:
+    except admin_exceptions.NoSuchObjectResult:
         partition_data = {}
 
     image_id = partition_data.get('image', cell_data['image'])

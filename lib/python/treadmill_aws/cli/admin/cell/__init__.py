@@ -11,7 +11,6 @@ import time
 
 import click
 import jinja2
-from ldap3.core import exceptions as ldap_exceptions
 import six
 
 from treadmill import admin

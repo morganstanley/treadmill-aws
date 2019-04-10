@@ -9,11 +9,10 @@ from __future__ import unicode_literals
 import logging
 
 import click
-from ldap3.core import exceptions as ldap_exceptions
-import six
 
 from treadmill import admin
 from treadmill import context
+from treadmill.admin import exc as admin_exceptions
 
 from treadmill_aws import cli as aws_cli
 
@@ -47,11 +46,11 @@ def init():
         appgroups = _appgroups(ctx)
 
         admin_app_group = admin.AppGroup(context.GLOBAL.ldap.conn)
-        for name, data in six.iteritems(appgroups):
+        for name, data in appgroups.items():
             print(name, data)
             try:
                 admin_app_group.create(name, data)
-            except ldap_exceptions.LDAPEntryAlreadyExistsResult:
+            except admin_exceptions.AlreadyExistsResult:
                 admin_app_group.update(name, data)
 
             existing = admin_app_group.get(name, dirty=True)
