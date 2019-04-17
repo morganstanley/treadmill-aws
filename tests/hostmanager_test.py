@@ -111,3 +111,40 @@ class HostmanagerTest(unittest.TestCase):
 
         self.assertTrue(h1 < h2)
         self.assertTrue(h2 < h3)
+
+    @mock.patch('treadmill_aws.ec2client.delete_instances')
+    @mock.patch('treadmill_aws.hostmanager._EC2_DELETE_BATCH', 2)
+    def test_delete_hosts(self, delete_instances_mock):
+        """Test deleting hosts."""
+        ipa_client_mock = mock.Mock()
+
+        hostmanager.delete_hosts(
+            mock.Mock(),
+            ipa_client_mock,
+            [
+                'test-partition-dq2opb2qrfj.foo.com',
+                'test-partition-dq2opbqskkq.foo.com',
+                'test-partition-dq2opc7ao37.foo.com',
+            ]
+        )
+
+        delete_instances_mock.assert_has_calls([
+            mock.call(
+                ec2_conn=mock.ANY,
+                hostnames=[
+                    'test-partition-dq2opb2qrfj.foo.com',
+                    'test-partition-dq2opbqskkq.foo.com',
+                ]
+            ),
+            mock.call(
+                ec2_conn=mock.ANY,
+                hostnames=[
+                    'test-partition-dq2opc7ao37.foo.com',
+                ]
+            ),
+        ])
+        ipa_client_mock.unenroll_host.assert_has_calls([
+            mock.call(hostname='test-partition-dq2opb2qrfj.foo.com'),
+            mock.call(hostname='test-partition-dq2opbqskkq.foo.com'),
+            mock.call(hostname='test-partition-dq2opc7ao37.foo.com'),
+        ])
