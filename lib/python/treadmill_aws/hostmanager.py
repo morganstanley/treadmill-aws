@@ -161,18 +161,19 @@ def delete_hosts(ec2_conn, ipa_client, hostnames):
         selected using filters (200); delete instances in batches of
         _EC2_DELETE_BATCH
     """
+    _LOGGER.debug('Delete instances: %r', hostnames)
+    hostnames_left = hostnames[:]
+    while hostnames_left:
+        batch = hostnames_left[:_EC2_DELETE_BATCH]
+        hostnames_left = hostnames_left[_EC2_DELETE_BATCH:]
+        ec2client.delete_instances(ec2_conn=ec2_conn, hostnames=batch)
+
     for hostname in hostnames:
         _LOGGER.debug('Unenroll host from IPA: %s', hostname)
         try:
             ipa_client.unenroll_host(hostname=hostname)
         except (KeyError, ipaclient.NotFoundError):
             _LOGGER.debug('Host not found: %s', hostname)
-
-    _LOGGER.debug('Delete instances: %r', hostnames)
-    while hostnames:
-        batch = hostnames[:_EC2_DELETE_BATCH]
-        hostnames = hostnames[_EC2_DELETE_BATCH:]
-        ec2client.delete_instances(ec2_conn=ec2_conn, hostnames=batch)
 
 
 def find_hosts(ipa_client, pattern=None):

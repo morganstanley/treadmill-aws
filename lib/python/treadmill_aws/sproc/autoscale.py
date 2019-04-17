@@ -6,6 +6,9 @@ import time
 
 import click
 
+from treadmill import context
+from treadmill import zkutils
+
 from treadmill_aws import cli as aws_cli
 from treadmill_aws import autoscale
 
@@ -47,6 +50,8 @@ def init():
         if workers:
             pool = multiprocessing.Pool(processes=workers)
             pool.workers = workers
+
+        context.GLOBAL.zk.add_listener(zkutils.exit_on_lost)
 
         while True:
             autoscale.scale(server_app_ratio, pool=pool)

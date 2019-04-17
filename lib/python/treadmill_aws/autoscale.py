@@ -14,10 +14,13 @@ import re
 import time
 
 from botocore import exceptions as botoexc
+import kazoo
 
 from treadmill import context
+from treadmill import presence
 from treadmill import sysinfo
 from treadmill import restclient
+from treadmill import zknamespace as z
 from treadmill.admin import exc as admin_exceptions
 from treadmill.syscall import krb5
 
@@ -367,32 +370,32 @@ def create_n_servers(count, partition=None,
 @check_expired_token
 def delete_n_servers(count, partition=None):
     """Delete old servers."""
-    ipa_client = awscontext.GLOBAL.ipaclient
-    ec2_conn = awscontext.GLOBAL.ec2
-
     admin_srv = context.GLOBAL.admin.server()
-    servers = admin_srv.list({'cell': context.GLOBAL.cell,
-                              'partition': partition})
 
-    hostnames = sorted([s['_id'] for s in servers])
-    extra = hostnames[0:count]
-    hostmanager.delete_hosts(
-        ipa_client=ipa_client,
-        ec2_conn=ec2_conn,
-        hostnames=extra
+    servers = admin_srv.list(
+        {'cell': context.GLOBAL.cell, 'partition': partition}
     )
+    hostnames = sorted([s['_id'] for s in servers])
+    extra_servers = hostnames[0:count]
 
-    for hostname in extra:
-        admin_srv.delete(hostname)
+    delete_servers_by_name(extra_servers)
 
 
 @check_expired_token
 def delete_servers_by_name(servers):
     """Delete servers by name."""
-    ipa_client = awscontext.GLOBAL.ipaclient
     ec2_conn = awscontext.GLOBAL.ec2
+    ipa_client = awscontext.GLOBAL.ipaclient
+    admin_srv = context.GLOBAL.admin.server()
+    zkclient = context.GLOBAL.zk.conn
 
     _LOGGER.info('Deleting servers: %r', servers)
+
+    for server in servers:
+        try:
+            presence.kill_node(zkclient, server)
+        except kazoo.exceptions.NoNodeError:
+            pass
 
     hostmanager.delete_hosts(
         ipa_client=ipa_client,
@@ -400,7 +403,6 @@ def delete_servers_by_name(servers):
         hostnames=servers
     )
 
-    admin_srv = context.GLOBAL.admin.server()
     for server in servers:
         admin_srv.delete(server)
 
@@ -414,6 +416,8 @@ def _query_stateapi():
 
 def _get_state():
     apps_state, servers_state = _query_stateapi()
+    admin_srv = context.GLOBAL.admin.server()
+    zkclient = context.GLOBAL.zk.conn
 
     apps_by_partition = collections.defaultdict(list)
     servers_by_partition = collections.defaultdict(list)
@@ -443,14 +447,20 @@ def _get_state():
         if server['cpu'] and server['mem'] and server['disk']:
             state_by_server[server['name']] = server['state']
 
-    servers = context.GLOBAL.admin.server().list(
+    servers = admin_srv.list(
         {'cell': context.GLOBAL.cell},
         get_operational_attrs=True
     )
+    try:
+        blackedout_servers = set(zkclient.get_children(z.BLACKEDOUT_SERVERS))
+    except kazoo.client.NoNodeError:
+        blackedout_servers = set()
+
     for server in servers:
         server_name = server['_id']
         server_data = server.get('data', {})
         server_create_timestamp = server['_create_timestamp']
+        server_blackedout = server_name in blackedout_servers
 
         # If server didn't report it's state, it's either new/starting or down.
         # Consider server to be new if it's just been created, down otherwise.
@@ -468,7 +478,13 @@ def _get_state():
             'create_timestamp': server_create_timestamp,
             'num_apps': num_apps_by_server[server_name],
             'lifecycle': server_data.get('lifecycle', 'on-demand'),
+            'blackedout': server_blackedout,
         })
+
+        if server_blackedout:
+            _LOGGER.warning('Server %s is blackedout', server_name)
+        if server_state == 'frozen':
+            _LOGGER.warning('Server %s is frozen', server_name)
 
     return apps_by_partition, servers_by_partition
 
@@ -498,6 +514,9 @@ def _select_extra_servers(servers, state, max_extra_servers=None):
                 return extra_servers
 
         if server['num_apps']:
+            continue
+
+        if server['blackedout']:
             continue
 
         if server['state'] not in state:
@@ -566,7 +585,7 @@ def _scale_partition(server_app_ratio, min_servers, max_servers,
         extra_servers = _select_extra_servers(
             servers, ('up'), max_extra_servers
         )
-    extra_servers += _select_extra_servers(servers, ('down', 'frozen'))
+    extra_servers += _select_extra_servers(servers, ('down'))
     _LOGGER.info('Empty servers to delete: %r', extra_servers)
 
     return new_servers, extra_servers

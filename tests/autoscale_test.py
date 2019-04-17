@@ -35,6 +35,7 @@ def _raise_if(check, err):
         raise err
 
 
+@mock.patch('treadmill.context.GLOBAL.zk', mock.Mock())
 class AutoscaleTest(unittest.TestCase):
     """Test autoscale."""
 
@@ -50,6 +51,9 @@ class AutoscaleTest(unittest.TestCase):
     @mock.patch('treadmill.context.Context.admin')
     def test_scale_up_no_idle(self, admin_mock, stateapi_mock):
         """Test scaling up with no idle servers present."""
+
+        mock_zkclient = context.GLOBAL.zk.conn
+        mock_zkclient.get_children.return_value = []
 
         # Ratio: 0.5
         # Pending apps: 3, no servers - create 2 servers.
@@ -152,6 +156,9 @@ class AutoscaleTest(unittest.TestCase):
     @mock.patch('time.time', mock.Mock(return_value=1000.0))
     def test_scale_up_with_idle(self, admin_mock, stateapi_mock):
         """Test scaling up with some idle servers present."""
+
+        mock_zkclient = context.GLOBAL.zk.conn
+        mock_zkclient.get_children.return_value = []
 
         # Ratio: 0.5
         # Pending apps: 1, idle servers: 1 - don't create anything.
@@ -260,6 +267,9 @@ class AutoscaleTest(unittest.TestCase):
     def test_scale_up_min_servers(self, admin_mock, stateapi_mock):
         """Test scaling up to min (active) servers."""
 
+        mock_zkclient = context.GLOBAL.zk.conn
+        mock_zkclient.get_children.return_value = []
+
         # Empty partition, min servers: 3 - create 3 servers.
         _mock_cell(
             admin_mock, stateapi_mock,
@@ -323,6 +333,9 @@ class AutoscaleTest(unittest.TestCase):
     @mock.patch('treadmill.context.Context.admin')
     def test_scale_down(self, admin_mock, stateapi_mock):
         """Test scaling down."""
+
+        mock_zkclient = context.GLOBAL.zk.conn
+        mock_zkclient.get_children.return_value = []
 
         # Pending apps: 1, idle servers: 2 - delete 1 server.
         _mock_cell(
@@ -423,22 +436,31 @@ class AutoscaleTest(unittest.TestCase):
                  '_create_timestamp': 100.0},
                 {'_id': 'server5', 'partition': 'partition',
                  '_create_timestamp': 100.0},
+                {'_id': 'server6', 'partition': 'partition',
+                 '_create_timestamp': 100.0},
+                {'_id': 'server7', 'partition': 'partition',
+                 '_create_timestamp': 100.0},
             ],
             servers_state=[
                 ('server1', 'up', 100, 100, 100),
                 ('server2', 'up', 100, 100, 100),
                 ('server3', 'up', 100, 100, 100),
                 ('server4', 'down', 100, 100, 100),
-                ('server5', 'frozen', 100, 100, 100),
+                ('server5', 'down', 100, 100, 100),
+                ('server6', 'down', 100, 100, 100),
+                ('server7', 'frozen', 100, 100, 100),
             ],
-            apps_state=[],
+            apps_state=[
+                ('proid.app#001', 'partition', 'server6'),
+            ],
         )
+        mock_zkclient.get_children.return_value = ['server5']
 
         autoscale.scale(0.5)
 
         autoscale.create_n_servers.assert_not_called()
         autoscale.delete_servers_by_name.assert_called_once_with(
-            ['server4', 'server5']
+            ['server4']
         )
 
     @mock.patch('treadmill.context.Context.ldap',
@@ -842,3 +864,77 @@ class AutoscaleTest(unittest.TestCase):
         )
 
         create_host_mock.reset_mock()
+
+    @mock.patch('treadmill.presence.kill_node')
+    @mock.patch('treadmill.context.Context.ldap',
+                mock.Mock(url=['ldap://foo:1234']))
+    @mock.patch('treadmill.context.Context.admin')
+    @mock.patch('treadmill_aws.hostmanager.delete_hosts')
+    @mock.patch('treadmill_aws.awscontext.AWSContext.ec2', mock.Mock())
+    @mock.patch('treadmill_aws.awscontext.AWSContext.ipaclient', mock.Mock())
+    def test_delete_servers_by_name(self, delete_hosts_mock, admin_mock,
+                                    kill_node_mock):
+        """Test deleting servers by name."""
+        admin_srv_mock = admin_mock.server.return_value
+
+        autoscale.delete_servers_by_name([
+            'test-partition-dq2opb2qrfj.foo.com',
+            'test-partition-dq2opbqskkq.foo.com',
+            'test-partition-dq2opc7ao37.foo.com',
+        ])
+
+        delete_hosts_mock.assert_called_once_with(
+            ipa_client=mock.ANY,
+            ec2_conn=mock.ANY,
+            hostnames=[
+                'test-partition-dq2opb2qrfj.foo.com',
+                'test-partition-dq2opbqskkq.foo.com',
+                'test-partition-dq2opc7ao37.foo.com',
+            ],
+        )
+        admin_srv_mock.delete.assert_has_calls([
+            mock.call('test-partition-dq2opb2qrfj.foo.com'),
+            mock.call('test-partition-dq2opbqskkq.foo.com'),
+            mock.call('test-partition-dq2opc7ao37.foo.com'),
+        ])
+        kill_node_mock.assert_has_calls([
+            mock.call(mock.ANY, 'test-partition-dq2opb2qrfj.foo.com'),
+            mock.call(mock.ANY, 'test-partition-dq2opbqskkq.foo.com'),
+            mock.call(mock.ANY, 'test-partition-dq2opc7ao37.foo.com'),
+        ])
+
+    @mock.patch('treadmill.presence.kill_node')
+    @mock.patch('treadmill.context.Context.ldap',
+                mock.Mock(url=['ldap://foo:1234']))
+    @mock.patch('treadmill.context.Context.admin')
+    @mock.patch('treadmill_aws.hostmanager.delete_hosts')
+    @mock.patch('treadmill_aws.awscontext.AWSContext.ec2', mock.Mock())
+    @mock.patch('treadmill_aws.awscontext.AWSContext.ipaclient', mock.Mock())
+    def test_delete_n_servers(self, delete_hosts_mock, admin_mock,
+                              kill_node_mock):
+        """Test deleting n servers."""
+        admin_srv_mock = admin_mock.server.return_value
+        admin_srv_mock.list.return_value = [
+            {'_id': 'test-partition-dq2opb2qrfj.foo.com'},
+            {'_id': 'test-partition-dq2opbqskkq.foo.com'},
+            {'_id': 'test-partition-dq2opc7ao37.foo.com'},
+        ]
+
+        autoscale.delete_n_servers(2, partition='partition')
+
+        delete_hosts_mock.assert_called_once_with(
+            ipa_client=mock.ANY,
+            ec2_conn=mock.ANY,
+            hostnames=[
+                'test-partition-dq2opb2qrfj.foo.com',
+                'test-partition-dq2opbqskkq.foo.com',
+            ],
+        )
+        admin_srv_mock.delete.assert_has_calls([
+            mock.call('test-partition-dq2opb2qrfj.foo.com'),
+            mock.call('test-partition-dq2opbqskkq.foo.com'),
+        ])
+        kill_node_mock.assert_has_calls([
+            mock.call(mock.ANY, 'test-partition-dq2opb2qrfj.foo.com'),
+            mock.call(mock.ANY, 'test-partition-dq2opbqskkq.foo.com'),
+        ])
