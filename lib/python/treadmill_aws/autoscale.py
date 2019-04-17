@@ -69,21 +69,22 @@ class InstanceFeasibilityTracker:
         self._excluded_subnets.add(subnet)
 
 
-class ExpiredTokenError(Exception):
-    """Error indicating that AWS token expired."""
+class ExpiredCredentialsError(Exception):
+    """Error indicating that AWS credentials expired."""
     pass
 
 
-def check_expired_token(func):
-    """Decorator to simplify handling of expired token error."""
+def check_expired_credentials(func):
+    """Decorator to simplify handling of expired credentials errors."""
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         """Wrapper function."""
         try:
             return func(*args, **kwargs)
         except botoexc.ClientError as err:
-            if err.response['Error']['Code'] == 'ExpiredToken':
-                raise ExpiredTokenError
+            err_code = err.response['Error']['Code']
+            if err_code in ('ExpiredToken', 'RequestExpired'):
+                raise ExpiredCredentialsError(err_code)
             raise
     return wrapper
 
@@ -137,7 +138,7 @@ def _create_host(ipa_client, ec2_conn, hostname, instance_type, spot, subnets,
     return None
 
 
-@check_expired_token
+@check_expired_credentials
 def _create_hosts(hostnames, instance_types, subnets, cell, partition,
                   **host_params):
     admin_srv = context.GLOBAL.admin.server()
@@ -196,7 +197,7 @@ def _create_hosts_no_exc(hostnames, instance_types, subnets, cell, partition,
             hostnames, instance_types, subnets, cell, partition, **host_params
         )
         return hosts_created, None
-    except ExpiredTokenError as err:
+    except ExpiredCredentialsError as err:
         _LOGGER.exception('Error creating hosts: %r', hostnames)
         return None, err
     except Exception as err:  # pylint: disable=broad-except
@@ -259,7 +260,7 @@ def _instance_types(instance_types, spot_instance_types):
 
 
 @aws.profile
-@check_expired_token
+@check_expired_credentials
 def create_n_servers(count, partition=None,
                      min_on_demand=None, max_on_demand=None, pool=None):
     """Create new servers in the cell."""
@@ -367,7 +368,7 @@ def create_n_servers(count, partition=None,
         )
 
 
-@check_expired_token
+@check_expired_credentials
 def delete_n_servers(count, partition=None):
     """Delete old servers."""
     admin_srv = context.GLOBAL.admin.server()
@@ -381,7 +382,7 @@ def delete_n_servers(count, partition=None):
     delete_servers_by_name(extra_servers)
 
 
-@check_expired_token
+@check_expired_credentials
 def delete_servers_by_name(servers):
     """Delete servers by name."""
     ec2_conn = awscontext.GLOBAL.ec2
@@ -648,7 +649,7 @@ def scale(default_server_app_ratio, pool=None):
                     )
             if extra_servers:
                 delete_servers_by_name(extra_servers)
-        except ExpiredTokenError:
+        except ExpiredCredentialsError:
             raise
         except Exception as err:  # pylint: disable=broad-except
             _LOGGER.exception('Error while scaling partition %s: %r',
