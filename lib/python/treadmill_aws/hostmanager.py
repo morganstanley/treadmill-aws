@@ -157,23 +157,60 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
 
 def delete_hosts(ec2_conn, ipa_client, hostnames):
     """ Unenrolls hosts from IPA and AWS
+        Removes any A or PTR records left by the host post-deletion
         EC2 imposes a maximum limit on the number of instances that can be
         selected using filters (200); delete instances in batches of
         _EC2_DELETE_BATCH
     """
     _LOGGER.debug('Delete instances: %r', hostnames)
     hostnames_left = hostnames[:]
+
+    # Terminate EC2 instances
     while hostnames_left:
         batch = hostnames_left[:_EC2_DELETE_BATCH]
         hostnames_left = hostnames_left[_EC2_DELETE_BATCH:]
         ec2client.delete_instances(ec2_conn=ec2_conn, hostnames=batch)
 
+    # Remove host from IPA domain and DNS
     for hostname in hostnames:
         _LOGGER.debug('Unenroll host from IPA: %s', hostname)
+        shortname = hostname.split('.')[0]
+
+        # Fetch A and PTR records if they exist
+        try:
+            arecord = ipa_client.get_dns_record(idnsname=shortname)[
+                'result']['result']['arecord'].pop()
+            record_zone = '{2}.{1}.{0}.in-addr.arpa.'.format(
+                *arecord.split('.'))
+            record = '{3}'.format(*arecord.split('.'))
+        except ipaclient.NotFoundError:
+            arecord = record_zone = record = None
+
+        # Remove host from IPA
         try:
             ipa_client.unenroll_host(hostname=hostname)
         except (KeyError, ipaclient.NotFoundError):
             _LOGGER.debug('Host not found: %s', hostname)
+
+        # Delete A and PTR records.
+        try:
+            if arecord:
+                ipa_client.delete_dns_record(
+                    record_type='arecord',
+                    record_name=shortname,
+                    record_value=arecord)
+        except ipaclient.NotFoundError:
+            pass
+
+        try:
+            if record:
+                ipa_client.delete_ptr_record(
+                    record_type='ptrrecord',
+                    record_zone=record_zone,
+                    record_name=record,
+                    record_value=hostname)
+        except ipaclient.NotFoundError:
+            pass
 
 
 def find_hosts(ipa_client, pattern=None):

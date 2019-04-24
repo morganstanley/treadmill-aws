@@ -8,6 +8,7 @@ import mock
 
 from treadmill_aws import awscontext
 from treadmill_aws import hostmanager
+from treadmill_aws import ipaclient
 
 
 # pylint: disable=protected-access
@@ -117,6 +118,7 @@ class HostmanagerTest(unittest.TestCase):
     def test_delete_hosts(self, delete_instances_mock):
         """Test deleting hosts."""
         ipa_client_mock = mock.Mock()
+        ipa_client_mock.get_dns_record.side_effect = ipaclient.NotFoundError
 
         hostmanager.delete_hosts(
             mock.Mock(),
