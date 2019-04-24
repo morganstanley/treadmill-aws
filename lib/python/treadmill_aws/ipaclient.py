@@ -213,12 +213,29 @@ class IPAClient():
                    'id': 0}
         return self._post(payload=payload).json()
 
-    def delete_dns_record(self, record_type, record_name, record_value):
+    def delete_dns_record(self,
+                          record_type,
+                          record_name,
+                          record_value,
+                          dns_zone=None):
         """Delete DNS record from IPA server.
         """
+        if not dns_zone:
+            dns_zone = self.domain
+
         payload = {'method': 'dnsrecord_del',
-                   'params': [[self.domain, record_name],
+                   'params': [[dns_zone, record_name],
                               {record_type: record_value,
+                               'version': _API_VERSION}],
+                   'id': 0}
+        return self._post(payload=payload).json()
+
+    def force_delete_dns_record(self, record_name, record_zone):
+        """Delete all DNS records matching record name from IPA server.
+        """
+        payload = {'method': 'dnsrecord_del',
+                   'params': [[record_zone, record_name],
+                              {'del_all': True,
                                'version': _API_VERSION}],
                    'id': 0}
         return self._post(payload=payload).json()
