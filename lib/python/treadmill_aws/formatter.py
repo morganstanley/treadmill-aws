@@ -423,6 +423,7 @@ class CellDataFormatter:
             ('realm', 'realm', None),
             ('secgroup', 'secgroup', None),
             ('size', 'size', None),
+            ('sns-topic', 'sns_topic', None),
             ('subnets', 'subnets', ','.join),
             ('s3_registry_bucket', 's3_registry_bucket', None),
             ('tls_certs', 'tls_certs', None),

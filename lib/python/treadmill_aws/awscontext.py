@@ -72,6 +72,11 @@ class AWSContext:
         return self.session.client('sts')
 
     @property
+    def sns(self):
+        """Returns SNS resource manager."""
+        return self.session.client('sns')
+
+    @property
     def ipaclient(self):
         """Lazily creates IPA client.
         """
