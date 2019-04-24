@@ -1,10 +1,10 @@
 """ IPA client connectors and helper functions """
 import logging
-import random
 
-import dns.resolver
 import requests
 import requests_kerberos
+
+from treadmill import dnsutils
 
 from treadmill_aws import noproxy
 
@@ -15,44 +15,22 @@ _API_VERSION = '2.28'
 _DEFAULT_TTL = 5
 
 
-def get_ipa_server_from_dns(domain):
-    """Looks up random IPA server from DNS SRV records.
+def get_ipa_urls_from_dns(domain):
+    """Looks up IPA servers from DNS SRV records.
     """
-    raw_results = [
-        result.to_text() for result in
-        dns.resolver.query('_kerberos._tcp.{}'.format(domain),
-                           'SRV')]
-    if raw_results:
-        return random.choice(raw_results).split()[-1]
-    else:
-        raise Exception('No IPA Servers Found')
+    ipa_srv_rec = dnsutils.srv('_kerberos._tcp.{}'.format(domain))
+    if not ipa_srv_rec:
+        raise Exception('No IPA servers found')
 
+    # Sort by (priority, -weight).
+    ipa_srv_rec.sort(key=lambda srv_rec: (srv_rec[2], -srv_rec[3]))
 
-def filter_raw_records(cell_name, raw_records, record_type):
-    """Extract and filter cell-specific typed records from IPA JSON export.
-       Returns list of dict objects that describe matching records.
-    """
-    dns_records = []
+    _LOGGER.debug('IPA SRV records: %r', ipa_srv_rec)
 
-    # Extract individual entries from record dump that match type, cell_name
-    for record in [fmt_rec for fmt_rec in raw_records['result']['result']
-                   if cell_name in fmt_rec['idnsname'][0] and record_type in
-                   fmt_rec.keys()]:
-
-        # IPA returns multiple records with the same idnsname
-        # as type List, and returns singleton records as type String
-        if isinstance(record[record_type], list):
-            for entry in record[record_type]:
-                dns_records.append({'type': record_type,
-                                    'dn': record['dn'],
-                                    'idnsname': record['idnsname'][0],
-                                    'record': entry})
-        else:
-            dns_records.append({'type': record_type,
-                                'dn': record['dn'],
-                                'idnsname': record['idnsname'][0],
-                                'record': record[record_type]})
-    return dns_records
+    return [
+        'https://{}/ipa'.format(srv_rec[0])
+        for srv_rec in ipa_srv_rec
+    ]
 
 
 # From IPA documentation:
@@ -162,23 +140,25 @@ class IPAClient():
     def __init__(self, certs, domain):
         self.certs = certs
         self.domain = domain
-
-        # Strip trailing period as it breaks SSL
-        self.ipa_server_hostn = get_ipa_server_from_dns(self.domain)[:-1]
-        self.ipa_srv_address = 'https://{}/ipa'.format(self.ipa_server_hostn)
-        self.ipa_srv_api_address = '{}/session/json'.format(
-            self.ipa_srv_address)
-        self.referer = {'referer': self.ipa_srv_address}
+        self.ipa_urls = get_ipa_urls_from_dns(self.domain)
 
     def _post(self, payload=None, auth=_KERBEROS_AUTH):
+        for ipa_url in self.ipa_urls:
+            try:
+                return self._post_request(ipa_url, payload=payload, auth=auth)
+            except requests.exceptions.ConnectionError:
+                _LOGGER.exception('Connection error: %s, trying next', ipa_url)
+        raise Exception('Connection error: %r' % self.ipa_urls)
+
+    def _post_request(self, ipa_url, payload=None, auth=_KERBEROS_AUTH):
         """ Submits formatted JSON to IPA server.
             Uses requests_kerberos module for Kerberos authentication with IPA.
         """
         with noproxy.NoProxy() as _proxy:
-            response = requests.post(self.ipa_srv_api_address,
+            response = requests.post('{}/session/json'.format(ipa_url),
                                      json=payload,
                                      auth=auth,
-                                     headers=self.referer,
+                                     headers={'referer': ipa_url},
                                      proxies={'http': None, 'https': None},
                                      verify=self.certs)
 
