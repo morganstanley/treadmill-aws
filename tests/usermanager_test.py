@@ -18,11 +18,11 @@ from treadmill_aws import ipaclient
 class UsermanagerTest(unittest.TestCase):
     """Tests usermanager interface"""
 
-    @mock.patch('treadmill_aws.ipaclient.get_ipa_server_from_dns',
+    @mock.patch('treadmill_aws.ipaclient.get_ipa_urls_from_dns',
                 mock.MagicMock())
     def setUp(self):
-        treadmill_aws.ipaclient.get_ipa_server_from_dns.return_value = \
-            'ipa-server.mydomain.x'
+        treadmill_aws.ipaclient.get_ipa_urls_from_dns.return_value = \
+            'https://ipa-server.mydomain.x/ipa'
         self.ipaclient = ipaclient.IPAClient('certs', 'domain')
 
     class FakeResponse:

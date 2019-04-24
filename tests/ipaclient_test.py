@@ -2,7 +2,6 @@
 """
 import unittest
 
-import dns.resolver
 import mock
 
 from treadmill_aws import ipaclient
@@ -84,86 +83,32 @@ class IPAHelperTests(unittest.TestCase):
                                     'truncated': True},
                          'version': '4.5.0'}
 
-    def test_get_ipa_server_from_dns(self):
-        """Test IPA server resolution from DNS.
+    @mock.patch('treadmill.dnsutils.srv')
+    def test_get_ipa_urls_from_dns(self, srv_mock):
+        """Test getting IPA servers from DNS.
         """
+        srv_mock.return_value = [
+            ('ipa1.foo.com', 88, 0, 80),
+            ('ipa2.foo.com', 88, 1, 60),
+            ('ipa3.foo.com', 88, 1, 40),
+        ]
 
-        class FakeDNSResponse:
-            """Fake dns.resolver.query object.
-            """
+        ipa_urls = ipaclient.get_ipa_urls_from_dns('foo.com')
 
-            def __init__(self, host):
-                """ Assign argument as self.host """
-                self.host = host
+        self.assertEqual(
+            ipa_urls,
+            [
+                'https://ipa1.foo.com/ipa',
+                'https://ipa2.foo.com/ipa',
+                'https://ipa3.foo.com/ipa',
+            ]
+        )
 
-            def to_text(self):
-                """ Return self.host when to_text() called """
-                return '0 100 88 {}.'.format(self.host)
+        # Test no DNS response.
+        srv_mock.return_value = []
 
-        # Test single DNS response
-        dns.resolver.query = mock.MagicMock(
-            return_value=[FakeDNSResponse('ipa1.foo.com')])
-
-        result = ipaclient.get_ipa_server_from_dns('foo.com')
-        assert result == 'ipa1.foo.com.'
-
-        # Test multiple DNS responses
-        dns.resolver.query = mock.MagicMock(
-            return_value=[FakeDNSResponse('ipa1.foo.com'),
-                          FakeDNSResponse('ipa2.foo.com')])
-
-        result = ipaclient.get_ipa_server_from_dns('foo.com')
-        assert result in ['ipa1.foo.com.', 'ipa2.foo.com.']
-
-        # Test no DNS response
-        dns.resolver.query = mock.MagicMock(
-            return_value=[])
-
-        with self.assertRaises(Exception) as context:
-            result = ipaclient.get_ipa_server_from_dns('foo.com')
-            self.assertTrue('No IPA Servers Found' in context.exception)
-
-    def test_filter_raw_records(self):
-        """Test formatting and filtering JSON IPA record output.
-           Filters are based on cell name and record type.
-        """
-
-        # Test single SRV record returned
-        result = ipaclient.filter_raw_records(
-            cell_name='subnet-456',
-            raw_records=self.fake_multi_records,
-            record_type='srvrecord')
-
-        assert result == [
-            {'dn': 'idnsname=_http._tcp.testapi3.subnet-456,'
-                   'idnsname=foo.com.,cn=dns,dc=foo,dc=com',
-             'idnsname': '_http._tcp.testapi3.subnet-456',
-             'record': '10 10 1234 host3.foo.com.',
-             'type': 'srvrecord'}]
-
-        # Test multiple SRV records returned
-        result = ipaclient.filter_raw_records(
-            cell_name='subnet-123',
-            raw_records=self.fake_multi_records,
-            record_type='srvrecord')
-
-        assert result == [
-            {'dn': 'idnsname=_http._tcp.testapi.subnet-123,'
-                   'idnsname=foo.com.,cn=dns,dc=foo,dc=com',
-             'idnsname': '_http._tcp.testapi.subnet-123',
-             'record': '10 10 1234 host1.foo.com.',
-             'type': 'srvrecord'},
-            {'dn': 'idnsname=_http._tcp.testapi2.subnet-123,'
-                   'idnsname=foo.com.,cn=dns,dc=foo,dc=com',
-             'idnsname': '_http._tcp.testapi2.subnet-123',
-             'record': '10 10 1234 host2.foo.com.',
-             'type': 'srvrecord'}]
-
-        # Test no records returned
-        result = ipaclient.filter_raw_records(cell_name='subnet-123',
-                                              raw_records=self.no_records,
-                                              record_type='srvrecord')
-        assert result == []
+        with self.assertRaisesRegex(Exception, 'No IPA servers found'):
+            ipaclient.get_ipa_urls_from_dns('foo.com')
 
     def test_check_response(self):
         """Test error handling of JSON IPA record output.
@@ -210,10 +155,17 @@ class IPAClientTest(unittest.TestCase):
                     'principal': 'admin@FOO.COM'}
 
     def setUp(self):
-        ipaclient.get_ipa_server_from_dns = mock.MagicMock(
-            return_value='ipa1.foo.com.')
+        self.get_ipa_urls_patcher = mock.patch(
+            'treadmill_aws.ipaclient.get_ipa_urls_from_dns'
+        )
+        get_ipa_urls_mock = self.get_ipa_urls_patcher.start()
+        get_ipa_urls_mock.return_value = ['https://ipa1.foo.com/ipa']
+
         self.test_client = ipaclient.IPAClient(certs='/foo', domain='foo.com')
         self.test_client._post = mock.MagicMock()
+
+    def tearDown(self):
+        self.get_ipa_urls_patcher.stop()
 
     def test_enroll_host_payload(self):
         """Test that enroll_ipa_host formats payload correctly.
