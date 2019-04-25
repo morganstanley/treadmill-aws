@@ -183,7 +183,7 @@ def delete_hosts(ec2_conn, ipa_client, hostnames):
             record_zone = '{2}.{1}.{0}.in-addr.arpa.'.format(
                 *arecord.split('.'))
             record = '{3}'.format(*arecord.split('.'))
-        except ipaclient.NotFoundError:
+        except (ipaclient.NotFoundError, KeyError):
             arecord = record_zone = record = None
 
         # Remove host from IPA
@@ -211,6 +211,11 @@ def delete_hosts(ec2_conn, ipa_client, hostnames):
                     record_value=hostname)
         except ipaclient.NotFoundError:
             pass
+        except ipaclient.ExecutionError:
+            # Invalid PTR record, delete bad data
+            ipa_client.force_delete_dns_record(
+                record_zone=record_zone,
+                record_name=record)
 
 
 def find_hosts(ipa_client, pattern=None):
