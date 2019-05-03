@@ -129,16 +129,30 @@ def init():
         required=False,
         help='Request a spot instance',
     )
+    @click.option(
+        '--domain',
+        help='domain name to use instead of default'
+    )
+    @click.option(
+        '--ipa-enroll/--no-ipa-enroll',
+        is_flag=True,
+        default=False,
+        help='enroll host in IPA',
+    )
     @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
     def create(
             image, image_account, count, disk_size, key, role, ip_address, eni,
             spot, secgroup, size, subnet, data, instance_profile,
-            hostgroup, hostname):
+            hostgroup, hostname, domain, ipa_enroll):
         """Create instance(s)"""
-        ipa_client = awscontext.GLOBAL.ipaclient
+        if ipa_enroll:
+            ipa_client = awscontext.GLOBAL.ipaclient
+        else:
+            ipa_client = None
         ec2_conn = awscontext.GLOBAL.ec2
 
-        ipa_domain = awscontext.GLOBAL.ipa_domain
+        if not domain:
+            domain = awscontext.GLOBAL.ipa_domain
 
         image_id = aws_cli.admin.image_id(
             ec2_conn, image, image_account)
@@ -156,7 +170,7 @@ def init():
             image_id=image_id,
             count=count,
             disk=disk_size,
-            domain=ipa_domain,
+            domain=domain,
             key=key,
             secgroup_ids=secgroup_id,
             instance_type=size,
@@ -168,7 +182,8 @@ def init():
             hostname=hostname,
             ip_address=ip_address,
             eni=eni,
-            spot=spot
+            spot=spot,
+            ipa_enroll=ipa_enroll
         )
         for host_created in hosts_created:
             click.echo(host_created)

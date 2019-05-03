@@ -24,6 +24,9 @@ _SUBNET_ID_RE = r'^subnet-[0-9a-fA-F]+$'
 # Regex matching security-group-id
 _SECURITY_GROUP_ID_RE = r'^sg-[0-9a-fA-F]+$'
 
+# Regex matching snapshot-id
+_SNAPSHOT_ID_RE = r'^snap-[0-9a-fA-F]+$'
+
 # Regex matching ami-id
 _AMI_ID_RE = r'^ami-[0-9a-fA-F]+$'
 
@@ -143,6 +146,18 @@ class _SecurityGroup(_Resource):
         super().__init__(_SECURITY_GROUP_ID_RE)
 
 
+class _Snapshot(_Resource):
+    """CLI snapshot type."""
+    name = "snapshot"
+
+    def __init__(self):
+        super().__init__(_SNAPSHOT_ID_RE)
+
+    def _handle_default(self, arg, value):
+        """Handle value that does not match tag or id pattern."""
+        arg['name'] = value
+
+
 class _Vpc(_Resource):
     """CLI vpc type."""
     name = "vpc"
@@ -178,6 +193,8 @@ class _Instance(_Resource):
 SUBNET = _Subnet()
 
 SECGROUP = _SecurityGroup()
+
+SNAPSHOT = _Snapshot()
 
 IMAGE = _Image()
 

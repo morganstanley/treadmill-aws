@@ -9,6 +9,14 @@ from __future__ import unicode_literals
 from treadmill.formatter import tablefmt
 
 
+def _name_from_tags(tags):
+    """Get name from tags."""
+    for tag in tags:
+        if tag['Key'] == 'Name':
+            return tag['Value']
+    return None
+
+
 def _fmt_tags():
     """Output formatter tags."""
 
@@ -177,15 +185,8 @@ class InstancePrettyFormatter:
     @staticmethod
     def format(item):
         """Return pretty-formatted item."""
-        def _hostname_from_tags(tags):
-            """Get hostname from tags."""
-            for tag in tags:
-                if tag['Key'] == 'Name':
-                    return tag['Value']
-            return None
-
         item_schema = [
-            ('hostname', 'Tags', _hostname_from_tags),
+            ('hostname', 'Tags', _name_from_tags),
             ('id', 'InstanceId', None),
             ('arch', 'Architecture', None),
             ('image', 'ImageId', None),
@@ -199,7 +200,7 @@ class InstancePrettyFormatter:
         ]
 
         list_schema = [
-            ('hostname', 'Tags', _hostname_from_tags),
+            ('hostname', 'Tags', _name_from_tags),
             ('id', 'InstanceId', None),
             ('image', 'ImageId', None),
             ('type', 'InstanceType', None),
@@ -277,6 +278,47 @@ class RolePrettyFormatter:
              _fmt_trusted_entities),
             ('InlinePolicies', 'RolePolicies', None),
             ('AttachedPolicies', 'AttachedPolicies', _fmt_attached_policies),
+        ]
+
+        format_item = tablefmt.make_dict_to_table(item_schema)
+        format_list = tablefmt.make_list_to_table(list_schema)
+
+        if isinstance(item, list):
+            return format_list(item)
+        else:
+            return format_item(item)
+
+
+class SnapshotPrettyFormatter:
+    """Pretty table formatter for AWS snaphots."""
+
+    @staticmethod
+    def format(item):
+        """Return pretty-formatted item."""
+
+        list_schema = [
+            ('Name', 'Tags', _name_from_tags),
+            ('SnapshotId', 'SnapshotId', None),
+            ('VolumeId', 'VolumeId', None),
+            ('State', 'State', None),
+            ('Progress', 'Progress', None),
+            ('VolumeSize', 'VolumeSize', None),
+            ('StartTime', 'StartTime', None),
+            ('Description', 'Description', None),
+        ]
+
+        item_schema = [
+            ('Name', 'Tags', _name_from_tags),
+            ('Description', 'Description', None),
+            ('SnapshotId', 'SnapshotId', None),
+            ('VolumeId', 'VolumeId', None),
+            ('State', 'State', None),
+            ('Progress', 'Progress', None),
+            ('VolumeSize', 'VolumeSize', None),
+            ('StartTime', 'StartTime', None),
+            ('Encrypted', 'Encrypted', None),
+            ('KmsKeyId', 'KmsKeyId', None),
+            ('tags', 'Tags', _fmt_tags()),
         ]
 
         format_item = tablefmt.make_dict_to_table(item_schema)
