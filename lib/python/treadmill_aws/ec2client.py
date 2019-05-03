@@ -370,3 +370,41 @@ def get_vpc(ec2_conn, ids=None, tags=None):
         raise aws.NotUniqueError()
 
     return vpc
+
+
+def get_snapshot(ec2_conn, name=None, ids=None, tags=None):
+    """Get single snapshot matching criteria.
+
+    If more than one image match, raise exception NonUniqueError.
+    """
+
+    snapshots = list_snapshots(ec2_conn, name=name, ids=ids, tags=tags)
+
+    if len(snapshots) == 1:
+        return snapshots[0]
+
+    _LOGGER.error('more than one result matches criteria:')
+    for snapshot in snapshots:
+        _LOGGER.error('snapshot-id: %s', snapshot['SnapshotId'])
+    raise aws.NotUniqueError('More than one snapshot matches criteria.')
+
+
+def list_snapshots(ec2_conn, name=None, ids=None, tags=None):
+    """List Snapshots."""
+
+    filters = []
+
+    if name:
+        filters.append({'Name': 'tag:Name', 'Values': [name]})
+
+    if ids:
+        filters.append({'Name': 'snapshot-id', 'Values': ids})
+
+    if tags and not filters:
+        filters = aws.build_tags_filter(tags)
+
+    response = ec2_conn.describe_snapshots(Filters=filters)
+    if response['Snapshots']:
+        return response['Snapshots']
+    else:
+        raise exc.NotFoundError('No snapshot match criteria.')

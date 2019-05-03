@@ -49,6 +49,7 @@ instance = treadmill_aws.cli.admin.aws.instance
 role = treadmill_aws.cli.admin.aws.role
 image = treadmill_aws.cli.admin.aws.image
 secgroup = treadmill_aws.cli.admin.aws.secgroup
+snapshot = treadmill_aws.cli.admin.aws.snapshot
 spot = treadmill_aws.cli.admin.aws.spot
 user = treadmill_aws.cli.admin.aws.user
 
@@ -61,6 +62,7 @@ aws_spot = treadmill_aws.formatter:SpotPrettyFormatter
 aws_role = treadmill_aws.formatter:RolePrettyFormatter
 aws_image = treadmill_aws.formatter:ImagePrettyFormatter
 aws_secgroup = treadmill_aws.formatter:SecgroupPrettyFormatter
+aws_snapshot = treadmill_aws.formatter:SnapshotPrettyFormatter
 aws_user = treadmill_aws.formatter:AwsUserPrettyFormatter
 ipa_user = treadmill_aws.formatter:IpaUserPrettyFormatter
 aws_cell_data = treadmill_aws.formatter:CellDataFormatter

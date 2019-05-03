@@ -58,6 +58,7 @@ def init():
         help='Time interval between checks (seconds).'
     )
     def run(interval):
+        """run."""
         hostname = sysinfo.hostname()
         dns_domain = context.GLOBAL.dns_domain
 

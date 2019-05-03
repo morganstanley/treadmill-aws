@@ -101,7 +101,7 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
                 instance_vars, role=None, instance_profile=None,
                 hostgroups=None, hostname=None, ip_address=None,
                 eni=None, key=None, tags=None, spot=False,
-                nshostlocation=None, otp=None):
+                nshostlocation=None, otp=None, ipa_enroll=True):
     """Adds host defined in manifest to IPA, then adds the OTP from the
        IPA reply to the manifest and creates EC2 instance.
     """
@@ -131,7 +131,7 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
         if host in hosts_created:
             raise IndexError('Duplicate hostname')
 
-        if not otp:
+        if not otp and ipa_enroll:
             otp = create_otp(
                 ipa_client, host, hostgroups,
                 nshostlocation=nshostlocation

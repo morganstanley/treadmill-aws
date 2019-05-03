@@ -20,6 +20,7 @@ from treadmill_aws import cli as aws_cli
 from treadmill_aws import userdata as ud
 
 
+# pylint: disable=too-many-statements
 def init():
 
     """EC2 image CLI group"""
@@ -36,10 +37,10 @@ def init():
         help='Image account, defaults to current.'
     )
     @click.option(
-        '--tags',
-        type=cli.DICT,
+        '--match',
+        type=aws_cli.IMAGE,
         required=False,
-        help='Image tag in the format foo=bar,baz=qux'
+        help='image name, id, or tag (key=value)'
     )
     @click.argument(
         'image',
@@ -47,7 +48,7 @@ def init():
         type=aws_cli.IMAGE
     )
     @cli.admin.ON_EXCEPTIONS
-    def _list(account, image, tags):
+    def _list(account, image, match):
         """List images"""
         ec2_conn = awscontext.GLOBAL.ec2
         if not account:
@@ -56,9 +57,8 @@ def init():
             image = {}
 
         images = ec2client.list_images(ec2_conn,
-                                       tags=tags,
                                        owners=[account],
-                                       **image)
+                                       **match)
         cli.out(formatter(images))
 
     @image.command()
@@ -167,6 +167,46 @@ def init():
             disk=10
         )
         click.echo(instance['Instances'][0]['InstanceId'])
+
+    @image.command(name='create-from-snapshot')
+    @click.option('--snapshot',
+                  type=aws_cli.SNAPSHOT,
+                  required=True)
+    @click.argument('image', required=True)
+    def create_from_snapshot(snapshot, image):
+        """Create image from snapshot."""
+
+        ec2_conn = awscontext.GLOBAL.ec2
+
+        snapshot = ec2client.get_snapshot(ec2_conn, **snapshot)
+
+        snapshot_tag = {}
+        for kv in snapshot['Tags']:
+            key = kv['Key']
+            value = kv['Value']
+            if value == 'True':
+                value = True
+            if value == 'False':
+                value = False
+            snapshot_tag[key] = value
+
+        kwargs = {}
+        kwargs['Name'] = image
+        kwargs['Architecture'] = snapshot_tag['Architecture']
+        kwargs['EnaSupport'] = snapshot_tag['EnaSupport']
+        kwargs['RootDeviceName'] = snapshot_tag['Device']
+        kwargs['BlockDeviceMappings'] = [
+            {
+                'DeviceName': snapshot_tag['Device'],
+                'Ebs': {
+                    'SnapshotId': snapshot['SnapshotId'],
+                }
+            }
+        ]
+        kwargs['VirtualizationType'] = snapshot_tag['VirtualizationType']
+
+        image = ec2_conn.register_image(**kwargs)
+        print(image['ImageId'])
 
     @image.command(name='share')
     @click.option(
