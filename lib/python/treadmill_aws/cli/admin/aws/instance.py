@@ -136,7 +136,7 @@ def init():
     @click.option(
         '--ipa-enroll/--no-ipa-enroll',
         is_flag=True,
-        default=False,
+        default=True,
         help='enroll host in IPA',
     )
     @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
@@ -189,17 +189,29 @@ def init():
             click.echo(host_created)
 
     @instance.command(name='delete')
+    @click.option(
+        '--ipa-delete/--no-ipa-delete',
+        is_flag=True,
+        default=True,
+        help='enroll host in IPA',
+    )
     @click.argument('hostname')
     @treadmill_aws.cli.admin.aws.ON_AWS_EXCEPTIONS
-    def delete(hostname):
+    def delete(hostname, ipa_delete):
         """Delete instance."""
-        ipa_client = awscontext.GLOBAL.ipaclient
+
+        if ipa_delete:
+            ipa_client = awscontext.GLOBAL.ipaclient
+        else:
+            ipa_client = None
+
         ec2_conn = awscontext.GLOBAL.ec2
 
         hostmanager.delete_hosts(
             ipa_client=ipa_client,
             ec2_conn=ec2_conn,
-            hostnames=[hostname]
+            hostnames=[hostname],
+            ipa_delete=ipa_delete
         )
 
     @instance.command(name='start')
