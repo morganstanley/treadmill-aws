@@ -53,6 +53,7 @@ def init():
     @click.option('--s3-registry-bucket', help='S3 registry bucket name.')
     @click.option('--secgroup', help='Nodes security group.')
     @click.option('--size', help='Default instance size.')
+    @click.option('--sns-topic', help='SNS alert topic')
     @click.option('--subnets', help='List of subnets.', type=cli.LIST)
     @click.option('--tls-ca-cert', help='CA Cert Path')
     @click.option('--tls-host-cert', help='Host Cert Path')
@@ -68,6 +69,7 @@ def init():
                            realm,
                            secgroup,
                            size,
+                           sns_topic,
                            subnets,
                            s3_registry_bucket,
                            tls_ca_cert,
@@ -98,6 +100,7 @@ def init():
         modified = _set(data, 'realm', realm) or modified
         modified = _set(data, 'secgroup', secgroup) or modified
         modified = _set(data, 'size', size) or modified
+        modified = _set(data, 'sns_topic', sns_topic) or modified
         modified = _set(data, 'subnets', subnets) or modified
         modified = _set(data,
                         's3_registry_bucket',

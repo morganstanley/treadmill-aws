@@ -1,0 +1,16 @@
+command: |
+  exec \
+    {{ treadmill }}/bin/treadmill \
+        sproc alert-monitor \
+            --approot "{{ dir }}" \
+            --plugin sns
+environ_dir: "{{ dir }}/env"
+environ:
+  KRB5CCNAME: "FILE:{{ treadmill_host_ticket }}"
+  AWS_DEFAULT_REGION: "{{ data.aws_region }}"
+monitor_policy:
+  limit: 5
+  interval: 60
+  tombstone:
+    path: "{{ dir }}/tombstones/init"
+
