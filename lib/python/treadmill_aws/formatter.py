@@ -9,6 +9,11 @@ from __future__ import unicode_literals
 from treadmill.formatter import tablefmt
 
 
+def _state(state):
+    """Get status from instance."""
+    return state['Name']
+
+
 def _name_from_tags(tags):
     """Get name from tags."""
     for tag in tags:
@@ -193,7 +198,7 @@ class InstancePrettyFormatter:
             ('type', 'InstanceType', None),
             ('key', 'KeyName', None),
             ('launch', 'LaunchTime', None),
-            ('status', 'Status', None),
+            ('state', 'State', _state),
             ('vpc', 'VpcId', None),
             ('subnet', 'SubnetId', None),
             ('tags', 'Tags', _fmt_tags()),

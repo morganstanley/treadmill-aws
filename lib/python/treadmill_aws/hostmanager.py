@@ -155,7 +155,7 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
     return hosts_created
 
 
-def delete_hosts(ec2_conn, ipa_client, hostnames):
+def delete_hosts(ec2_conn, ipa_client, hostnames, ipa_delete=True):
     """ Unenrolls hosts from IPA and AWS
         Removes any A or PTR records left by the host post-deletion
         EC2 imposes a maximum limit on the number of instances that can be
@@ -170,6 +170,9 @@ def delete_hosts(ec2_conn, ipa_client, hostnames):
         batch = hostnames_left[:_EC2_DELETE_BATCH]
         hostnames_left = hostnames_left[_EC2_DELETE_BATCH:]
         ec2client.delete_instances(ec2_conn=ec2_conn, hostnames=batch)
+
+    if not ipa_delete:
+        return
 
     # Remove host from IPA domain and DNS
     for hostname in hostnames:
