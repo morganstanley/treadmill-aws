@@ -48,6 +48,43 @@ def _instance_user_data(hostname, otp, instance_vars):
     )
 
 
+def _configure_dns(ipa_client, hostname, domain, ipaddr):
+    """Update IPA A and PTR records to match new host IP"""
+
+    if domain in hostname:
+        hostname.replace('.{}'.format(domain), '')
+
+    # Calculate PTR zone
+    ptr_rec = ipaddr.split(".")[-1]
+    ptr_zone = "{}.in-addr.arpa.".format(
+        ".".join(reversed(ipaddr.split(".")[:-1])))
+
+    # Delete any existing A/PTR records
+    try:
+        ipa_client.force_delete_dns_record(record_name=hostname,
+                                           record_zone=domain)
+    except ipaclient.NotFoundError:
+        pass
+
+    try:
+        ipa_client.force_delete_dns_record(record_name=ptr_rec,
+                                           record_zone=ptr_zone)
+    except ipaclient.NotFoundError:
+        pass
+
+    # Insert new A/PTR record
+    a_result = ipa_client.add_dns_record(record_name='{}.'.format(hostname),
+                                         record_type='arecord',
+                                         record_value=ipaddr)
+    _LOGGER.debug(a_result)
+
+    ptr_result = ipa_client.add_ptr_record(record_name=ptr_rec,
+                                           record_zone=ptr_zone,
+                                           record_type='ptrrecord',
+                                           record_value='{}.'.format(hostname))
+    _LOGGER.debug(ptr_result)
+
+
 def generate_hostname(domain, hostname):
     """If hostname defined, returns FQDN.
        If not, returns FQDN with base32 timestamp.
@@ -144,13 +181,20 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
             'Creating EC2 instance %s in subnet %s: %r %r %r',
             host, subnet, instance_vars, instance_tags, instance_params
         )
-        ec2client.create_instance(
+        aws_response = ec2client.create_instance(
             ec2_conn,
             subnet_id=subnet,
             user_data=instance_user_data,
             tags=instance_tags,
             **instance_params
         )
+        instance_ip = aws_response['Instances'][0].get('PrivateIpAddress')
+        if instance_ip:
+            _configure_dns(ipa_client=ipa_client,
+                           hostname=host,
+                           domain=domain,
+                           ipaddr=instance_ip)
+
         hosts_created.append(host)
     return hosts_created
 
