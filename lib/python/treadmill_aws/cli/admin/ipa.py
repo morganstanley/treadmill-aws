@@ -32,7 +32,7 @@ _CLI_EXCEPTIONS = [
 def _get_state(ipaclient, idnsname):
     """Return set of currently defined SRV records."""
     current = set()
-    result = ipaclient.get_dns_record(idnsname)['result']['result']
+    result = ipaclient.get_dns_record(idnsname)
     for record in result.get('srvrecord', []):
         _w, _p, port, host = record.split()
         current.add('{}:{}'.format(host.rstrip('.'), port))

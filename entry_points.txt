@@ -101,6 +101,7 @@ aws = treadmill_aws.logging
 krb5keytab = treadmill_aws.features.krb5keytab:Krb5KeytabFeature
 
 [treadmill_aws.garbage_collector]
+dns = treadmill_aws.garbage_collector:DNS
 ipa = treadmill_aws.garbage_collector:IPA
 ldap = treadmill_aws.garbage_collector:LDAP
 

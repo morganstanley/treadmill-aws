@@ -73,11 +73,7 @@ class DnsSync:
 
     def _current_records(self):
         """Return all records found in DNS for the given cell."""
-        result = self.ipaclient.search_dns_record(self.zone)
-        if result.get('error'):
-            raise Exception(result.get('error'))
-
-        all_records = result['result']['result']
+        all_records = self.ipaclient.list_dns_records(dns_zone=self.zone)
         current = set()
         for rec in all_records:
             if 'srvrecord' not in rec:
@@ -218,18 +214,10 @@ class DnsSync:
 
         for idnsname, record in extra:
             _LOGGER.info('del: %s %s', idnsname, record)
-            self.ipaclient.delete_dns_record(
-                record_type='srvrecord',
-                record_name=idnsname,
-                record_value=record
-            )
+            self.ipaclient.delete_dns_record('srvrecord', idnsname, record)
 
         for idnsname, record in missing:
             _LOGGER.info('add: %s %s', idnsname, record)
-            self.ipaclient.add_dns_record(
-                record_type='srvrecord',
-                record_name=idnsname,
-                record_value=record
-            )
+            self.ipaclient.add_dns_record('srvrecord', idnsname, record)
 
         self.state = target

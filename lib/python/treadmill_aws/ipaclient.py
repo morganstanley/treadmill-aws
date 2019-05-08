@@ -1,4 +1,5 @@
-""" IPA client connectors and helper functions """
+"""FreeIPA API wrapper to manage IPA hosts, dns records and users."""
+
 import logging
 
 import requests
@@ -16,8 +17,7 @@ _DEFAULT_TTL = 5
 
 
 def get_ipa_urls_from_dns(domain):
-    """Looks up IPA servers from DNS SRV records.
-    """
+    """Looks up IPA servers from DNS SRV records."""
     ipa_srv_rec = dnsutils.srv('_kerberos._tcp.{}'.format(domain))
     if not ipa_srv_rec:
         raise Exception('No IPA servers found')
@@ -130,284 +130,179 @@ def check_response(response):
     raise IPAError('Unknown error.')
 
 
-# TODO: Error handling is very inconsistent, need to be rewritten.
-class IPAClient():
-    """ Interfaces with freeIPA API to add, delete, list and manage
-        IPA hosts, users and groups.
-
-    """
+class IPAClient:
+    """FreeIPA API wrapper to manage IPA hosts, dns records and users."""
 
     def __init__(self, certs, domain):
         self.certs = certs
         self.domain = domain
         self.ipa_urls = get_ipa_urls_from_dns(self.domain)
 
-    def _post(self, payload=None, auth=_KERBEROS_AUTH):
+    def _call(self, method_name, args, options=None):
+        """Format JSON payload and submit it to IPA server.
+           Try different IPA server on connection error.
+        """
+        if not options:
+            options = {}
+
+        if 'version' not in options:
+            options['version'] = _API_VERSION
+
+        payload = {
+            'method': method_name,
+            'params': [args, options],
+            'id': 0,
+        }
+
         for ipa_url in self.ipa_urls:
             try:
-                return self._post_request(ipa_url, payload=payload, auth=auth)
+                return self._post(ipa_url, payload)
             except requests.exceptions.ConnectionError:
                 _LOGGER.exception('Connection error: %s, trying next', ipa_url)
         raise Exception('Connection error: %r' % self.ipa_urls)
 
-    def _post_request(self, ipa_url, payload=None, auth=_KERBEROS_AUTH):
-        """ Submits formatted JSON to IPA server.
-            Uses requests_kerberos module for Kerberos authentication with IPA.
+    def _post(self, ipa_url, payload):
+        """Submit formatted JSON payload to IPA server and check response.
+           Uses requests_kerberos module for Kerberos authentication with IPA.
         """
         with noproxy.NoProxy() as _proxy:
-            response = requests.post('{}/session/json'.format(ipa_url),
-                                     json=payload,
-                                     auth=auth,
-                                     headers={'referer': ipa_url},
-                                     proxies={'http': None, 'https': None},
-                                     verify=self.certs)
+            response = requests.post(
+                '{}/session/json'.format(ipa_url),
+                json=payload,
+                auth=_KERBEROS_AUTH,
+                headers={'referer': ipa_url},
+                proxies={'http': None, 'https': None},
+                verify=self.certs
+            )
 
         check_response(response)
-        return response
+        return response.json()['result']
 
     def enroll_host(self, hostname, **kwargs):
-        """Enroll new host with IPA server.
-        """
-        options = {'force': True,
-                   'random': True,
-                   'version': _API_VERSION}
+        """Enroll new host with IPA server."""
+        args = [hostname]
+        options = {'force': True, 'random': True}
         options.update(kwargs)
-        payload = {'method': 'host_add',
-                   'params': [[hostname], options],
-                   'id': 0}
-        return self._post(payload=payload).json()
+        return self._call('host_add', args, options)['result']
 
     def unenroll_host(self, hostname):
         """Unenroll host from IPA server."""
-        payload = {'method': 'host_del',
-                   'params': [[hostname],
-                              {'updatedns': True,
-                               'version': _API_VERSION}],
-                   'id': 0}
-        return self._post(payload=payload).json()
+        args = [hostname]
+        options = {'updatedns': True}
+        return self._call('host_del', args, options)['result']
 
-    def get_hosts(self, pattern=None, **kwargs):
-        """Retrieve host records from IPA server.
-        """
-        options = {'version': _API_VERSION, 'sizelimit': 0}
+    def hostgroup_add_member(self, hostgroup, host):
+        """Add host to IPA hostgroup."""
+        args = [hostgroup]
+        options = {'host': host}
+        return self._call('hostgroup_add_member', args, options)['result']
+
+    def list_hosts(self, pattern=None, **kwargs):
+        """Retrieve host records from IPA server."""
+        args = [pattern] if pattern else []
+        options = {'sizelimit': 0}
         options.update(kwargs)
-        payload = {'method': 'host_find',
-                   'params': [[pattern], options],
-                   'id': 0}
-        resp = self._post(payload=payload).json()
+        result = self._call('host_find', args, options)
+        # Return flat list of FQDN results.
+        return [fqdn for hosts in result['result'] for fqdn in hosts['fqdn']]
 
-        # Return flat list of FQDN results
-        return [result
-                for hosts in resp['result']['result']
-                for result in hosts['fqdn']]
+    def list_dns_zones(self, pattern=None):
+        """Retrieve DNS zone records from IPA server."""
+        args = [pattern] if pattern else []
+        options = {'sizelimit': 0}
+        return self._call('dnszone_find', args, options)['result']
 
-    def add_dns_record(self, record_type, record_name, record_value,
+    def add_dns_record(self, record_type, idnsname, record, dns_zone=None,
                        ttl=_DEFAULT_TTL):
-        """Add new DNS record to IPA server.
-        """
-        payload = {'method': 'dnsrecord_add',
-                   'params': [[self.domain, record_name],
-                              {record_type: record_value,
-                               'dnsttl': ttl,
-                               'version': _API_VERSION}],
-                   'id': 0}
-        return self._post(payload=payload).json()
+        """Add new DNS record to IPA server."""
+        dns_zone = dns_zone or self.domain
+        args = [dns_zone, idnsname]
+        options = {record_type: record, 'dnsttl': ttl}
+        return self._call('dnsrecord_add', args, options)['result']
 
-    def delete_dns_record(self,
-                          record_type,
-                          record_name,
-                          record_value,
-                          dns_zone=None):
-        """Delete DNS record from IPA server.
-        """
-        if not dns_zone:
-            dns_zone = self.domain
+    def delete_dns_record(self, record_type, idnsname, record, dns_zone=None):
+        """Delete DNS record from IPA server."""
+        dns_zone = dns_zone or self.domain
+        args = [dns_zone, idnsname]
+        options = {record_type: record}
+        return self._call('dnsrecord_del', args, options)['result']
 
-        payload = {'method': 'dnsrecord_del',
-                   'params': [[dns_zone, record_name],
-                              {record_type: record_value,
-                               'version': _API_VERSION}],
-                   'id': 0}
-        return self._post(payload=payload).json()
+    def force_delete_dns_record(self, idnsname, dns_zone=None):
+        """Delete all DNS records matching record name from IPA server."""
+        dns_zone = dns_zone or self.domain
+        args = [dns_zone, idnsname]
+        options = {'del_all': True}
+        return self._call('dnsrecord_del', args, options)['result']
 
-    def force_delete_dns_record(self, record_name, record_zone):
-        """Delete all DNS records matching record name from IPA server.
-        """
-        payload = {'method': 'dnsrecord_del',
-                   'params': [[record_zone, record_name],
-                              {'del_all': True,
-                               'version': _API_VERSION}],
-                   'id': 0}
-        return self._post(payload=payload).json()
-
-    def search_dns_record(self, idnsname=None):
-        """Retrieve DNS records from IPA server.
-        """
-        if idnsname:
-            payload = {'method': 'dnsrecord_find',
-                       'params': [[self.domain, idnsname],
-                                  {'version': _API_VERSION,
-                                   'sizelimit': 0}],
-                       'id': 0}
-        else:
-            payload = {'method': 'dnsrecord_find',
-                       'params': [[self.domain],
-                                  {'version': _API_VERSION,
-                                   'sizelimit': 0}],
-                       'id': 0}
-        return self._post(payload=payload).json()
+    def list_dns_records(self, pattern=None, dns_zone=None):
+        """Retrieve DNS records from IPA server."""
+        dns_zone = dns_zone or self.domain
+        args = [dns_zone, pattern] if pattern else [dns_zone]
+        options = {'sizelimit': 0}
+        return self._call('dnsrecord_find', args, options)['result']
 
     def get_dns_record(self, idnsname):
-        """Retrieve DNS records from IPA server.
-        """
-        payload = {'method': 'dnsrecord_show',
-                   'params': [[self.domain, idnsname],
-                              {'version': _API_VERSION}],
-                   'id': 0}
-        return self._post(payload=payload).json()
+        """Show details about DNS record from IPA user."""
+        args = [self.domain, idnsname]
+        return self._call('dnsrecord_show', args)['result']
 
     def add_srv_record(self, idnsname, host, port, weight=0, priority=0,
                        ttl=_DEFAULT_TTL):
         """Add SRV record."""
         record = '{weight} {priority} {port} {host}'.format(
-            weight=weight,
-            priority=priority,
-            port=port,
-            host=host,
+            weight=weight, priority=priority, port=port, host=host
         )
-        _LOGGER.debug(
-            'Adding SRV record: %s %s, ttl=%s', idnsname, record, ttl
-        )
-        self.add_dns_record(
-            record_type='srvrecord',
-            record_name=idnsname,
-            record_value=record,
-            ttl=ttl
-        )
+        return self.add_dns_record('srvrecord', idnsname, record, ttl=ttl)
 
     def delete_srv_record(self, idnsname, host, port, weight=0, priority=0):
-        """Add SRV record."""
+        """Delete SRV record."""
         record = '{weight} {priority} {port} {host}'.format(
-            weight=weight,
-            priority=priority,
-            port=port,
-            host=host
+            weight=weight, priority=priority, port=port, host=host
         )
-        _LOGGER.debug('Deleting SRV record: %s %s', idnsname, record)
-        self.delete_dns_record(
-            record_type='srvrecord',
-            record_name=idnsname,
-            record_value=record
-        )
+        return self.delete_dns_record('srvrecord', idnsname, record)
 
     def add_txt_record(self, idnsname, record, ttl=_DEFAULT_TTL):
         """Add TXT record."""
-        _LOGGER.debug('Adding TXT record: %s %s', idnsname, record)
-        self.add_dns_record(
-            record_type='txtrecord',
-            record_name=idnsname,
-            record_value=record,
-            ttl=ttl
-        )
+        return self.add_dns_record('txtrecord', idnsname, record, ttl=ttl)
 
     def delete_txt_record(self, idnsname, record):
         """Delete TXT record."""
-        _LOGGER.debug('Adding TXT record: %s %s', idnsname, record)
-        self.delete_dns_record(
-            record_type='txtrecord',
-            record_name=idnsname,
-            record_value=record
+        return self.delete_dns_record('txtrecord', idnsname, record)
+
+    def add_ptr_record(self, idnsname, record, dns_zone, ttl=_DEFAULT_TTL):
+        """Add PTR record."""
+        return self.add_dns_record(
+            'ptrrecord', idnsname, record, dns_zone=dns_zone, ttl=ttl
         )
 
-    def add_ptr_record(
-            self,
-            record_zone,
-            record_type,
-            record_name,
-            record_value,
-            ttl=_DEFAULT_TTL):
-        """Add new PTR record to IPA DNS server. """
-        payload = {'method': 'dnsrecord_add',
-                   'params': [[record_zone, record_name],
-                              {record_type: record_value,
-                               'dnsttl': ttl,
-                               'version': _API_VERSION}],
-                   'id': 0}
-        return self._post(payload=payload).json()
-
-    def delete_ptr_record(
-            self,
-            record_zone,
-            record_type,
-            record_name,
-            record_value):
-        """Delete PTR record from IPA DNS server."""
-        payload = {'method': 'dnsrecord_del',
-                   'params': [[record_zone, record_name],
-                              {record_type: record_value,
-                               'version': _API_VERSION}],
-                   'id': 0}
-        return self._post(payload=payload).json()
+    def delete_ptr_record(self, idnsname, record, dns_zone):
+        """Delete PTR record."""
+        return self.delete_dns_record(
+            'ptrrecord', idnsname, record, dns_zone=dns_zone
+        )
 
     def add_user(self, user_name, first_name, last_name, user_type):
-        """Add new user to IPA server.
-        """
-        payload = {'method': 'user_add',
-                   'params': [[user_name],
-                              {'givenname': first_name,
-                               'sn': last_name,
-                               'userclass': user_type,
-                               'version': _API_VERSION}],
-                   'id': 0}
-        response = self._post(payload=payload)
-        return response.json()['result']['result']
+        """Add new user to IPA server."""
+        args = [user_name]
+        options = {
+            'givenname': first_name,
+            'sn': last_name,
+            'userclass': user_type,
+        }
+        return self._call('user_add', args, options)['result']
 
     def delete_user(self, user_name):
-        """Remove user from IPA server.
-        """
-        payload = {'method': 'user_del',
-                   'params': [[user_name],
-                              {'version': _API_VERSION}],
-                   'id': 0}
-        return self._post(payload=payload).json()
+        """Delete user from IPA server."""
+        args = [user_name]
+        return self._call('user_del', args)['result']
 
     def list_users(self, pattern=None):
-        """Retrieve user records from IPA server.
-        """
-        # TODO: is this really needed?
-        if pattern is None:
-            pattern = ''
+        """Retrieve user records from IPA server."""
+        args = [pattern] if pattern else []
+        options = {'sizelimit': 0}
+        return self._call('user_find', args, options)['result']
 
-        if pattern:
-            payload = {'method': 'user_find',
-                       'params': [[pattern],
-                                  {'version': _API_VERSION,
-                                   'sizelimit': 0}],
-                       'id': 0}
-        else:
-            payload = {'method': 'user_find',
-                       'params': [[],
-                                  {'version': _API_VERSION,
-                                   'sizelimit': 0}],
-                       'id': 0}
-        return self._post(payload=payload).json()['result']['result']
-
-    def show_user(self, user_name):
-        """Show details about IPA user.
-        """
-        payload = {'method': 'user_show',
-                   'params': [[user_name],
-                              {'version': _API_VERSION}],
-                   'id': 0}
-        return self._post(payload=payload).json()['result']['result']
-
-    def hostgroup_add_member(self, hostgroup, host):
-        """Add host to IPA hostgroup.
-        """
-        payload = {'method': 'hostgroup_add_member',
-                   'params': [[hostgroup],
-                              {'host': host,
-                               'version': _API_VERSION}],
-                   'id': 0}
-        response = self._post(payload=payload)
-        return response.json()['result']['result']
+    def get_user(self, user_name):
+        """Show details about IPA user."""
+        args = [user_name]
+        return self._call('user_show', args)['result']
