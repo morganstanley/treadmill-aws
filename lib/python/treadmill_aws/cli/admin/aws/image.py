@@ -53,8 +53,12 @@ def init():
         ec2_conn = awscontext.GLOBAL.ec2
         if not account:
             account = 'self'
+
         if not image:
             image = {}
+
+        if not match:
+            match = {}
 
         images = ec2client.list_images(ec2_conn,
                                        owners=[account],

@@ -99,6 +99,7 @@ def _get_volume_id_from_instance(instance, device):
     return volume_id
 
 
+# pylint: disable=too-many-statements
 def init():
     """Manage AWS snapshots."""
 
@@ -234,18 +235,20 @@ def init():
     def list_snapshots(match):
         """List AWS snapshots."""
 
+        if not match:
+            match = {}
         ec2_conn = awscontext.GLOBAL.ec2
         snapshots = ec2client.list_snapshots(ec2_conn, **match)
         cli.out(formatter(snapshots))
 
     @snapshot.command()
-    @click.argument('snapshot')
+    @click.argument('snapshot-id')
     @cli.admin.ON_EXCEPTIONS
-    def delete(snapshot):
+    def delete(snapshot_id):
         """Delete AWS snapshot."""
 
         ec2_conn = awscontext.GLOBAL.ec2
-        response = ec2_conn.delete_snapshot(SnapshotId=snapshot)
+        response = ec2_conn.delete_snapshot(SnapshotId=snapshot_id)
 
     del configure
     del create

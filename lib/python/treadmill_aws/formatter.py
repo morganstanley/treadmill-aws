@@ -42,6 +42,22 @@ def _fmt_tags():
     return _fmt
 
 
+def _fmt_secgroups():
+    """Output formatter security groups."""
+
+    def _fmt(items):
+        """Format tags, discard cloudformation tags."""
+        schema = [
+            ('name', 'GroupName', None),
+            ('id', 'GroupId', None),
+        ]
+        return tablefmt.list_to_table(
+            items, schema, header=False, align=None
+        )
+
+    return _fmt
+
+
 def _fmt_list():
     """Output formatter list."""
 
@@ -201,6 +217,7 @@ class InstancePrettyFormatter:
             ('state', 'State', _state),
             ('vpc', 'VpcId', None),
             ('subnet', 'SubnetId', None),
+            ('secgroups', 'SecurityGroups', _fmt_secgroups()),
             ('tags', 'Tags', _fmt_tags()),
         ]
 
