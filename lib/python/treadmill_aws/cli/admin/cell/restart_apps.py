@@ -10,17 +10,13 @@ import logging
 import time
 
 import click
-import six
 
 from treadmill import cli
 from treadmill import yamlwrapper as yaml
 from treadmill.api import instance
 
 from treadmill_aws import cli as aws_cli
-
-from . import CellCtx
-from . import _monitors
-from . import _render_app
+from treadmill_aws.cli.admin import cell as cell_admin
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -47,24 +43,35 @@ def init():
         default='/etc/ipa/ca.crt',
         expose_value=False
     )
-    def restart_apps(wait, apps, cors_origin, krb_realm):
-        """Restart cell API."""
-        ctx = CellCtx(cors=cors_origin, krb_realm=krb_realm)
+    @click.option('--dry-run', help='Dry run.', is_flag=True, default=False)
+    def restart_apps(apps, wait, cors_origin, krb_realm, dry_run):
+        """Restart system apps."""
+        ctx = cell_admin.CellCtx(cors=cors_origin, krb_realm=krb_realm)
+        cell_apps = cell_admin.get_apps(ctx)
+
+        if not apps:
+            apps = list(cell_apps)
 
         instance_api = instance.API(plugins=['aws-proid-env'])
-        monitors = _monitors(ctx)
-        for name, count in six.iteritems(monitors):
-            _, appname, _ = name.split('.')
-            if apps and appname not in apps:
+
+        for appname in apps:
+            fullname = cell_apps[appname]['fullname']
+            app = cell_admin.render_template(appname, ctx)
+
+            count = cell_apps[appname].get('monitors')
+            if count is None:
                 continue
 
-            _, app = _render_app(appname, ctx)
-            print(name)
-            print(yaml.dump(app))
+            cli.echo_green('Restarting app %s:', fullname)
+            cli.out(yaml.dump(app, explicit_start=True))
+
+            if dry_run:
+                continue
+
             for idx in range(0, count):
-                instance_ids = instance_api.create(name, app, 1)
+                instance_ids = instance_api.create(fullname, app, 1)
                 for inst_id in instance_ids:
-                    print(inst_id)
+                    cli.echo_green(inst_id)
                 if idx <= count - 1 and wait:
                     time.sleep(wait)
 
