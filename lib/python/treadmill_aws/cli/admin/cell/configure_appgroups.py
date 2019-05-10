@@ -11,13 +11,12 @@ import logging
 import click
 
 from treadmill import admin
+from treadmill import cli
 from treadmill import context
 from treadmill.admin import exc as admin_exceptions
 
 from treadmill_aws import cli as aws_cli
-
-from . import CellCtx
-from . import _appgroups
+from treadmill_aws.cli.admin import cell as cell_admin
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -40,14 +39,20 @@ def init():
         default='/etc/ipa/ca.crt',
         expose_value=False
     )
-    def configure_appgroups(cors_origin, krb_realm):
+    @click.option('--dry-run', help='Dry run.', is_flag=True, default=False)
+    def configure_appgroups(cors_origin, krb_realm, dry_run):
         """Configure system app groups."""
-        ctx = CellCtx(cors=cors_origin, krb_realm=krb_realm)
-        appgroups = _appgroups(ctx)
+        ctx = cell_admin.CellCtx(cors=cors_origin, krb_realm=krb_realm)
+        appgroups = cell_admin.get_appgroups(ctx)
 
         admin_app_group = admin.AppGroup(context.GLOBAL.ldap.conn)
+
         for name, data in appgroups.items():
-            print(name, data)
+            cli.echo_green('Configuring appgroup %s: %r', name, data)
+
+            if dry_run:
+                continue
+
             try:
                 admin_app_group.create(name, data)
             except admin_exceptions.AlreadyExistsResult:
@@ -58,6 +63,6 @@ def init():
             group_cells.update([context.GLOBAL.cell])
             admin_app_group.update(name, {'cells': list(group_cells)})
             existing = admin_app_group.get(name, dirty=True)
-            print(existing)
+            cli.out(existing)
 
     return configure_appgroups

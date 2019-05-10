@@ -29,21 +29,6 @@ from treadmill_aws import cli as aws_cli
 _LOGGER = logging.getLogger(__name__)
 
 
-# TODO: full list of cell apps:
-#       adminapi, wsapi, app-dns, stateapi, cellapi
-_CELL_APPS = [
-    'adminapi',
-    'app-dns',
-    'appmonitor',
-    'cellapi',
-    'cellsync',
-    'scheduler',
-    'stateapi',
-    'trace-cleanup',
-    'wsapi',
-]
-
-
 class CellCtx:
     """Cell context."""
 
@@ -71,30 +56,23 @@ class CellCtx:
                 self.krb_realm = realms[0]
 
 
-def _render(name, ctx):
+def render_template(name, ctx):
     """Render named template."""
     jinja_env = jinja2.Environment(loader=jinja2.PackageLoader(__name__))
     template = jinja_env.get_template(name)
     return yaml.load(template.render(**ctx.__dict__))
 
 
-def _render_app(appname, ctx):
-    """Render manifest for given app."""
-    app = _render(appname, ctx)
-    fullname = '{}.{}.{}'.format(ctx.proid, appname, ctx.cell)
-    return fullname, app
+def get_apps(ctx):
+    """Load apps definitions."""
+    return render_template('apps', ctx)
 
 
-def _monitors(ctx):
-    """Load monitor definitions."""
-    return _render('monitors', ctx)
-
-
-def _appgroups(ctx):
+def get_appgroups(ctx):
     """Load appgroups definitions."""
-    return _render('appgroups', ctx)
+    return render_template('appgroups', ctx)
 
 
-def _ident_groups(ctx):
-    """Load identity group definitions."""
-    return _render('identity-groups', ctx)
+def get_identity_groups(ctx):
+    """Load identity groups definitions."""
+    return render_template('identity-groups', ctx)

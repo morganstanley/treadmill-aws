@@ -1,0 +1,34 @@
+---
+adminapi:
+    fullname: {{ proid }}.adminapi.{{ cell }}
+    monitors: 3
+cellapi:
+    fullname: {{ proid }}.cellapi.{{ cell }}
+    monitors: 3
+wsapi:
+    fullname: {{ proid }}.wsapi.{{ cell }}
+    monitors: 3
+stateapi:
+    fullname: {{ proid }}.stateapi.{{ cell }}
+    monitors: 3
+scheduler:
+    fullname: {{ proid }}.scheduler.{{ cell }}
+    monitors: 3
+appmonitor:
+    fullname: {{ proid }}.appmonitor.{{ cell }}
+    monitors: 3
+trace-cleanup:
+    fullname: {{ proid }}.trace-cleanup.{{ cell }}
+    monitors: 3
+cellsync:
+    fullname: {{ proid }}.cellsync.{{ cell }}
+    monitors: 3
+app-dns:
+    fullname: {{ proid }}.app-dns.{{ cell }}
+    monitors: 3
+autoscaler:
+    fullname: {{ data.aws_admin }}.autoscaler.{{ cell }}
+    monitors: 1
+gc:
+    fullname: {{ data.aws_admin }}.gc.{{ cell }}
+    monitors: 1
