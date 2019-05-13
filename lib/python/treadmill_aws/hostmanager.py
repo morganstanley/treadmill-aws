@@ -61,27 +61,24 @@ def _configure_dns(ipa_client, hostname, domain, ipaddr):
 
     # Delete any existing A/PTR records
     try:
-        ipa_client.force_delete_dns_record(record_name=hostname,
-                                           record_zone=domain)
+        ipa_client.force_delete_dns_record(hostname, dns_zone=domain)
     except ipaclient.NotFoundError:
         pass
 
     try:
-        ipa_client.force_delete_dns_record(record_name=ptr_rec,
-                                           record_zone=ptr_zone)
+        ipa_client.force_delete_dns_record(ptr_rec, dns_zone=ptr_zone)
     except ipaclient.NotFoundError:
         pass
 
     # Insert new A/PTR record
-    a_result = ipa_client.add_dns_record(record_name='{}.'.format(hostname),
-                                         record_type='arecord',
-                                         record_value=ipaddr)
+    a_result = ipa_client.add_dns_record(
+        'arecord', '{}.'.format(hostname), ipaddr
+    )
     _LOGGER.debug(a_result)
 
-    ptr_result = ipa_client.add_ptr_record(record_name=ptr_rec,
-                                           record_zone=ptr_zone,
-                                           record_type='ptrrecord',
-                                           record_value='{}.'.format(hostname))
+    ptr_result = ipa_client.add_ptr_record(
+        ptr_rec, '{}.'.format(hostname), ptr_zone
+    )
     _LOGGER.debug(ptr_result)
 
 
@@ -124,7 +121,7 @@ def create_otp(ipa_client, hostname, hostgroups, nshostlocation=None):
         nshostlocation = account_aliases['AccountAliases'].pop()
 
     ipa_host = ipa_client.enroll_host(hostname, nshostlocation=nshostlocation)
-    otp = ipa_host['result']['result']['randompassword']
+    otp = ipa_host['randompassword']
 
     for hostgroup in hostgroups:
         ipa_client.hostgroup_add_member(hostgroup, hostname)
@@ -225,8 +222,9 @@ def delete_hosts(ec2_conn, ipa_client, hostnames, ipa_delete=True):
 
         # Fetch A and PTR records if they exist
         try:
-            arecord = ipa_client.get_dns_record(idnsname=shortname)[
-                'result']['result']['arecord'].pop()
+            arecord = ipa_client.get_dns_record(
+                idnsname=shortname
+            )['arecord'].pop()
             record_zone = '{2}.{1}.{0}.in-addr.arpa.'.format(
                 *arecord.split('.'))
             record = '{3}'.format(*arecord.split('.'))
@@ -235,34 +233,25 @@ def delete_hosts(ec2_conn, ipa_client, hostnames, ipa_delete=True):
 
         # Remove host from IPA
         try:
-            ipa_client.unenroll_host(hostname=hostname)
+            ipa_client.unenroll_host(hostname)
         except (KeyError, ipaclient.NotFoundError):
             _LOGGER.debug('Host not found: %s', hostname)
 
         # Delete A and PTR records.
         try:
             if arecord:
-                ipa_client.delete_dns_record(
-                    record_type='arecord',
-                    record_name=shortname,
-                    record_value=arecord)
+                ipa_client.delete_dns_record('arecord', shortname, arecord)
         except ipaclient.NotFoundError:
             pass
 
         try:
             if record:
-                ipa_client.delete_ptr_record(
-                    record_type='ptrrecord',
-                    record_zone=record_zone,
-                    record_name=record,
-                    record_value=hostname)
+                ipa_client.delete_ptr_record(record, hostname, record_zone)
         except ipaclient.NotFoundError:
             pass
         except ipaclient.ExecutionError:
             # Invalid PTR record, delete bad data
-            ipa_client.force_delete_dns_record(
-                record_zone=record_zone,
-                record_name=record)
+            ipa_client.force_delete_dns_record(record, dns_zone=record_zone)
 
 
 def find_hosts(ipa_client, pattern=None):
@@ -272,7 +261,7 @@ def find_hosts(ipa_client, pattern=None):
     if pattern is None:
         pattern = ''
 
-    return ipa_client.get_hosts(
+    return ipa_client.list_hosts(
         pattern=pattern
     )
 

@@ -12,7 +12,7 @@ from treadmill_aws import ipaclient
 
 def get_ipa_user(ipa_client, user_name):
     """Get user details from IPA."""
-    return ipa_client.show_user(user_name=user_name)
+    return ipa_client.get_user(user_name=user_name)
 
 
 def get_iam_user(iam_conn, user_name):
@@ -58,7 +58,7 @@ def create_ipa_user(ipa_client, kadmin, ktadmin, first_name,
         subprocess.check_call(args)
         ipa_user['has_keytab'] = False
     except ipaclient.AlreadyExistsError as err:
-        ipa_user = ipa_client.show_user(user_name=user_name)
+        ipa_user = ipa_client.get_user(user_name=user_name)
 
     return ipa_user
 

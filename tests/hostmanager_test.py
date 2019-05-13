@@ -44,8 +44,7 @@ class HostmanagerTest(unittest.TestCase):
 
             awscontext.GLOBAL.iam.list_account_aliases.return_value = {
                 "AccountAliases": ["foo"]}
-            ipa_client.enroll_host.return_value = {
-                'result': {'result': {'randompassword': '123'}}}
+            ipa_client.enroll_host.return_value = {'randompassword': '123'}
 
             return hostmanager.create_host(
                 ec2_conn=ec2_conn,
@@ -146,7 +145,7 @@ class HostmanagerTest(unittest.TestCase):
             ),
         ])
         ipa_client_mock.unenroll_host.assert_has_calls([
-            mock.call(hostname='test-partition-dq2opb2qrfj.foo.com'),
-            mock.call(hostname='test-partition-dq2opbqskkq.foo.com'),
-            mock.call(hostname='test-partition-dq2opc7ao37.foo.com'),
+            mock.call('test-partition-dq2opb2qrfj.foo.com'),
+            mock.call('test-partition-dq2opbqskkq.foo.com'),
+            mock.call('test-partition-dq2opc7ao37.foo.com'),
         ])

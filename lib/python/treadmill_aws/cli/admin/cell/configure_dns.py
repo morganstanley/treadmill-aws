@@ -67,8 +67,8 @@ def init():
         current_rec = ipaclient.get_dns_record(idnsname)
         found = False
 
-        if current_rec['result']['result']:
-            for record in current_rec['result']['result'][0]['txtrecord']:
+        if current_rec:
+            for record in current_rec[0]['txtrecord']:
                 if record != zkurl:
                     _LOGGER.info(
                         'Deleting stale TXT record: %s %s', idnsname, record

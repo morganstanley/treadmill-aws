@@ -123,36 +123,8 @@ class IPAHelperTests(unittest.TestCase):
 
 
 class IPAClientTest(unittest.TestCase):
-    """Tests IPA client interface.
+    """Test IPAClient interface.
     """
-
-    class FakeResponse:
-        """Fake IPA response object.
-        """
-
-        def json(self=None):
-            """Fake JSON response.
-            """
-
-            return {'error': None,
-                    'result':
-                    {'result': [
-                        {'krbprincipalname': [
-                            'host/host.foo.com@FOO.COM'],
-                         'dn': 'fqdn=host.foo.com,dc=foo,dc=com',
-                         'fqdn': ['host.foo.com'],
-                         'sshpubkeyfp': [
-                             'SHA256:ZEQFEjXYEqYhtk (ssh-rsa)',
-                             'SHA256:W9J6SunkvJU (ecdsa-sha2-nistp256)',
-                             'SHA256:sT7bx2Agf6Mx0 (ssh-ed25519)'],
-                         'krbcanonicalname': [
-                             'host/host.foo.com@FOO.COM']}],
-                     'count': 1,
-                     'truncated': False,
-                     'summary': '1 hosts matched'},
-                    'id': 0,
-                    'version': '4.5.0',
-                    'principal': 'admin@FOO.COM'}
 
     def setUp(self):
         self.get_ipa_urls_patcher = mock.patch(
@@ -172,146 +144,164 @@ class IPAClientTest(unittest.TestCase):
         """
         self.test_client.enroll_host(hostname='host.foo.com')
         self.test_client._post.assert_called_with(
-            payload={'method': 'host_add',
-                     'id': 0, 'params': [['host.foo.com'],
-                                         {'random': True,
-                                          'version': '2.28',
-                                          'force': True}]})
+            mock.ANY,
+            {'method': 'host_add',
+             'id': 0, 'params': [['host.foo.com'],
+                                 {'random': True,
+                                  'version': '2.28',
+                                  'force': True}]}
+        )
 
     def test_unenroll_host_payload(self):
         """Test that unenroll_ipa_host formats payload correctly.
         """
         self.test_client.unenroll_host(hostname='host.foo.com')
         self.test_client._post.assert_called_with(
-            payload={'id': 0,
-                     'params': [
-                         ['host.foo.com'],
-                         {'updatedns': True,
-                          'version': '2.28'}],
-                     'method': 'host_del'})
+            mock.ANY,
+            {'id': 0,
+             'params': [
+                 ['host.foo.com'],
+                 {'updatedns': True,
+                  'version': '2.28'}],
+             'method': 'host_del'}
+        )
 
-    def test_get_hosts_results(self):
-        """Test that get_ipa_hosts parses IPA output correctly.
+    def test_list_hosts_results(self):
+        """Test that list_hosts parses IPA output correctly.
         """
-        self.test_client._post = mock.MagicMock(return_value=self.FakeResponse)
-        results = self.test_client.get_hosts()
+        self.test_client._post = mock.MagicMock(
+            return_value={'result': [{'fqdn': ['host.foo.com']}]}
+        )
+        results = self.test_client.list_hosts()
         assert results == ['host.foo.com']
 
     def test_add_dns_record_payload(self):
         """Test that add_ipa_dns formats payload correctly.
         """
-        self.test_client.add_dns_record(record_type='srvrecord',
-                                        record_name='_tcp._ssh.cellname',
-                                        record_value='10 10 10 host.foo.com')
+        self.test_client.add_dns_record(
+            'srvrecord', '_tcp._ssh.cellname', '10 10 10 host.foo.com'
+        )
         self.test_client._post.assert_called_with(
-            payload={'method': 'dnsrecord_add',
-                     'params': [['foo.com', '_tcp._ssh.cellname'],
-                                {'srvrecord': '10 10 10 host.foo.com',
-                                 'dnsttl': 5,
-                                 'version': '2.28'}],
-                     'id': 0})
+            mock.ANY,
+            {'method': 'dnsrecord_add',
+             'params': [['foo.com', '_tcp._ssh.cellname'],
+                        {'srvrecord': '10 10 10 host.foo.com',
+                         'dnsttl': 5,
+                         'version': '2.28'}],
+             'id': 0}
+        )
 
     def test_delete_dns_record_payload(self):
         """Test that del_dns_record formats payload correctly.
         """
         self.test_client.delete_dns_record(
-            record_type='srvrecord',
-            record_name='_tcp._ssh.cellname',
-            record_value='10 10 10 host.foo.com')
+            'srvrecord', '_tcp._ssh.cellname', '10 10 10 host.foo.com'
+        )
         self.test_client._post.assert_called_with(
-            payload={'method': 'dnsrecord_del',
-                     'params': [['foo.com', '_tcp._ssh.cellname'],
-                                {'srvrecord': '10 10 10 host.foo.com',
-                                 'version': '2.28'}],
-                     'id': 0})
+            mock.ANY,
+            {'method': 'dnsrecord_del',
+             'params': [['foo.com', '_tcp._ssh.cellname'],
+                        {'srvrecord': '10 10 10 host.foo.com',
+                         'version': '2.28'}],
+             'id': 0}
+        )
 
     def test_get_dns_record_payload(self):
         """Test that get_dns_record formats payload correctly.
         """
-        self.test_client.get_dns_record(idnsname='_tcp._ssh.cellname')
+        self.test_client.get_dns_record('_tcp._ssh.cellname')
         self.test_client._post.assert_called_with(
-            payload={'id': 0,
-                     'method': 'dnsrecord_show',
-                     'params': [['foo.com', '_tcp._ssh.cellname'],
-                                {'version': '2.28'}]})
+            mock.ANY,
+            {'id': 0,
+             'method': 'dnsrecord_show',
+             'params': [['foo.com', '_tcp._ssh.cellname'],
+                        {'version': '2.28'}]}
+        )
 
-    def test_search_dns_record_payload(self):
-        """Test that search_dns_record formats payload correctly.
+    def test_list_dns_records_payload(self):
+        """Test that list_dns_records formats payload correctly.
         """
-        self.test_client.search_dns_record()
+        self.test_client.list_dns_records()
         self.test_client._post.assert_called_with(
-            payload={'id': 0,
-                     'method': 'dnsrecord_find',
-                     'params': [['foo.com'],
-                                {'version': '2.28',
-                                 'sizelimit': 0}]})
+            mock.ANY,
+            {'id': 0,
+             'method': 'dnsrecord_find',
+             'params': [['foo.com'],
+                        {'version': '2.28',
+                         'sizelimit': 0}]}
+        )
 
     def test_add_user(self):
         """ Test that add_user formats payload correctly """
-
-        self.test_client.add_user(user_name='user1',
-                                  first_name='foo',
-                                  last_name='proid',
-                                  user_type='proid')
-
+        self.test_client.add_user('user1', 'foo', 'proid', 'proid')
         self.test_client._post.assert_called_with(
-            payload={'method': 'user_add',
-                     'params': [['user1'],
-                                {'givenname': 'foo',
-                                 'sn': 'proid',
-                                 'userclass': 'proid',
-                                 'version': '2.28'}],
-                     'id': 0})
+            mock.ANY,
+            {'method': 'user_add',
+             'params': [['user1'],
+                        {'givenname': 'foo',
+                         'sn': 'proid',
+                         'userclass': 'proid',
+                         'version': '2.28'}],
+             'id': 0}
+        )
 
     def test_delete_user(self):
         """ Test that del_user formats payload correctly """
-
-        self.test_client.delete_user(user_name='user1')
-
+        self.test_client.delete_user('user1')
         self.test_client._post.assert_called_with(
-            payload={'method': 'user_del',
-                     'params': [['user1'],
-                                {'version': '2.28'}],
-                     'id': 0})
+            mock.ANY,
+            {'method': 'user_del',
+             'params': [['user1'],
+                        {'version': '2.28'}],
+             'id': 0}
+        )
 
     def test_list_users(self):
         """ Test that get_user formats payload correctly """
         # With pattern
         self.test_client.list_users(pattern='foo')
         self.test_client._post.assert_called_with(
-            payload={'id': 0,
-                     'method': 'user_find',
-                     'params': [['foo'],
-                                {'version': '2.28',
-                                 'sizelimit': 0}]})
+            mock.ANY,
+            {'id': 0,
+             'method': 'user_find',
+             'params': [['foo'],
+                        {'version': '2.28',
+                         'sizelimit': 0}]}
+        )
 
         # Without pattern
         self.test_client.list_users()
         self.test_client._post.assert_called_with(
-            payload={'id': 0,
-                     'method': 'user_find',
-                     'params': [[],
-                                {'version': '2.28',
-                                 'sizelimit': 0}]})
+            mock.ANY,
+            {'id': 0,
+             'method': 'user_find',
+             'params': [[],
+                        {'version': '2.28',
+                         'sizelimit': 0}]}
+        )
 
     def test_show_user(self):
         """ Test that show_user formats payload correctly """
-        self.test_client.show_user(user_name='foo')
+        self.test_client.get_user('foo')
         self.test_client._post.assert_called_with(
-            payload={'id': 0,
-                     'method': 'user_show',
-                     'params': [['foo'],
-                                {'version': '2.28'}]})
+            mock.ANY,
+            {'id': 0,
+             'method': 'user_show',
+             'params': [['foo'],
+                        {'version': '2.28'}]}
+        )
 
     def test_hostgroup_add_member(self):
         """ Test that hostgroup_add_member formats payload correctly """
-        self.test_client.hostgroup_add_member(hostgroup='foo', host='foo.com')
+        self.test_client.hostgroup_add_member('foo', 'foo.com')
         self.test_client._post.assert_called_with(
-            payload={'id': 0,
-                     'method': 'hostgroup_add_member',
-                     'params': [['foo'],
-                                {'host': 'foo.com',
-                                 'version': '2.28'}]})
+            mock.ANY,
+            {'id': 0,
+             'method': 'hostgroup_add_member',
+             'params': [['foo'],
+                        {'host': 'foo.com',
+                         'version': '2.28'}]}
+        )
 
 
 if __name__ == '__main__':
