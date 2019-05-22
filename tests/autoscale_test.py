@@ -258,7 +258,9 @@ class AutoscaleTest(unittest.TestCase):
         autoscale.create_n_servers.assert_called_once_with(
             1, 'partition', pool=None
         )
-        autoscale.delete_servers_by_name.assert_called_once_with(['server4'])
+        autoscale.delete_servers_by_name.assert_called_once_with(
+            ['server4'], pool=None
+        )
 
     @mock.patch('treadmill_aws.autoscale.create_n_servers', mock.Mock())
     @mock.patch('treadmill_aws.autoscale.delete_servers_by_name', mock.Mock())
@@ -374,7 +376,9 @@ class AutoscaleTest(unittest.TestCase):
         autoscale.scale(0.5)
 
         autoscale.create_n_servers.assert_not_called()
-        autoscale.delete_servers_by_name.assert_called_once_with(['server4'])
+        autoscale.delete_servers_by_name.assert_called_once_with(
+            ['server4'], pool=None
+        )
 
         autoscale.create_n_servers.reset_mock()
         autoscale.delete_servers_by_name.reset_mock()
@@ -412,7 +416,7 @@ class AutoscaleTest(unittest.TestCase):
 
         autoscale.create_n_servers.assert_not_called()
         autoscale.delete_servers_by_name.assert_called_once_with(
-            ['server1', 'server2']
+            ['server1', 'server2'], pool=None
         )
 
         autoscale.create_n_servers.reset_mock()
@@ -460,7 +464,7 @@ class AutoscaleTest(unittest.TestCase):
 
         autoscale.create_n_servers.assert_not_called()
         autoscale.delete_servers_by_name.assert_called_once_with(
-            ['server4']
+            ['server4'], pool=None
         )
 
     @mock.patch('treadmill.context.Context.ldap',

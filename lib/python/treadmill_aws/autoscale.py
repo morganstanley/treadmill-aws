@@ -74,7 +74,7 @@ class ExpiredCredentialsError(Exception):
     pass
 
 
-def check_expired_credentials(func):
+def _check_expired_credentials(func):
     """Decorator to simplify handling of expired credentials errors."""
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -86,6 +86,27 @@ def check_expired_credentials(func):
             if err_code in ('ExpiredToken', 'RequestExpired'):
                 raise ExpiredCredentialsError(err_code)
             raise
+    return wrapper
+
+
+def _no_exc(func):
+    """Decorator to make function return res, err instead of raising exception.
+
+    Wraps functions for Pool.map (multiprocessing), ensures err can be pickled.
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        """Wrapper function."""
+        try:
+            res = func(*args, **kwargs)
+            return res, None
+        except ExpiredCredentialsError as err:
+            _LOGGER.exception('%s error: %r, %r', func.__name__, args, kwargs)
+            return None, err
+        except Exception as err:  # pylint: disable=broad-except
+            _LOGGER.exception('%s error: %r, %r', func.__name__, args, kwargs)
+            # Make sure error can be pickled (e.g. botocore exceptions can't).
+            return None, Exception(str(err))
     return wrapper
 
 
@@ -138,7 +159,7 @@ def _create_host(ipa_client, ec2_conn, hostname, instance_type, spot, subnets,
     return None
 
 
-@check_expired_credentials
+@_check_expired_credentials
 def _create_hosts(hostnames, instance_types, subnets, cell, partition,
                   **host_params):
     admin_srv = context.GLOBAL.admin.server()
@@ -190,20 +211,32 @@ def _create_hosts(hostnames, instance_types, subnets, cell, partition,
     return hosts_created
 
 
+@_check_expired_credentials
+def _delete_hosts(hostnames):
+    ec2_conn = awscontext.GLOBAL.ec2
+    ipa_client = awscontext.GLOBAL.ipaclient
+    admin_srv = context.GLOBAL.admin.server()
+
+    hostmanager.delete_hosts(
+        ipa_client=ipa_client,
+        ec2_conn=ec2_conn,
+        hostnames=hostnames
+    )
+
+    for hostname in hostnames:
+        admin_srv.delete(hostname)
+
+
+@_no_exc
 def _create_hosts_no_exc(hostnames, instance_types, subnets, cell, partition,
                          **host_params):
-    try:
-        hosts_created = _create_hosts(
-            hostnames, instance_types, subnets, cell, partition, **host_params
-        )
-        return hosts_created, None
-    except ExpiredCredentialsError as err:
-        _LOGGER.exception('Error creating hosts: %r', hostnames)
-        return None, err
-    except Exception as err:  # pylint: disable=broad-except
-        _LOGGER.exception('Error creating hosts: %r', hostnames)
-        # Make sure error can be pickled (e.g. botocore exceptions can't).
-        return None, Exception(str(err))
+    return _create_hosts(hostnames, instance_types, subnets, cell, partition,
+                         **host_params)
+
+
+@_no_exc
+def _delete_hosts_no_exc(hostnames):
+    return _delete_hosts(hostnames)
 
 
 def _generate_hostnames(domain, cell, partition, count,
@@ -260,7 +293,7 @@ def _instance_types(instance_types, spot_instance_types):
 
 
 @aws.profile
-@check_expired_credentials
+@_check_expired_credentials
 def create_n_servers(count, partition=None,
                      min_on_demand=None, max_on_demand=None, pool=None):
     """Create new servers in the cell."""
@@ -368,8 +401,8 @@ def create_n_servers(count, partition=None,
         )
 
 
-@check_expired_credentials
-def delete_n_servers(count, partition=None):
+@aws.profile
+def delete_n_servers(count, partition=None, pool=None):
     """Delete old servers."""
     admin_srv = context.GLOBAL.admin.server()
 
@@ -379,33 +412,28 @@ def delete_n_servers(count, partition=None):
     hostnames = sorted([s['_id'] for s in servers])
     extra_servers = hostnames[0:count]
 
-    delete_servers_by_name(extra_servers)
+    delete_servers_by_name(extra_servers, pool=pool)
 
 
-@check_expired_credentials
-def delete_servers_by_name(servers):
+@aws.profile
+def delete_servers_by_name(servers, pool=None):
     """Delete servers by name."""
-    ec2_conn = awscontext.GLOBAL.ec2
-    ipa_client = awscontext.GLOBAL.ipaclient
-    admin_srv = context.GLOBAL.admin.server()
-    zkclient = context.GLOBAL.zk.conn
-
     _LOGGER.info('Deleting servers: %r', servers)
 
+    zkclient = context.GLOBAL.zk.conn
     for server in servers:
         try:
             presence.kill_node(zkclient, server)
         except kazoo.exceptions.NoNodeError:
             pass
 
-    hostmanager.delete_hosts(
-        ipa_client=ipa_client,
-        ec2_conn=ec2_conn,
-        hostnames=servers
-    )
-
-    for server in servers:
-        admin_srv.delete(server)
+    if pool:
+        batches = _split_list(servers, pool.workers)
+        for _res, err in pool.map(_delete_hosts_no_exc, batches):
+            if err:
+                raise err
+    else:
+        _delete_hosts(servers)
 
 
 def _query_stateapi():
@@ -648,7 +676,7 @@ def scale(default_server_app_ratio, pool=None):
                         pool=pool
                     )
             if extra_servers:
-                delete_servers_by_name(extra_servers)
+                delete_servers_by_name(extra_servers, pool=pool)
         except ExpiredCredentialsError:
             raise
         except Exception as err:  # pylint: disable=broad-except
