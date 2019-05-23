@@ -116,9 +116,12 @@ def create_otp(ipa_client, hostname, hostgroups, nshostlocation=None):
     hostgroups = hostgroups or []
 
     if not nshostlocation:
-        # FIXME: Make sure nshostlocation is always passed and remove that.
-        account_aliases = awscontext.GLOBAL.iam.list_account_aliases()
-        nshostlocation = account_aliases['AccountAliases'].pop()
+        admin_cell = admin.Cell(context.GLOBAL.ldap.conn)
+        try:
+            cell = admin_cell.get(context.GLOBAL.cell)
+            nshostlocation = cell['data'].get('aws_account', '')
+        except context.ContextError:
+            nshostlocation = ''
 
     ipa_host = ipa_client.enroll_host(hostname, nshostlocation=nshostlocation)
     otp = ipa_host['randompassword']
