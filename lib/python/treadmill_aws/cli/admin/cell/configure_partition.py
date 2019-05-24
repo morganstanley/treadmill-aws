@@ -48,6 +48,8 @@ def init():
                   help='Autoscaler minimum server count.')
     @click.option('--app-ratio', type=float,
                   help='Autoscaler server-to-app ratio.')
+    @click.option('--idle-server-ttl', type=int,
+                  help='Autoscaler idle server TTL.')
     @click.option('--image', help='Default AMI image.')
     @click.option('--disk-size', help='Default image disk size.')
     @click.option('--instance-types', type=cli.LIST,
@@ -64,6 +66,7 @@ def init():
                                 autoscale_max_on_demand,
                                 autoscale_min,
                                 app_ratio,
+                                idle_server_ttl,
                                 image,
                                 disk_size,
                                 instance_types,
@@ -90,6 +93,7 @@ def init():
              unset_value=-1)
         _set(autoscale, 'min_servers', autoscale_min, unset_value=-1)
         _set(autoscale, 'server_app_ratio', app_ratio, unset_value=0.0)
+        _set(autoscale, 'idle_server_ttl', idle_server_ttl, unset_value=-1)
 
         modified = _set(data, 'autoscale', autoscale)
         modified = _set(data, 'image', image) or modified
