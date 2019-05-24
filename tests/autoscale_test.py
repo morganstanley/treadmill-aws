@@ -1,5 +1,9 @@
 """Tests for autoscale."""
+# Disable "too many lines in module" warning.
+#
+# pylint: disable=C0302
 
+import time
 import unittest
 
 import mock
@@ -72,7 +76,7 @@ class AutoscaleTest(unittest.TestCase):
             ],
         )
 
-        autoscale.scale(0.5)
+        autoscale.scale(0.5, 0, {})
 
         autoscale.create_n_servers.assert_called_once_with(
             2, 'partition', pool=None
@@ -97,7 +101,7 @@ class AutoscaleTest(unittest.TestCase):
             ],
         )
 
-        autoscale.scale(0.5)
+        autoscale.scale(0.5, 0, {})
 
         autoscale.create_n_servers.assert_called_once_with(
             9, 'partition', pool=None
@@ -142,7 +146,7 @@ class AutoscaleTest(unittest.TestCase):
             ],
         )
 
-        autoscale.scale(0.5)
+        autoscale.scale(0.5, 0, {})
 
         autoscale.create_n_servers.assert_called_once_with(
             3, 'partition', pool=None
@@ -180,7 +184,7 @@ class AutoscaleTest(unittest.TestCase):
             ],
         )
 
-        autoscale.scale(0.5)
+        autoscale.scale(0.5, 0, {})
 
         autoscale.create_n_servers.assert_not_called()
         autoscale.delete_servers_by_name.assert_not_called()
@@ -213,7 +217,7 @@ class AutoscaleTest(unittest.TestCase):
             ],
         )
 
-        autoscale.scale(0.5)
+        autoscale.scale(0.5, 0, {})
 
         autoscale.create_n_servers.assert_not_called()
         autoscale.delete_servers_by_name.assert_not_called()
@@ -253,7 +257,7 @@ class AutoscaleTest(unittest.TestCase):
             ],
         )
 
-        autoscale.scale(0.5)
+        autoscale.scale(0.5, 0, {})
 
         autoscale.create_n_servers.assert_called_once_with(
             1, 'partition', pool=None
@@ -284,7 +288,7 @@ class AutoscaleTest(unittest.TestCase):
             apps_state=[],
         )
 
-        autoscale.scale(0.5)
+        autoscale.scale(0.5, 0, {})
 
         autoscale.create_n_servers.assert_called_once_with(
             3, 'partition', pool=None
@@ -322,7 +326,7 @@ class AutoscaleTest(unittest.TestCase):
             ],
         )
 
-        autoscale.scale(0.5)
+        autoscale.scale(0.5, 0, {})
 
         autoscale.create_n_servers.assert_called_once_with(
             2, 'partition', pool=None
@@ -333,6 +337,7 @@ class AutoscaleTest(unittest.TestCase):
     @mock.patch('treadmill_aws.autoscale.delete_servers_by_name', mock.Mock())
     @mock.patch('treadmill_aws.autoscale._query_stateapi')
     @mock.patch('treadmill.context.Context.admin')
+    @mock.patch('time.time', mock.Mock(return_value=1000.0))
     def test_scale_down(self, admin_mock, stateapi_mock):
         """Test scaling down."""
 
@@ -373,7 +378,7 @@ class AutoscaleTest(unittest.TestCase):
             ],
         )
 
-        autoscale.scale(0.5)
+        autoscale.scale(0.5, 0, {})
 
         autoscale.create_n_servers.assert_not_called()
         autoscale.delete_servers_by_name.assert_called_once_with(
@@ -412,7 +417,7 @@ class AutoscaleTest(unittest.TestCase):
             apps_state=[],
         )
 
-        autoscale.scale(0.5)
+        autoscale.scale(0.5, 0, {})
 
         autoscale.create_n_servers.assert_not_called()
         autoscale.delete_servers_by_name.assert_called_once_with(
@@ -422,7 +427,7 @@ class AutoscaleTest(unittest.TestCase):
         autoscale.create_n_servers.reset_mock()
         autoscale.delete_servers_by_name.reset_mock()
 
-        # Delete empty down and frozen servers.
+        # Delete empty down server, don't delete blackedout and frozen servers.
         _mock_cell(
             admin_mock, stateapi_mock,
             partitions=[
@@ -460,11 +465,87 @@ class AutoscaleTest(unittest.TestCase):
         )
         mock_zkclient.get_children.return_value = ['server5']
 
-        autoscale.scale(0.5)
+        autoscale.scale(0.5, 0, {})
 
         autoscale.create_n_servers.assert_not_called()
         autoscale.delete_servers_by_name.assert_called_once_with(
             ['server4'], pool=None
+        )
+
+        autoscale.create_n_servers.reset_mock()
+        autoscale.delete_servers_by_name.reset_mock()
+
+        # Delete idle servers when grace period expires.
+        idle_servers_tracker = {}
+        _mock_cell(
+            admin_mock, stateapi_mock,
+            partitions=[
+                {'_id': 'partition',
+                 'data': {'autoscale': {'min_servers': 0, 'max_servers': 9}}},
+            ],
+            servers=[
+                {'_id': 'server1', 'partition': 'partition',
+                 '_create_timestamp': 100.0},
+                {'_id': 'server2', 'partition': 'partition',
+                 '_create_timestamp': 100.0},
+                {'_id': 'server3', 'partition': 'partition',
+                 '_create_timestamp': 100.0},
+            ],
+            servers_state=[
+                ('server1', 'up', 100, 100, 100),
+                ('server2', 'up', 100, 100, 100),
+                ('server3', 'up', 100, 100, 100),
+            ],
+            apps_state=[
+                ('proid.app#001', 'partition', 'server1'),
+            ],
+        )
+
+        autoscale.scale(0.5, 5 * 60, idle_servers_tracker)
+
+        autoscale.create_n_servers.assert_not_called()
+        autoscale.delete_servers_by_name.assert_not_called()
+        self.assertEqual(
+            idle_servers_tracker,
+            {'server2': 1000.0, 'server3': 1000.0}
+        )
+
+        time.time.return_value = 1000.0 + (5 * 60) + 1
+        # server2 is no longer idle, server3 continues to be idle.
+        _mock_cell(
+            admin_mock, stateapi_mock,
+            partitions=[
+                {'_id': 'partition',
+                 'data': {'autoscale': {'min_servers': 0, 'max_servers': 9}}},
+            ],
+            servers=[
+                {'_id': 'server1', 'partition': 'partition',
+                 '_create_timestamp': 100.0},
+                {'_id': 'server2', 'partition': 'partition',
+                 '_create_timestamp': 100.0},
+                {'_id': 'server3', 'partition': 'partition',
+                 '_create_timestamp': 100.0},
+            ],
+            servers_state=[
+                ('server1', 'up', 100, 100, 100),
+                ('server2', 'up', 100, 100, 100),
+                ('server3', 'up', 100, 100, 100),
+            ],
+            apps_state=[
+                ('proid.app#001', 'partition', 'server1'),
+                ('proid.app#002', 'partition', 'server2'),
+            ],
+        )
+
+        autoscale.scale(0.5, 5 * 60, idle_servers_tracker)
+
+        autoscale.create_n_servers.assert_not_called()
+        autoscale.delete_servers_by_name.assert_called_once_with(
+            ['server3'], pool=None
+        )
+        self.assertEqual(
+            idle_servers_tracker,
+            {'server3': 1000.0}
         )
 
     @mock.patch('treadmill.context.Context.ldap',

@@ -19,6 +19,8 @@ _DEFAULT_INTERVAL = 60
 
 _DEFAULT_SERVER_APP_RATIO = 0.5
 
+_DEFAULT_IDLE_SERVER_TTL = 5 * 60
+
 
 def init():
     """Autoscale Treadmill cell capacity."""
@@ -41,10 +43,15 @@ def init():
         help='Default server/app ratio.'
     )
     @click.option(
+        '--idle-server-ttl', required=False, type=int,
+        default=_DEFAULT_IDLE_SERVER_TTL,
+        help='Default idle server TTL.'
+    )
+    @click.option(
         '--workers', required=False, type=int,
         help='Number of worker processes to use to create hosts in parallel.'
     )
-    def autoscale_cmd(interval, server_app_ratio, workers):
+    def autoscale_cmd(interval, server_app_ratio, idle_server_ttl, workers):
         """Autoscale Treadmill cell based on scheduler queue."""
         pool = None
         if workers:
@@ -52,9 +59,13 @@ def init():
             pool.workers = workers
 
         context.GLOBAL.zk.add_listener(zkutils.exit_on_lost)
+        idle_servers_tracker = {}
 
         while True:
-            autoscale.scale(server_app_ratio, pool=pool)
+            autoscale.scale(
+                server_app_ratio, idle_server_ttl, idle_servers_tracker,
+                pool=pool
+            )
             time.sleep(interval)
 
     return autoscale_cmd

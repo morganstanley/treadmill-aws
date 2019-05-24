@@ -535,7 +535,7 @@ def _count(apps, servers):
     return pending_apps, running_apps, busy_servers, idle_servers
 
 
-def _select_extra_servers(servers, state, max_extra_servers=None):
+def _select_extra_servers(servers, state, idle_ttl=0, max_extra_servers=None):
     extra_servers = []
     for server in servers:
         if max_extra_servers is not None:
@@ -551,12 +551,15 @@ def _select_extra_servers(servers, state, max_extra_servers=None):
         if server['state'] not in state:
             continue
 
+        if idle_ttl and time.time() - server['idle_since'] <= idle_ttl:
+            continue
+
         extra_servers.append(server['name'])
     return extra_servers
 
 
-def _scale_partition(server_app_ratio, min_servers, max_servers,
-                     apps, servers):
+def _scale_partition(server_app_ratio, idle_server_ttl,
+                     min_servers, max_servers, apps, servers):
     _LOGGER.debug('Apps: %r', apps)
     _LOGGER.debug('Servers: %r', servers)
 
@@ -612,7 +615,7 @@ def _scale_partition(server_app_ratio, min_servers, max_servers,
             max(0, active_servers - min_servers)
         )
         extra_servers = _select_extra_servers(
-            servers, ('up'), max_extra_servers
+            servers, ('up'), idle_server_ttl, max_extra_servers
         )
     extra_servers += _select_extra_servers(servers, ('down'))
     _LOGGER.info('Empty servers to delete: %r', extra_servers)
@@ -620,7 +623,22 @@ def _scale_partition(server_app_ratio, min_servers, max_servers,
     return new_servers, extra_servers
 
 
-def scale(default_server_app_ratio, pool=None):
+def _update_idle_since(idle_servers_tracker, servers):
+    idle_servers = set()
+
+    for server in servers:
+        if server['num_apps'] == 0:
+            idle_servers_tracker.setdefault(server['name'], time.time())
+            server['idle_since'] = idle_servers_tracker[server['name']]
+            idle_servers.add(server['name'])
+
+    for server_name in list(idle_servers_tracker):
+        if server_name not in idle_servers:
+            idle_servers_tracker.pop(server_name, None)
+
+
+def scale(default_server_app_ratio, default_idle_server_ttl,
+          idle_servers_tracker, pool=None):
     """Autoscale cell capacity."""
     _LOGGER.info('Getting cell state')
     apps_by_partition, servers_by_partition = _get_state()
@@ -650,12 +668,19 @@ def scale(default_server_app_ratio, pool=None):
                     'server_app_ratio', default_server_app_ratio
                 )
             )
+            idle_server_ttl = autoscale_conf.get(
+                'idle_server_ttl', default_idle_server_ttl
+            )
 
             apps = apps_by_partition.get(partition_name, [])
             servers = servers_by_partition.get(partition_name, [])
 
+            _update_idle_since(idle_servers_tracker, servers)
+
             new_servers, extra_servers = _scale_partition(
-                server_app_ratio, min_servers, max_servers, apps, servers
+                server_app_ratio, idle_server_ttl,
+                min_servers, max_servers,
+                apps, servers
             )
 
             if new_servers > 0:
