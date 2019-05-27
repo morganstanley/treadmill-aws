@@ -14,6 +14,7 @@ from treadmill import admin
 from treadmill import context
 
 from treadmill_aws import awscontext
+from treadmill_aws import ipaclient
 from treadmill_aws import cli as aws_cli
 
 from . import CellCtx
@@ -45,7 +46,7 @@ def init():
         ctx = CellCtx(cors=cors_origin, krb_realm=krb_realm)
         cellname = context.GLOBAL.cell
 
-        ipaclient = awscontext.GLOBAL.ipaclient
+        ipa_client = awscontext.GLOBAL.ipaclient
         idnsname = 'zk.{}'.format(cellname)
 
         admin_cell = admin.Cell(context.GLOBAL.ldap.conn)
@@ -64,16 +65,19 @@ def init():
             cell=cellname
         )
 
-        current_rec = ipaclient.get_dns_record(idnsname)
         found = False
+        try:
+            current_rec = ipa_client.get_dns_record(idnsname)
+        except ipaclient.NotFoundError:
+            current_rec = None
 
         if current_rec:
-            for record in current_rec[0]['txtrecord']:
+            for record in current_rec['txtrecord']:
                 if record != zkurl:
                     _LOGGER.info(
                         'Deleting stale TXT record: %s %s', idnsname, record
                     )
-                    ipaclient.delete_txt_record(idnsname, record)
+                    ipa_client.delete_txt_record(idnsname, record)
                 else:
                     found = True
 
@@ -82,6 +86,6 @@ def init():
                          idnsname, zkurl)
             return
 
-        ipaclient.add_txt_record(idnsname, zkurl)
+        ipa_client.add_txt_record(idnsname, zkurl)
 
     return configure_dns
