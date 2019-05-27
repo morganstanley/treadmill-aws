@@ -16,7 +16,7 @@ services:
     sproc \
       --logging-conf daemon_container.json \
     gc \
-      --gc-plugins ipa,ldap
+      --gc-plugins ipa,ldap,dns
 - name: aws-credentials
   restart:
     limit: 5
