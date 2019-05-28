@@ -29,6 +29,7 @@ services:
   command: |
     unset PYTHONPATH;
     echo 'groups: ["treadmill", "treadmill.{proid}"]' > /tmp/authz.cfg.yml
+    echo 'exclude: ["*:get", "*:list"]' >> /tmp/authz.cfg.yml
     exec /opt/treadmill/bin/treadmill \
       sproc restapi \
         -s /tmp/authz.sock \
