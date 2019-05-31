@@ -320,9 +320,16 @@ def create_n_servers(count, partition=None,
         partition_data = {}
 
     image_id = partition_data.get('image', cell_data['image'])
+    cell_img_accounts = cell_data.get('image_accounts', [])
+    image_accounts = partition_data.get('image_accounts',
+                                        cell_img_accounts)
+    if not image_accounts:
+        image_accounts = []
+    image_accounts.append('self')
+
     if not image_id.startswith('ami-'):
         image_id = ec2client.get_image(
-            ec2_conn, owners=['self'], name=image_id
+            ec2_conn, owners=image_accounts, name=image_id
         )['ImageId']
 
     instance_type = partition_data.get('size', cell_data['size'])
