@@ -51,6 +51,9 @@ def init():
     @click.option('--idle-server-ttl', type=int,
                   help='Autoscaler idle server TTL.')
     @click.option('--image', help='Default AMI image.')
+    @click.option('--image-accounts',
+                  help='AMI source accounts',
+                  type=cli.LIST)
     @click.option('--disk-size', help='Default image disk size.')
     @click.option('--instance-types', type=cli.LIST,
                   help='Instance types (ordered by preference).')
@@ -68,6 +71,7 @@ def init():
                                 app_ratio,
                                 idle_server_ttl,
                                 image,
+                                image_accounts,
                                 disk_size,
                                 instance_types,
                                 spot_instance_types,
@@ -97,6 +101,7 @@ def init():
 
         modified = _set(data, 'autoscale', autoscale)
         modified = _set(data, 'image', image) or modified
+        modified = _set(data, 'image_accounts', image_accounts) or modified
         modified = _set(data, 'disk_size', disk_size) or modified
         modified = _set(data, 'instance_types', instance_types) or modified
         modified = _set(data,

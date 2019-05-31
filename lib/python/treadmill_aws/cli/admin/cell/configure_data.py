@@ -47,6 +47,9 @@ def init():
                   type=cli.LIST)
     @click.option('--hostgroups', help='Nodes hostgroups.', type=cli.LIST)
     @click.option('--image', help='Default AMI image.')
+    @click.option('--image-accounts',
+                  help='AMI source accounts',
+                  type=cli.LIST)
     # TODO: should be list.
     @click.option('--instance-profile', help='Instance profile.')
     @click.option('--realm', help='Nodes kerberos realm.')
@@ -65,6 +68,7 @@ def init():
                            docker_registries,
                            hostgroups,
                            image,
+                           image_accounts,
                            instance_profile,
                            realm,
                            secgroup,
@@ -96,6 +100,7 @@ def init():
         modified = _set(data, 'disk_size', disk_size) or modified
         modified = _set(data, 'hostgroups', hostgroups) or modified
         modified = _set(data, 'image', image) or modified
+        modified = _set(data, 'image_accounts', image_accounts) or modified
         modified = _set(data, 'instance_profile', instance_profile) or modified
         modified = _set(data, 'realm', realm) or modified
         modified = _set(data, 'secgroup', secgroup) or modified

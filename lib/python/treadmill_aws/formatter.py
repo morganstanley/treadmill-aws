@@ -483,6 +483,7 @@ class CellDataFormatter:
             ('disk-size', 'disk_size', None),
             ('hostgroups', 'hostgroups', ','.join),
             ('image', 'image', None),
+            ('image-accounts', 'image_accounts', ','.join),
             ('instance-profile', 'instance_profile', None),
             ('realm', 'realm', None),
             ('secgroup', 'secgroup', None),
@@ -511,6 +512,7 @@ class PartDataFormatter:
         schema = [
             ('autoscale', 'autoscale', None),
             ('image', 'image', None),
+            ('image-accounts', 'image_accounts', ','.join),
             ('instance-types', 'instance_types', ','.join),
             ('spot-instance-types', 'spot_instance_types', ','.join),
             ('disk-size', 'disk_size', None),
