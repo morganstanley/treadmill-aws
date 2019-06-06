@@ -3,6 +3,7 @@
 import logging
 import multiprocessing
 import time
+import collections
 
 import click
 
@@ -60,9 +61,11 @@ def init():
 
         context.GLOBAL.zk.add_listener(zkutils.exit_on_lost)
 
+        idle_servers_tracker = collections.defaultdict(dict)
         while True:
             autoscale.scale(
-                server_app_ratio, idle_server_ttl, pool=pool
+                server_app_ratio, idle_server_ttl, pool=pool,
+                idle_servers_tracker=idle_servers_tracker
             )
             time.sleep(interval)
 
