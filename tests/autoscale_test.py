@@ -4,6 +4,7 @@
 # pylint: disable=C0302
 
 import time
+import collections
 import unittest
 
 import mock
@@ -76,7 +77,7 @@ class AutoscaleTest(unittest.TestCase):
             ],
         )
 
-        autoscale.scale(0.5, 0, {})
+        autoscale.scale(0.5, 0)
 
         autoscale.create_n_servers.assert_called_once_with(
             2, 'partition', pool=None
@@ -101,7 +102,7 @@ class AutoscaleTest(unittest.TestCase):
             ],
         )
 
-        autoscale.scale(0.5, 0, {})
+        autoscale.scale(0.5, 0)
 
         autoscale.create_n_servers.assert_called_once_with(
             9, 'partition', pool=None
@@ -146,7 +147,7 @@ class AutoscaleTest(unittest.TestCase):
             ],
         )
 
-        autoscale.scale(0.5, 0, {})
+        autoscale.scale(0.5, 0)
 
         autoscale.create_n_servers.assert_called_once_with(
             3, 'partition', pool=None
@@ -184,7 +185,7 @@ class AutoscaleTest(unittest.TestCase):
             ],
         )
 
-        autoscale.scale(0.5, 0, {})
+        autoscale.scale(0.5, 0)
 
         autoscale.create_n_servers.assert_not_called()
         autoscale.delete_servers_by_name.assert_not_called()
@@ -217,7 +218,7 @@ class AutoscaleTest(unittest.TestCase):
             ],
         )
 
-        autoscale.scale(0.5, 0, {})
+        autoscale.scale(0.5, 0)
 
         autoscale.create_n_servers.assert_not_called()
         autoscale.delete_servers_by_name.assert_not_called()
@@ -257,7 +258,7 @@ class AutoscaleTest(unittest.TestCase):
             ],
         )
 
-        autoscale.scale(0.5, 0, {})
+        autoscale.scale(0.5, 0)
 
         autoscale.create_n_servers.assert_called_once_with(
             1, 'partition', pool=None
@@ -288,7 +289,7 @@ class AutoscaleTest(unittest.TestCase):
             apps_state=[],
         )
 
-        autoscale.scale(0.5, 0, {})
+        autoscale.scale(0.5, 0)
 
         autoscale.create_n_servers.assert_called_once_with(
             3, 'partition', pool=None
@@ -326,7 +327,7 @@ class AutoscaleTest(unittest.TestCase):
             ],
         )
 
-        autoscale.scale(0.5, 0, {})
+        autoscale.scale(0.5, 0)
 
         autoscale.create_n_servers.assert_called_once_with(
             2, 'partition', pool=None
@@ -378,7 +379,7 @@ class AutoscaleTest(unittest.TestCase):
             ],
         )
 
-        autoscale.scale(0.5, 0, {})
+        autoscale.scale(0.5, 0)
 
         autoscale.create_n_servers.assert_not_called()
         autoscale.delete_servers_by_name.assert_called_once_with(
@@ -417,7 +418,7 @@ class AutoscaleTest(unittest.TestCase):
             apps_state=[],
         )
 
-        autoscale.scale(0.5, 0, {})
+        autoscale.scale(0.5, 0)
 
         autoscale.create_n_servers.assert_not_called()
         autoscale.delete_servers_by_name.assert_called_once_with(
@@ -465,7 +466,7 @@ class AutoscaleTest(unittest.TestCase):
         )
         mock_zkclient.get_children.return_value = ['server5']
 
-        autoscale.scale(0.5, 0, {})
+        autoscale.scale(0.5, 0)
 
         autoscale.create_n_servers.assert_not_called()
         autoscale.delete_servers_by_name.assert_called_once_with(
@@ -476,7 +477,7 @@ class AutoscaleTest(unittest.TestCase):
         autoscale.delete_servers_by_name.reset_mock()
 
         # Delete idle servers when grace period expires.
-        idle_servers_tracker = {}
+        idle_servers_tracker = collections.defaultdict(dict)
         _mock_cell(
             admin_mock, stateapi_mock,
             partitions=[
@@ -501,12 +502,13 @@ class AutoscaleTest(unittest.TestCase):
             ],
         )
 
-        autoscale.scale(0.5, 5 * 60, idle_servers_tracker)
+        idle_servers_tracker = autoscale.scale(0.5, 5 * 60)
+        print(idle_servers_tracker)
 
         autoscale.create_n_servers.assert_not_called()
         autoscale.delete_servers_by_name.assert_not_called()
         self.assertEqual(
-            idle_servers_tracker,
+            idle_servers_tracker['partition'],
             {'server2': 1000.0, 'server3': 1000.0}
         )
 
@@ -537,14 +539,17 @@ class AutoscaleTest(unittest.TestCase):
             ],
         )
 
-        autoscale.scale(0.5, 5 * 60, idle_servers_tracker)
+        idle_servers_tracker = autoscale.scale(
+            0.5, 5 * 60, idle_servers_tracker=idle_servers_tracker
+        )
+        print(idle_servers_tracker)
 
         autoscale.create_n_servers.assert_not_called()
         autoscale.delete_servers_by_name.assert_called_once_with(
             ['server3'], pool=None
         )
         self.assertEqual(
-            idle_servers_tracker,
+            idle_servers_tracker['partition'],
             {'server3': 1000.0}
         )
 

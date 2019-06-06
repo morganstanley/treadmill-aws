@@ -59,12 +59,10 @@ def init():
             pool.workers = workers
 
         context.GLOBAL.zk.add_listener(zkutils.exit_on_lost)
-        idle_servers_tracker = {}
 
         while True:
             autoscale.scale(
-                server_app_ratio, idle_server_ttl, idle_servers_tracker,
-                pool=pool
+                server_app_ratio, idle_server_ttl, pool=pool
             )
             time.sleep(interval)
 

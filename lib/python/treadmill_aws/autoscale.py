@@ -645,13 +645,17 @@ def _update_idle_since(idle_servers_tracker, servers):
 
 
 def scale(default_server_app_ratio, default_idle_server_ttl,
-          idle_servers_tracker, pool=None):
+          pool=None,
+          idle_servers_tracker=None):
     """Autoscale cell capacity."""
     _LOGGER.info('Getting cell state')
     apps_by_partition, servers_by_partition = _get_state()
 
     _LOGGER.info('Getting cell partitions')
     cell = context.GLOBAL.admin.cell().get(context.GLOBAL.cell)
+
+    if idle_servers_tracker is None:
+        idle_servers_tracker = collections.defaultdict(dict)
 
     for partition in cell['partitions']:
         partition_name = partition['_id']
@@ -682,7 +686,7 @@ def scale(default_server_app_ratio, default_idle_server_ttl,
             apps = apps_by_partition.get(partition_name, [])
             servers = servers_by_partition.get(partition_name, [])
 
-            _update_idle_since(idle_servers_tracker, servers)
+            _update_idle_since(idle_servers_tracker[partition_name], servers)
 
             new_servers, extra_servers = _scale_partition(
                 server_app_ratio, idle_server_ttl,
@@ -714,3 +718,5 @@ def scale(default_server_app_ratio, default_idle_server_ttl,
         except Exception as err:  # pylint: disable=broad-except
             _LOGGER.exception('Error while scaling partition %s: %r',
                               partition_name, err)
+
+    return idle_servers_tracker
