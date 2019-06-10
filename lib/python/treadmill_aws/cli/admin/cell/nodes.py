@@ -42,9 +42,13 @@ def init():
                   callback=treadmill_aws.cli.handle_context_opt,
                   is_eager=True,
                   expose_value=False)
+    @click.option('--ipa-domain', required=False,
+                  envvar='IPA_DOMAIN',
+                  callback=treadmill_aws.cli.handle_context_opt,
+                  is_eager=True,
+                  expose_value=False)
     def nodes_grp():
         """Configure cell nodes."""
-        pass
 
     @nodes_grp.command(name='scale')
     @click.option('--count', type=int, help='Target node count.')
@@ -102,5 +106,9 @@ def init():
     def delete_cmd(servers):
         """Delete servers by name."""
         autoscale.delete_servers_by_name(servers)
+
+    del scale_cmd
+    del rotate_cmd
+    del delete_cmd
 
     return nodes_grp
