@@ -13,6 +13,7 @@ import click
 from treadmill import admin
 from treadmill import context
 
+import treadmill_aws
 from treadmill_aws import awscontext
 from treadmill_aws import ipaclient
 from treadmill_aws import cli as aws_cli
@@ -38,6 +39,13 @@ def init():
         callback=aws_cli.handle_context_opt,
         is_eager=True,
         default='/etc/ipa/ca.crt',
+        expose_value=False
+    )
+    @click.option(
+        '--ipa-domain', required=False,
+        envvar='IPA_DOMAIN',
+        callback=treadmill_aws.cli.handle_context_opt,
+        is_eager=True,
         expose_value=False
     )
     def configure_dns(cors_origin, krb_realm):

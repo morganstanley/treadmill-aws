@@ -43,9 +43,13 @@ def init():
                   callback=treadmill_aws.cli.handle_context_opt,
                   is_eager=True,
                   expose_value=False)
+    @click.option('--ipa-domain', required=False,
+                  envvar='IPA_DOMAIN',
+                  callback=treadmill_aws.cli.handle_context_opt,
+                  is_eager=True,
+                  expose_value=False)
     def deploy_grp():
         """Configure cell infra."""
-        pass
 
     @click.option('--cell', required=True, envvar='TREADMILL_CELL')
     @click.option('--rotate', is_flag=True)
@@ -85,5 +89,7 @@ def init():
                                           ec2_instances=ec2_instances,
                                           masters=masters))
         return
+
+    del zk_cmd
 
     return deploy_grp
