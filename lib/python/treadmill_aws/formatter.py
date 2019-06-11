@@ -261,6 +261,7 @@ class SpotPrettyFormatter:
             ('hostname', 'hostname', None),
             ('launch', 'instance_launch', None),
             ('state', 'instance_status', None),
+            ('duration', 'duration', None),
         ]
 
         list_schema = item_schema
@@ -515,6 +516,7 @@ class PartDataFormatter:
             ('image-accounts', 'image_accounts', ','.join),
             ('instance-types', 'instance_types', ','.join),
             ('spot-instance-types', 'spot_instance_types', ','.join),
+            ('spot-duration', 'spot_duration', None),
             ('disk-size', 'disk_size', None),
             ('hostgroups', 'hostgroups', ','.join),
             ('secgroup', 'secgroup', None),

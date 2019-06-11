@@ -137,7 +137,7 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
                 secgroup_ids, instance_type, subnet, disk,
                 instance_vars, role=None, instance_profile=None,
                 hostgroups=None, hostname=None, ip_address=None,
-                eni=None, key=None, tags=None, spot=False,
+                eni=None, key=None, tags=None, spot=False, spot_duration=None,
                 nshostlocation=None, otp=None, ipa_enroll=True):
     """Adds host defined in manifest to IPA, then adds the OTP from the
        IPA reply to the manifest and creates EC2 instance.
@@ -161,6 +161,8 @@ def create_host(ec2_conn, ipa_client, image_id, count, domain,
         eni=eni,
         spot=spot
     )
+    if spot and spot_duration:
+        instance_params['spot_duration'] = spot_duration
 
     hosts_created = []
     for _ in range(count):

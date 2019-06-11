@@ -339,6 +339,7 @@ def create_n_servers(count, partition=None,
     spot_instance_types = partition_data.get(
         'spot_instance_types', instance_types
     )
+    spot_duration = partition_data.get('spot_duration')
     subnets = partition_data.get('subnets', cell_data['subnets'])
     secgroup_id = partition_data.get('secgroup', cell_data['secgroup'])
     hostgroups = partition_data.get('hostgroups', cell_data['hostgroups'])
@@ -385,7 +386,8 @@ def create_n_servers(count, partition=None,
         ip_address=None,
         eni=None,
         tags=tags,
-        nshostlocation=nshostlocation
+        spot_duration=spot_duration,
+        nshostlocation=nshostlocation,
     )
     if pool:
         func = functools.partial(
