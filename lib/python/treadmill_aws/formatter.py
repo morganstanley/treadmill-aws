@@ -6,7 +6,15 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import yaml
+
 from treadmill.formatter import tablefmt
+
+
+def _sort(unsorted):
+    """Sort list."""
+    unsorted.sort()
+    return '\n'.join(unsorted)
 
 
 def _state(state):
@@ -75,7 +83,7 @@ def _fmt_list():
 
 def _fmt_trusted_entities(policy):
 
-    def _root_is_trusted(statement):
+    def _principal_is_trusted(statement):
         return bool((statement['Action'] == 'sts:AssumeRole' and
                      statement['Effect'] == 'Allow' and
                      'AWS' in statement['Principal']))
@@ -89,15 +97,42 @@ def _fmt_trusted_entities(policy):
         return bool((statement['Action'] == 'sts:AssumeRoleWithSAML' and
                      statement['Effect'] == 'Allow'))
 
+    def _principal_account_if_root(principal):
+        parts = principal.split(':')
+        if parts[5] == 'root':
+            return parts[4]
+        return None
+
+    def _principal_user(principal):
+        parts = principal.split(':')
+        if parts[5] != 'root':
+            return parts[5].split('/')[1]
+        return None
+
+    # pylint: disable=R0912
     def _trusted_entities(pol):
         entities = []
         for statement in pol['Statement']:
-            if _root_is_trusted(statement):
-                entities.append({'Type': 'Account',
-                                 'Entity': statement['Principal']['AWS']})
+            if _principal_is_trusted(statement):
+                if isinstance(statement['Principal']['AWS'], str):
+                    aws_principals = [statement['Principal']['AWS']]
+                else:
+                    aws_principals = statement['Principal']['AWS']
+
+                for principal in aws_principals:
+                    account = _principal_account_if_root(principal)
+                    if account:
+                        entities.append({'Type': 'Account',
+                                         'Entity': account})
+                for principal in aws_principals:
+                    user = _principal_user(principal)
+                    if user:
+                        entities.append({'Type': 'User',
+                                         'Entity': user})
             if _service_is_trusted(statement):
-                entities.append({'Type': 'Service',
-                                 'Entity': statement['Principal']['Service']})
+                for service in statement['Principal']['Service']:
+                    entities.append({'Type': 'Service',
+                                     'Entity': service})
             if _saml_is_trusted(statement):
                 if 'Federated' in statement['Principal']:
                     princ_list = statement['Principal']['Federated']
@@ -151,6 +186,10 @@ def _fmt_attached_policies(policies):
                                   header=False,
                                   align=None,
                                   sortby='PolicyName')
+
+
+def _fmt_policy_version(policy_version):
+    return yaml.dump(policy_version, default_flow_style=False, indent=4)
 
 
 class SubnetPrettyFormatter:
@@ -274,8 +313,8 @@ class SpotPrettyFormatter:
             return format_item(item)
 
 
-class RolePrettyFormatter:
-    """Pretty table formatter for AWS roles."""
+class IamRolePrettyFormatter:
+    """Pretty table formatter for AWS IAM roles."""
 
     @staticmethod
     def format(item):
@@ -300,6 +339,43 @@ class RolePrettyFormatter:
              _fmt_trusted_entities),
             ('InlinePolicies', 'RolePolicies', None),
             ('AttachedPolicies', 'AttachedPolicies', _fmt_attached_policies),
+        ]
+
+        format_item = tablefmt.make_dict_to_table(item_schema)
+        format_list = tablefmt.make_list_to_table(list_schema)
+
+        if isinstance(item, list):
+            return format_list(item)
+        else:
+            return format_item(item)
+
+
+class IamPolicyPrettyFormatter:
+    """Pretty table formatter for AWS IAM policies."""
+
+    @staticmethod
+    def format(item):
+        """Return pretty-formatted item."""
+
+        list_schema = [
+            ('AttachmentCount', 'DefaultVersionId', None),
+            ('DefaultVersionId', 'DefaultVersionId', None),
+            ('Arn', 'Arn', None),
+            ('MaxSessionDuration', 'MaxSessionDuration', None),
+            ('CreateDate', 'CreateDate', None),
+        ]
+
+        item_schema = [
+            ('Arn', 'Arn', None),
+            ('PolicyName', 'PolicyName', None),
+            ('Path', 'Path', None),
+            ('DefaultVersionId', 'DefaultVersionId', None),
+            ('IsAttachable', 'IsAttachable', None),
+            ('AttachmentCount', 'AttachmentCount', None),
+            ('Description', 'Description', None),
+            ('CreateDate', 'CreateDate', None),
+            ('UpdateDate', 'UpdateDate', None),
+            ('PolicyVersion', 'PolicyVersion', _fmt_policy_version)
         ]
 
         format_item = tablefmt.make_dict_to_table(item_schema)
@@ -417,13 +493,13 @@ class IpaUserPrettyFormatter:
     def format(item):
         """Return pretty-formatted item."""
         list_schema = [
-            ('id', 'uid', lambda _: _[0]),
+            ('username', 'uid', lambda _: _[0]),
         ]
 
         item_schema = [
-            ('id', 'uid', lambda _: _[0]),
-            ('type', 'userclass', lambda _: _[0]),
-            ('groups', 'memberof_group', '\n'.join),
+            ('username', 'uid', lambda _: _[0]),
+            ('class', 'userclass', lambda _: _[0]),
+            ('groups', 'memberof_group', _sort),
             ('indirect-groups', 'memberofindirect_group', '\n'.join),
             ('hbac-rule', 'memberofindirect_hbacrule', '\n'.join),
             ('sudo-rule', 'memberofindirect_sudorule', '\n'.join),
@@ -438,7 +514,7 @@ class IpaUserPrettyFormatter:
             return format_item(item)
 
 
-class AwsUserPrettyFormatter:
+class IamUserPrettyFormatter:
     """Pretty table formatter for AWS users."""
 
     @staticmethod

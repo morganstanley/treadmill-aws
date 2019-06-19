@@ -1,4 +1,4 @@
-"""Implementation of treadmill admin AWS user manager.
+"""Implementation of treadmill admin aws user.
 """
 
 from __future__ import absolute_import
@@ -22,13 +22,13 @@ _LOGGER = logging.getLogger(__name__)
 _LOGGER.setLevel(logging.INFO)
 
 
-def _set_user_policy(iam_conn, user_name, user_policy):
+def _set_user_policies(iam_conn, user_name, user_policies):
     new_pols = []
 
-    if user_policy == [':']:
-        user_policy = []
+    if user_policies == [':']:
+        user_policies = []
 
-    for pol in user_policy:
+    for pol in user_policies:
         policy_name, policy_file = pol.split(':', 2)
         new_pols.append(policy_name)
         with io.open(policy_file) as f:
@@ -47,12 +47,12 @@ def _set_user_policy(iam_conn, user_name, user_policy):
                                          policy_name)
 
 
-def _set_attached_policy(iam_conn, user_name, attached_policy):
+def _set_attached_policies(iam_conn, user_name, attached_policies):
     sts = awscontext.GLOBAL.sts
     accountid = sts.get_caller_identity().get('Account')
 
-    if attached_policy == [':']:
-        attached_policy = []
+    if attached_policies == [':']:
+        attached_policies = []
 
     del_pols = {}
     for policy in iamclient.list_attached_user_policies(iam_conn,
@@ -60,7 +60,7 @@ def _set_attached_policy(iam_conn, user_name, attached_policy):
         del_pols[policy['PolicyArn']] = 1
 
     new_pols = {}
-    for policy in attached_policy:
+    for policy in attached_policies:
         scope, policy_name = policy.split(':', 2)
         if scope == 'global':
             new_pols['arn:aws:iam::aws:policy/%s' % policy_name] = 1
@@ -102,15 +102,11 @@ def init():
     @click.option('--path',
                   default='/',
                   help='Path for user name.')
-    @click.option('--inline-policy',
+    @click.option('--inline-policies',
                   type=cli.LIST,
                   required=False,
                   help='Inline user policy name:file')
-    @click.option('--attached-policy',
-                  type=cli.LIST,
-                  required=False,
-                  help='global:PolicyName or local:PolicyName')
-    @click.option('--attached-policy',
+    @click.option('--attached-policies',
                   type=cli.LIST,
                   required=False,
                   help='global:PolicyName or local:PolicyName')
@@ -120,8 +116,8 @@ def init():
     @cli.admin.ON_EXCEPTIONS
     def configure(create,
                   path,
-                  inline_policy,
-                  attached_policy,
+                  inline_policies,
+                  attached_policies,
                   user_name):
         """Create/configure/get IAM user."""
 
@@ -137,11 +133,11 @@ def init():
         if not user:
             user = iamclient.create_user(iam_conn, user_name, path)
 
-        if inline_policy:
-            _set_user_policy(iam_conn, user_name, inline_policy)
+        if inline_policies:
+            _set_user_policies(iam_conn, user_name, inline_policies)
 
-        if attached_policy:
-            _set_attached_policy(iam_conn, user_name, attached_policy)
+        if attached_policies:
+            _set_attached_policies(iam_conn, user_name, attached_policies)
 
         user['UserPolicies'] = iamclient.list_user_policies(iam_conn,
                                                             user_name)
