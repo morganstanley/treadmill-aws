@@ -44,6 +44,8 @@ class Krb5KeytabFeature(feature_base.Feature):
                 ' --owner {user}'
                 ' --principal {user}/{hostname}'
                 ' --keytab {appdir}/var/spool/keytabs/{user}'
+                ' --cachedir /tmp'
+                ' --lockdir /tmp'
                 '; exec sleep inf'
             ).format(
                 treadmill=subproc.resolve('treadmill'),
