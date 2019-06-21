@@ -6,11 +6,15 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import base64
 import logging
 import json
+import errno
+import io
+import fcntl
 import os
 import pwd
-import base64
+import time
 
 import click
 import dns.resolver
@@ -25,6 +29,27 @@ from treadmill_aws import awscontext
 _LOGGER = logging.getLogger(__name__)
 
 _DEFAULT_KEYTAB_DIR = '/var/spool/keytabs'
+
+
+def _cache_kt(cachedir, principal):
+    """Replace / with # in principal name."""
+    return os.path.join(cachedir, principal.replace('/', '#')) + '.keytab'
+
+
+def _lock(lockdir, principal):
+    """Create a file lock while processing keytab request."""
+    lockfile = _cache_kt(lockdir, principal) + '.lock'
+    lock = io.open(lockfile, 'w+')
+    _LOGGER.debug('Locking: %s', lockfile)
+    while True:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            _LOGGER.debug('Locked.')
+            return lock
+        except IOError as err:
+            if err.errno != errno.EAGAIN:
+                raise
+            time.sleep(0.1)
 
 
 def _request_keytab(server, port, principal):
@@ -81,6 +106,22 @@ def _write_keytab(keytab_entries, keytab, owner):
     )
 
 
+def _copy_keytab(kt_file, keytab, owner):
+    """Copy keytab from cache."""
+    try:
+        pwnam = pwd.getpwnam(owner)
+    except KeyError:
+        _LOGGER.error('Invalid user: %s', owner)
+        return
+
+    with io.open(kt_file, 'rb') as kt:
+        fs.write_safe(
+            keytab,
+            lambda f: f.write(kt.read()),
+            owner=(pwnam.pw_uid, pwnam.pw_gid)
+        )
+
+
 def init():
     """Admin Cell CLI module"""
 
@@ -99,8 +140,19 @@ def init():
     @click.option('--owner',
                   required=False,
                   help='chown to specifed Unix ID.')
-    def krb5keytab(krb5keytab_server, principal, keytab, owner):
+    @click.option('--cachedir',
+                  required=False,
+                  metavar='DIRECTORY',
+                  help='Use local cache for keytabs.')
+    @click.option('--lockdir',
+                  required=False,
+                  metavar='DIRECTORY',
+                  default='/tmp',
+                  help='Lock directory.')
+    def krb5keytab(krb5keytab_server, principal, keytab, owner, cachedir,
+                   lockdir):
         """krb5keytab client"""
+        # pylint: disable=too-many-branches
         username = pwd.getpwuid(os.getuid())[0]
         hostname = sysinfo.hostname()
 
@@ -135,16 +187,31 @@ def init():
                 ' - exiting.'
             )
 
-        _LOGGER.info('Principal   : %s', principal)
-        _LOGGER.info('Keytab      : %s', keytab)
-        _LOGGER.info('Owner       : %s', owner)
+        _LOGGER.info('Principal: %s', principal)
+        _LOGGER.info('Keytab: %s', keytab)
+        _LOGGER.info('Owner: %s', owner)
         kt_entries = None
+
+        lock = None
+        if lockdir != '-':
+            # Obtain the lock and keep it open until app exits.
+            lock = _lock(lockdir, principal)
+
+        if cachedir:
+            cache_kt = _cache_kt(cachedir, principal)
+            if os.path.exists(cache_kt):
+                _LOGGER.info('Copy cached keytab: %s', cache_kt)
+                _copy_keytab(cache_kt, keytab, owner)
+                return
 
         for endpoint in krb5keytab_server:
             _LOGGER.info('Connecting to %s', endpoint)
             server, port = endpoint.split(':')
             kt_entries = _request_keytab(server, int(port), principal)
             if kt_entries:
+                if cachedir:
+                    _write_keytab(kt_entries, cache_kt, 'root')
+
                 _write_keytab(kt_entries, keytab, owner)
                 return
 
