@@ -132,8 +132,16 @@ class IPA525Server(gssapiprotocol.GSSAPILineServer):
             'kadmin.local ktadd -k %s -norandkey %s' %
             (tmpkt, request))
 
-        if not os.path.isfile(tmpkt) and inst:
-            _LOGGER.error('unable to extract keytab for %s', request)
+        if not os.path.isfile(tmpkt):
+            _LOGGER.warning('unable to extract keytab for %s '
+                            '(will attempt to generate rnd key)', request)
+            os.system(
+                'kadmin.local ktadd -k %s %s' %
+                (tmpkt, request))
+
+        if not os.path.isfile(tmpkt):
+            _LOGGER.error('unable to generate rnd key and keytab for %s',
+                          request)
             raise ValueError('Internal error')
 
         os.system(
