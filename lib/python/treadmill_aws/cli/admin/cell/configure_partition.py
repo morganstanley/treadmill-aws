@@ -42,6 +42,8 @@ def init():
                    help='Pass "-" to revert attribute to cell default')
     @click.option('--autoscale-max', type=int,
                   help='Autoscaler maximum server count.')
+    @click.option('--autoscale-max-broken', type=int,
+                  help='Autoscaler maximum broken server count.')
     @click.option('--autoscale-max-on-demand', type=int,
                   help='Autoscaler maximum on-demand server count.')
     @click.option('--autoscale-min', type=int,
@@ -66,6 +68,7 @@ def init():
     @click.option('--s3-registry-bucket', help='S3 registry bucket name.')
     @click.argument('partition')
     def configure_partition_cmd(autoscale_max,
+                                autoscale_max_broken,
                                 autoscale_max_on_demand,
                                 autoscale_min,
                                 app_ratio,
@@ -93,6 +96,8 @@ def init():
 
         autoscale = data.get('autoscale', {})
         _set(autoscale, 'max_servers', autoscale_max, unset_value=-1)
+        _set(autoscale, 'max_broken_servers', autoscale_max_broken,
+             unset_value=-1)
         _set(autoscale, 'max_on_demand_servers', autoscale_max_on_demand,
              unset_value=-1)
         _set(autoscale, 'min_servers', autoscale_min, unset_value=-1)

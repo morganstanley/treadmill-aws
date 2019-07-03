@@ -203,6 +203,7 @@ def _create_hosts(hostnames, instance_types, subnets, cell, partition,
                 'cell': cell,
                 'partition': partition,
                 'data': {
+                    'type': host['type'],
                     'lifecycle': host['lifecycle'],
                 },
             }
@@ -496,7 +497,6 @@ def _get_state():
         server_name = server['_id']
         server_data = server.get('data', {})
         server_create_timestamp = server['_create_timestamp']
-        server_blackedout = server_name in blackedout_servers
 
         # If server didn't report it's state, it's either new/starting or down.
         # Consider server to be new if it's just been created, down otherwise.
@@ -508,19 +508,19 @@ def _get_state():
             else:
                 server_state = 'down'
 
+        if server_name in blackedout_servers:
+            server_state = 'blackedout'
+
         servers_by_partition[server['partition']].append({
             'name': server_name,
             'state': server_state,
             'create_timestamp': server_create_timestamp,
             'num_apps': num_apps_by_server[server_name],
             'lifecycle': server_data.get('lifecycle', 'on-demand'),
-            'blackedout': server_blackedout,
         })
 
-        if server_blackedout:
-            _LOGGER.warning('Server %s is blackedout', server_name)
-        if server_state == 'frozen':
-            _LOGGER.warning('Server %s is frozen', server_name)
+        if server_state in ('blackedout', 'frozen'):
+            _LOGGER.warning('Server %s is %s', server_name, server_state)
 
     return apps_by_partition, servers_by_partition
 
@@ -552,9 +552,6 @@ def _select_extra_servers(servers, state, idle_ttl=0, max_extra_servers=None):
         if server['num_apps']:
             continue
 
-        if server['blackedout']:
-            continue
-
         if server['state'] not in state:
             continue
 
@@ -566,7 +563,8 @@ def _select_extra_servers(servers, state, idle_ttl=0, max_extra_servers=None):
 
 
 def _scale_partition(server_app_ratio, idle_server_ttl,
-                     min_servers, max_servers, apps, servers):
+                     min_servers, max_servers, max_broken_servers,
+                     apps, servers):
     _LOGGER.debug('Apps: %r', apps)
     _LOGGER.debug('Servers: %r', servers)
 
@@ -625,6 +623,9 @@ def _scale_partition(server_app_ratio, idle_server_ttl,
             servers, ('up'), idle_server_ttl, max_extra_servers
         )
     extra_servers += _select_extra_servers(servers, ('down'))
+    extra_servers += _select_extra_servers(
+        servers, ('blackedout', 'frozen')
+    )[max_broken_servers:]
     _LOGGER.info('Empty servers to delete: %r', extra_servers)
 
     return new_servers, extra_servers
@@ -673,6 +674,7 @@ def scale(default_server_app_ratio, default_idle_server_ttl,
 
             min_servers = autoscale_conf['min_servers']
             max_servers = autoscale_conf['max_servers']
+            max_broken_servers = autoscale_conf.get('max_broken_servers', 0)
             max_on_demand_servers = autoscale_conf.get('max_on_demand_servers')
             server_app_ratio = float(
                 autoscale_conf.get(
@@ -690,7 +692,7 @@ def scale(default_server_app_ratio, default_idle_server_ttl,
 
             new_servers, extra_servers = _scale_partition(
                 server_app_ratio, idle_server_ttl,
-                min_servers, max_servers,
+                min_servers, max_servers, max_broken_servers,
                 apps, servers
             )
 
