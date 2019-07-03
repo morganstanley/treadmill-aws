@@ -428,7 +428,92 @@ class AutoscaleTest(unittest.TestCase):
         autoscale.create_n_servers.reset_mock()
         autoscale.delete_servers_by_name.reset_mock()
 
-        # Delete empty down server, don't delete blackedout and frozen servers.
+        # Delete idle servers when grace period expires.
+        idle_servers_tracker = collections.defaultdict(dict)
+        _mock_cell(
+            admin_mock, stateapi_mock,
+            partitions=[
+                {'_id': 'partition',
+                 'data': {'autoscale': {'min_servers': 0, 'max_servers': 9}}},
+            ],
+            servers=[
+                {'_id': 'server1', 'partition': 'partition',
+                 '_create_timestamp': 100.0},
+                {'_id': 'server2', 'partition': 'partition',
+                 '_create_timestamp': 100.0},
+                {'_id': 'server3', 'partition': 'partition',
+                 '_create_timestamp': 100.0},
+            ],
+            servers_state=[
+                ('server1', 'up', 100, 100, 100),
+                ('server2', 'up', 100, 100, 100),
+                ('server3', 'up', 100, 100, 100),
+            ],
+            apps_state=[
+                ('proid.app#001', 'partition', 'server1'),
+            ],
+        )
+
+        idle_servers_tracker = autoscale.scale(0.5, 5 * 60)
+
+        autoscale.create_n_servers.assert_not_called()
+        autoscale.delete_servers_by_name.assert_not_called()
+        self.assertEqual(
+            idle_servers_tracker['partition'],
+            {'server2': 1000.0, 'server3': 1000.0}
+        )
+
+        time.time.return_value = 1000.0 + (5 * 60) + 1
+        # server2 is no longer idle, server3 continues to be idle.
+        _mock_cell(
+            admin_mock, stateapi_mock,
+            partitions=[
+                {'_id': 'partition',
+                 'data': {'autoscale': {'min_servers': 0, 'max_servers': 9}}},
+            ],
+            servers=[
+                {'_id': 'server1', 'partition': 'partition',
+                 '_create_timestamp': 100.0},
+                {'_id': 'server2', 'partition': 'partition',
+                 '_create_timestamp': 100.0},
+                {'_id': 'server3', 'partition': 'partition',
+                 '_create_timestamp': 100.0},
+            ],
+            servers_state=[
+                ('server1', 'up', 100, 100, 100),
+                ('server2', 'up', 100, 100, 100),
+                ('server3', 'up', 100, 100, 100),
+            ],
+            apps_state=[
+                ('proid.app#001', 'partition', 'server1'),
+                ('proid.app#002', 'partition', 'server2'),
+            ],
+        )
+
+        idle_servers_tracker = autoscale.scale(
+            0.5, 5 * 60, idle_servers_tracker=idle_servers_tracker
+        )
+
+        autoscale.create_n_servers.assert_not_called()
+        autoscale.delete_servers_by_name.assert_called_once_with(
+            ['server3'], pool=None
+        )
+        self.assertEqual(
+            idle_servers_tracker['partition'],
+            {'server3': 1000.0}
+        )
+
+    @mock.patch('treadmill_aws.autoscale.create_n_servers', mock.Mock())
+    @mock.patch('treadmill_aws.autoscale.delete_servers_by_name', mock.Mock())
+    @mock.patch('treadmill_aws.autoscale._query_stateapi')
+    @mock.patch('treadmill.context.Context.admin')
+    @mock.patch('time.time', mock.Mock(return_value=1000.0))
+    def test_scale_down_with_broken(self, admin_mock, stateapi_mock):
+        """Test scaling down with some broken servers present."""
+
+        mock_zkclient = context.GLOBAL.zk.conn
+
+        # Delete empty down, frozen and blackedout servers.
         _mock_cell(
             admin_mock, stateapi_mock,
             partitions=[
@@ -470,19 +555,26 @@ class AutoscaleTest(unittest.TestCase):
 
         autoscale.create_n_servers.assert_not_called()
         autoscale.delete_servers_by_name.assert_called_once_with(
-            ['server4'], pool=None
+            ['server4', 'server5', 'server7'], pool=None
         )
 
         autoscale.create_n_servers.reset_mock()
         autoscale.delete_servers_by_name.reset_mock()
 
-        # Delete idle servers when grace period expires.
-        idle_servers_tracker = collections.defaultdict(dict)
+        # Keep 1 frozen/blackedout server.
         _mock_cell(
             admin_mock, stateapi_mock,
             partitions=[
-                {'_id': 'partition',
-                 'data': {'autoscale': {'min_servers': 0, 'max_servers': 9}}},
+                {
+                    '_id': 'partition',
+                    'data': {
+                        'autoscale': {
+                            'min_servers': 0,
+                            'max_servers': 9,
+                            'max_broken_servers': 1,
+                        },
+                    },
+                },
             ],
             servers=[
                 {'_id': 'server1', 'partition': 'partition',
@@ -493,32 +585,43 @@ class AutoscaleTest(unittest.TestCase):
                  '_create_timestamp': 100.0},
             ],
             servers_state=[
-                ('server1', 'up', 100, 100, 100),
-                ('server2', 'up', 100, 100, 100),
-                ('server3', 'up', 100, 100, 100),
+                ('server1', 'down', 100, 100, 100),
+                ('server2', 'down', 100, 100, 100),
+                ('server3', 'frozen', 100, 100, 100),
             ],
-            apps_state=[
-                ('proid.app#001', 'partition', 'server1'),
-            ],
+            apps_state=[],
         )
+        mock_zkclient.get_children.return_value = ['server2']
 
-        idle_servers_tracker = autoscale.scale(0.5, 5 * 60)
-        print(idle_servers_tracker)
+        autoscale.scale(0.5, 0)
 
         autoscale.create_n_servers.assert_not_called()
-        autoscale.delete_servers_by_name.assert_not_called()
-        self.assertEqual(
-            idle_servers_tracker['partition'],
-            {'server2': 1000.0, 'server3': 1000.0}
+        args, kwargs = autoscale.delete_servers_by_name.call_args
+        self.assertIn(
+            args,
+            [
+                (['server1', 'server2'],),
+                (['server1', 'server3'],),
+            ]
         )
 
-        time.time.return_value = 1000.0 + (5 * 60) + 1
-        # server2 is no longer idle, server3 continues to be idle.
+        autoscale.create_n_servers.reset_mock()
+        autoscale.delete_servers_by_name.reset_mock()
+
+        # Keep 2 frozen/blackedout servers.
         _mock_cell(
             admin_mock, stateapi_mock,
             partitions=[
-                {'_id': 'partition',
-                 'data': {'autoscale': {'min_servers': 0, 'max_servers': 9}}},
+                {
+                    '_id': 'partition',
+                    'data': {
+                        'autoscale': {
+                            'min_servers': 0,
+                            'max_servers': 9,
+                            'max_broken_servers': 2,
+                        },
+                    },
+                },
             ],
             servers=[
                 {'_id': 'server1', 'partition': 'partition',
@@ -529,28 +632,19 @@ class AutoscaleTest(unittest.TestCase):
                  '_create_timestamp': 100.0},
             ],
             servers_state=[
-                ('server1', 'up', 100, 100, 100),
-                ('server2', 'up', 100, 100, 100),
-                ('server3', 'up', 100, 100, 100),
+                ('server1', 'down', 100, 100, 100),
+                ('server2', 'down', 100, 100, 100),
+                ('server3', 'frozen', 100, 100, 100),
             ],
-            apps_state=[
-                ('proid.app#001', 'partition', 'server1'),
-                ('proid.app#002', 'partition', 'server2'),
-            ],
+            apps_state=[],
         )
+        mock_zkclient.get_children.return_value = ['server2']
 
-        idle_servers_tracker = autoscale.scale(
-            0.5, 5 * 60, idle_servers_tracker=idle_servers_tracker
-        )
-        print(idle_servers_tracker)
+        autoscale.scale(0.5, 0)
 
         autoscale.create_n_servers.assert_not_called()
         autoscale.delete_servers_by_name.assert_called_once_with(
-            ['server3'], pool=None
-        )
-        self.assertEqual(
-            idle_servers_tracker['partition'],
-            {'server3': 1000.0}
+            ['server1'], pool=None
         )
 
     @mock.patch('treadmill.context.Context.ldap',
