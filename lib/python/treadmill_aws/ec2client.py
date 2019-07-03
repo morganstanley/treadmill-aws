@@ -16,7 +16,7 @@ _LOGGER = logging.getLogger(__name__)
 def create_instance(ec2_conn, user_data, image_id, instance_type,
                     tags, secgroup_ids, subnet_id, disk, key=None,
                     instance_profile=None, ip_address=None, eni=None,
-                    spot=False):
+                    spot=False, spot_duration=None):
     """Create new instance."""
     args = {
         'TagSpecifications': tags,
@@ -34,12 +34,15 @@ def create_instance(ec2_conn, user_data, image_id, instance_type,
     }
 
     if spot:
+        spot_options = {
+            'SpotInstanceType': 'one-time',
+            'InstanceInterruptionBehavior': 'terminate'
+        }
+        if spot_duration:
+            spot_options['BlockDurationMinutes'] = spot_duration
         args['InstanceMarketOptions'] = {
             'MarketType': 'spot',
-            'SpotOptions': {
-                'SpotInstanceType': 'one-time',
-                'InstanceInterruptionBehavior': 'terminate'
-            }
+            'SpotOptions': spot_options,
         }
 
     if instance_profile:
@@ -131,8 +134,9 @@ def list_spot_requests(ec2_conn):
                 spot_instances)[0]
         except IndexError:
             launch, state, hostname = list('-' * 3)
+        launch_specification = req['LaunchSpecification']
         sir = types.SimpleNamespace(
-            ami_id=req['LaunchSpecification']['ImageId'],
+            ami_id=launch_specification['ImageId'],
             az=req['LaunchedAvailabilityZone'],
             status_code=req['Status']["Code"],
             status_timestamp=req['Status']["UpdateTime"],
@@ -140,11 +144,12 @@ def list_spot_requests(ec2_conn):
             id=req['SpotInstanceRequestId'],
             instance_id=req.get('InstanceId'),
             instance_status=state,
-            instance_type=req['LaunchSpecification']['InstanceType'],
+            instance_type=launch_specification['InstanceType'],
             instance_launch=launch,
             state=req['State'],
-            subnet=req['LaunchSpecification']['NetworkInterfaces'][0]
-            ['SubnetId'])
+            subnet=launch_specification['NetworkInterfaces'][0]['SubnetId'],
+            duration=req.get('BlockDurationMinutes')
+        )
         requests.append(sir)
     return requests
 

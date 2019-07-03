@@ -59,6 +59,11 @@ def init():
                   help='Instance types (ordered by preference).')
     @click.option('--spot-instance-types', type=cli.LIST,
                   help='Spot instance types (ordered by preference).')
+    @click.option('--spot-duration',
+                  type=click.Choice(
+                      ['0', '60', '120', '180', '240', '300', '360']
+                  ),
+                  help='Spot duration (minutes).')
     @click.option('--hostgroups', help='Node hostgroups.', type=cli.LIST)
     @click.option('--secgroup', help='Node security group.')
     @click.option('--instance-profile', help='Instance profile.')
@@ -75,6 +80,7 @@ def init():
                                 disk_size,
                                 instance_types,
                                 spot_instance_types,
+                                spot_duration,
                                 hostgroups,
                                 secgroup,
                                 instance_profile,
@@ -107,6 +113,12 @@ def init():
         modified = _set(data,
                         'spot_instance_types',
                         spot_instance_types) or modified
+        if spot_duration is not None:
+            spot_duration = int(spot_duration)
+        modified = _set(data,
+                        'spot_duration',
+                        spot_duration,
+                        unset_value=0) or modified
         modified = _set(data, 'hostgroups', hostgroups) or modified
         modified = _set(data, 'secgroup', secgroup) or modified
         modified = _set(data, 'instance_profile', instance_profile) or modified
