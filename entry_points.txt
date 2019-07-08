@@ -76,5 +76,11 @@ zookeeper.sasl = treadmill_aws.plugins.zookeeper:SASLZkClient [zk-sasl]
 [treadmill.api.instance.plugins]
 aws-proid-env = treadmill_aws.plugins.api.instance
 
+
 [treadmill.logging]
 aws = treadmill_aws.logging
+
+
+[treadmill.docker.plugins]
+runtime.aws = treadmill_aws.plugins.docker.runtime
+configure.aws = treadmill_aws.plugins.docker.cfg
