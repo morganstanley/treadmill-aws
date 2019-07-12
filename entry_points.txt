@@ -52,6 +52,7 @@ secgroup = treadmill_aws.cli.admin.aws.secgroup
 snapshot = treadmill_aws.cli.admin.aws.snapshot
 spot = treadmill_aws.cli.admin.aws.spot
 user = treadmill_aws.cli.admin.aws.user
+policy = treadmill_aws.cli.admin.aws.policy
 
 
 [treadmill.formatters]
@@ -59,14 +60,15 @@ aws_subnet = treadmill_aws.formatter:SubnetPrettyFormatter
 aws_vpc = treadmill_aws.formatter:VpcPrettyFormatter
 aws_instance = treadmill_aws.formatter:InstancePrettyFormatter
 aws_spot = treadmill_aws.formatter:SpotPrettyFormatter
-aws_role = treadmill_aws.formatter:RolePrettyFormatter
+aws_role = treadmill_aws.formatter:IamRolePrettyFormatter
 aws_image = treadmill_aws.formatter:ImagePrettyFormatter
+aws_policy = treadmill_aws.formatter:IamPolicyPrettyFormatter
 aws_secgroup = treadmill_aws.formatter:SecgroupPrettyFormatter
 aws_snapshot = treadmill_aws.formatter:SnapshotPrettyFormatter
-aws_user = treadmill_aws.formatter:AwsUserPrettyFormatter
-ipa_user = treadmill_aws.formatter:IpaUserPrettyFormatter
+aws_user = treadmill_aws.formatter:IamUserPrettyFormatter
 aws_cell_data = treadmill_aws.formatter:CellDataFormatter
 aws_part_data = treadmill_aws.formatter:PartDataFormatter
+ipa_user = treadmill_aws.formatter:IpaUserPrettyFormatter
 
 
 [treadmill.sproc]

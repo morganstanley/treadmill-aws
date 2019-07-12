@@ -12,11 +12,10 @@ import io
 import click
 
 from treadmill import cli
-
 from treadmill_aws import awscontext
+from treadmill_aws import cli as aws_cli
 from treadmill_aws import ec2client
 from treadmill_aws import metadata
-from treadmill_aws import cli as aws_cli
 from treadmill_aws import userdata as ud
 
 
@@ -47,7 +46,7 @@ def init():
         required=False,
         type=aws_cli.IMAGE
     )
-    @cli.admin.ON_EXCEPTIONS
+    @aws_cli.admin.aws.ON_AWS_EXCEPTIONS
     def _list(account, image, match):
         """List images"""
         ec2_conn = awscontext.GLOBAL.ec2
@@ -130,7 +129,7 @@ def init():
         help='SSH key'
     )
     @click.argument('image', required=True, type=str)
-    @cli.admin.ON_EXCEPTIONS
+    @aws_cli.admin.aws.ON_AWS_EXCEPTIONS
     def create(base_image, base_image_account, userdata, instance_profile,
                secgroup, subnet, image, key):
         """Create image"""
@@ -219,7 +218,7 @@ def init():
         help='Account ID.'
     )
     @click.argument('image', required=True, type=str)
-    @cli.admin.ON_EXCEPTIONS
+    @aws_cli.admin.aws.ON_AWS_EXCEPTIONS
     def share(account, image):
         """Share Image"""
         ec2_conn = awscontext.GLOBAL.ec2
@@ -238,7 +237,7 @@ def init():
 
     @image.command(name='delete')
     @click.argument('image', required=True, type=aws_cli.IMAGE)
-    @cli.admin.ON_EXCEPTIONS
+    @aws_cli.admin.aws.ON_AWS_EXCEPTIONS
     def delete(image):
         """Delete Image"""
         ec2_conn = awscontext.GLOBAL.ec2

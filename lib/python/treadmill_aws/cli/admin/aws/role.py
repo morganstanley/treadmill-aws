@@ -1,4 +1,4 @@
-"""Implementation of treadmill admin AWS user manager.
+"""Implementation of treadmill admin aws role.
 """
 
 from __future__ import absolute_import
@@ -23,27 +23,34 @@ _LOGGER = logging.getLogger(__name__)
 _LOGGER.setLevel(logging.INFO)
 
 
-def _default_trust_document():
-    return _generate_trust_document(True, None, None)
-
-
 def _generate_trust_document(trust_root,
-                             trusted_service,
+                             trusted_users,
+                             trusted_services,
                              trusted_saml_providers):
     """Default role policy."""
 
     account = awscontext.GLOBAL.sts.get_caller_identity().get('Account')
 
     statements = []
-    if trust_root or trusted_service:
+    if trust_root or trusted_users or trusted_services:
 
         trusted_principals = {}
+        trusted_aws_principals = []
 
         if trust_root:
-            trusted_principals['AWS'] = 'arn:aws:iam::{}:root'.format(account)
+            trusted_aws_principals.append(
+                'arn:aws:iam::{}:root'.format(account))
 
-        if trusted_service:
-            trusted_principals['Service'] = trusted_service
+        if trusted_users:
+            for user in trusted_users:
+                trusted_aws_principals.append(
+                    'arn:aws:iam::{}:user/{}'.format(account, user))
+
+        if trusted_aws_principals:
+            trusted_principals['AWS'] = trusted_aws_principals
+
+        if trusted_services:
+            trusted_principals['Service'] = trusted_services
 
         statement = {
             'Action': 'sts:AssumeRole',
@@ -81,13 +88,13 @@ def _generate_trust_document(trust_root,
     return None
 
 
-def _set_role_policy(iam_conn, role_name, role_policy):
+def _set_role_policies(iam_conn, role_name, role_policies):
     new_pols = []
 
-    if role_policy == [':']:
-        role_policy = []
+    if role_policies == [':']:
+        role_policies = []
 
-    for pol in role_policy:
+    for pol in role_policies:
         policy_name, policy_file = pol.split(':', 2)
         new_pols.append(policy_name)
         with io.open(policy_file) as f:
@@ -106,12 +113,12 @@ def _set_role_policy(iam_conn, role_name, role_policy):
                                          policy_name)
 
 
-def _set_attached_policy(iam_conn, role_name, attached_policy):
+def _set_attached_policies(iam_conn, role_name, attached_policies):
     sts = awscontext.GLOBAL.sts
     accountid = sts.get_caller_identity().get('Account')
 
-    if attached_policy == [':']:
-        attached_policy = []
+    if attached_policies == [':']:
+        attached_policies = []
 
     del_pols = {}
     for policy in iamclient.list_attached_role_policies(iam_conn,
@@ -119,7 +126,7 @@ def _set_attached_policy(iam_conn, role_name, attached_policy):
         del_pols[policy['PolicyArn']] = 1
 
     new_pols = {}
-    for policy in attached_policy:
+    for policy in attached_policies:
         scope, policy_name = policy.split(':', 2)
         if scope == 'global':
             new_pols['arn:aws:iam::aws:policy/%s' % policy_name] = 1
@@ -148,8 +155,6 @@ def _create_role(iam_conn,
                  path,
                  trust_document,
                  max_session_duration):
-    if not trust_document:
-        trust_document = _default_trust_document()
     if not max_session_duration:
         max_session_duration = 43200
     iamclient.create_role(iam_conn,
@@ -159,6 +164,7 @@ def _create_role(iam_conn,
                           max_session_duration)
 
 
+# pylint: disable=R0915
 def init():
     """Manage IAM roles."""
 
@@ -188,23 +194,29 @@ def init():
                   is_flag=True,
                   default=False,
                   help='Allow root to assume role')
-    @click.option('--trusted-saml-provider',
+    @click.option('--trusted-users',
+                  type=cli.LIST,
+                  required=False,
+                  help='IAM users allowed to assume role')
+    @click.option('--trusted-saml-providers',
                   type=cli.LIST,
                   required=False,
                   help='Trusted SAML Providers')
-    @click.option('--trusted-service',
+    @click.option('--trusted-services',
                   type=cli.LIST,
                   required=False,
                   help='AWS services allowed to assume role, e.g., '
                        'ec2.amazonaws.com')
-    @click.option('--inline-policy',
+    @click.option('--inline-policies',
                   type=cli.LIST,
                   required=False,
-                  help='Inline role policy name:file')
-    @click.option('--attached-policy',
+                  help='Inline role policies, list of '
+                       '<RolePolicyName>:<file>')
+    @click.option('--attached-policies',
                   type=cli.LIST,
                   required=False,
-                  help='global:PolicyName or local:PolicyName')
+                  help='Attached policies, list of '
+                       'global:<PolicyName> or local:<PolicyName>')
     @click.argument('role_name',
                     required=True,
                     callback=aws_cli.sanitize_user_name)
@@ -214,10 +226,11 @@ def init():
                   max_session_duration,
                   trust_policy,
                   trust_root,
-                  trusted_service,
-                  trusted_saml_provider,
-                  inline_policy,
-                  attached_policy,
+                  trusted_users,
+                  trusted_services,
+                  trusted_saml_providers,
+                  inline_policies,
+                  attached_policies,
                   role_name):
         """Create/configure/get IAM role."""
 
@@ -233,10 +246,21 @@ def init():
         if trust_policy:
             with io.open(trust_policy) as f:
                 trust_document = f.read()
-        elif trust_root or trusted_service or trusted_saml_provider:
+        elif (trust_root or
+              trusted_users or
+              trusted_services or
+              trusted_saml_providers):
             trust_document = _generate_trust_document(trust_root,
-                                                      trusted_service,
-                                                      trusted_saml_provider)
+                                                      trusted_users,
+                                                      trusted_services,
+                                                      trusted_saml_providers)
+        elif create:
+            raise click.UsageError('Must specify one of the following:\n'
+                                   '  --trust-policy\n'
+                                   '  --trust-root\n'
+                                   '  --trusted-user\n'
+                                   '  --trusted-service\n'
+                                   '  --trusted-saml-provider')
         else:
             trust_document = None
 
@@ -256,11 +280,11 @@ def init():
                                                     role_name,
                                                     trust_document)
 
-        if inline_policy:
-            _set_role_policy(iam_conn, role_name, inline_policy)
+        if inline_policies:
+            _set_role_policies(iam_conn, role_name, inline_policies)
 
-        if attached_policy:
-            _set_attached_policy(iam_conn, role_name, attached_policy)
+        if attached_policies:
+            _set_attached_policies(iam_conn, role_name, attached_policies)
 
         role = iamclient.get_role(iam_conn, role_name)
         role['RolePolicies'] = iamclient.list_role_policies(iam_conn,

@@ -12,7 +12,6 @@ import click
 from treadmill import cli
 
 import treadmill_aws
-from treadmill_aws import awscontext
 
 AWS_EXCEPTIONS = [
     (botocore.errorfactory.ClientError, None),
