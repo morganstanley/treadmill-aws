@@ -83,74 +83,75 @@ def _fmt_list():
 
 def _fmt_trusted_entities(policy):
 
-    def _principal_is_trusted(statement):
-        return bool((statement['Action'] == 'sts:AssumeRole' and
-                     statement['Effect'] == 'Allow' and
-                     'AWS' in statement['Principal']))
+    def _statement_principals(statement):
+        entities = []
+        if (statement['Action'] == 'sts:AssumeRole' and
+                statement['Effect'] == 'Allow' and
+                'AWS' in statement['Principal']):
+            principals = statement['Principal']['AWS']
+            if isinstance(principals, str):
+                principals = [principals]
+            principals.sort()
+            for principal in principals:
+                parts = principal.split(':')
+                parts[5] = parts[5].replace('/', ':')
+                entities.append({'Entity': parts[5], 'Arn': principal})
+        return entities
 
-    def _service_is_trusted(statement):
-        return bool((statement['Action'] == 'sts:AssumeRole' and
-                     statement['Effect'] == 'Allow' and
-                     'Service' in statement['Principal']))
+    def _statement_saml_providers(statement):
+        entities = []
+        if (statement['Action'] == 'sts:AssumeRoleWithSAML' and
+                statement['Effect'] == 'Allow'):
+            saml_providers = statement['Principal']['Federated']
+            if isinstance(saml_providers, str):
+                saml_providers = [saml_providers]
+            saml_providers.sort()
+            for saml_provider in saml_providers:
+                parts = saml_provider.split(':')
+                parts[5] = parts[5].replace('/', ':')
+                entities.append({'Entity': parts[5], 'Arn': saml_provider})
+        return entities
 
-    def _saml_is_trusted(statement):
-        return bool((statement['Action'] == 'sts:AssumeRoleWithSAML' and
-                     statement['Effect'] == 'Allow'))
-
-    def _principal_account_if_root(principal):
-        parts = principal.split(':')
-        if parts[5] == 'root':
-            return parts[4]
-        return None
-
-    def _principal_user(principal):
-        parts = principal.split(':')
-        if parts[5] != 'root':
-            return parts[5].split('/')[1]
-        return None
+    def _statement_services(statement):
+        entities = []
+        if (statement['Action'] == 'sts:AssumeRole' and
+                statement['Effect'] == 'Allow' and
+                'Service' in statement['Principal']):
+            services = statement['Principal']['Service']
+            if isinstance(services, str):
+                services = [services]
+            services.sort()
+            for service in services:
+                entities.append({'Entity': 'service:%s' % service,
+                                 'Arn': service})
+        return entities
 
     # pylint: disable=R0912
     def _trusted_entities(pol):
         entities = []
         for statement in pol['Statement']:
-            if _principal_is_trusted(statement):
-                if isinstance(statement['Principal']['AWS'], str):
-                    aws_principals = [statement['Principal']['AWS']]
-                else:
-                    aws_principals = statement['Principal']['AWS']
+            principals = _statement_principals(statement)
+            if principals:
+                for principal in principals:
+                    entities.append(principal)
 
-                for principal in aws_principals:
-                    account = _principal_account_if_root(principal)
-                    if account:
-                        entities.append({'Type': 'Account',
-                                         'Entity': account})
-                for principal in aws_principals:
-                    user = _principal_user(principal)
-                    if user:
-                        entities.append({'Type': 'User',
-                                         'Entity': user})
-            if _service_is_trusted(statement):
-                for service in statement['Principal']['Service']:
-                    entities.append({'Type': 'Service',
-                                     'Entity': service})
-            if _saml_is_trusted(statement):
-                if 'Federated' in statement['Principal']:
-                    princ_list = statement['Principal']['Federated']
-                    if isinstance(princ_list, str):
-                        entities.append({'Type': 'SAMLProvider',
-                                         'Entity': princ_list})
-                    else:
-                        princ_list.sort()
-                        for principal in princ_list:
-                            entities.append({'Type': 'SAMLProvider',
-                                             'Entity': principal})
+            saml_providers = _statement_saml_providers(statement)
+            if saml_providers:
+                for saml_provider in saml_providers:
+                    entities.append(saml_provider)
+
+            services = _statement_services(statement)
+            if services:
+                for service in services:
+                    entities.append(service)
+
         return entities
 
     items = _trusted_entities(policy)
 
     schema = [
-        ('Type', 'Type', None),
-        ('Entity', 'Entity', None)
+        ('Entity', 'Entity', None),
+        ('Arn', 'Arn', None)
     ]
     return tablefmt.list_to_table(items, schema, header=False, align=None)
 

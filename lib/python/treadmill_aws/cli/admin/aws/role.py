@@ -23,58 +23,71 @@ _LOGGER = logging.getLogger(__name__)
 _LOGGER.setLevel(logging.INFO)
 
 
-def _generate_trust_document(trust_root,
-                             trusted_users,
-                             trusted_services,
-                             trusted_saml_providers):
+def _user_arn(account, user):
+    return 'arn:aws:iam::{}:user/{}'.format(account, user)
+
+
+def _saml_provider_arn(account, provider):
+    return 'arn:aws:iam::{}:saml-provider/{}'.format(account, provider)
+
+
+def _generate_trust_document(trusted_entities):
     """Default role policy."""
 
     account = awscontext.GLOBAL.sts.get_caller_identity().get('Account')
 
     statements = []
-    if trust_root or trusted_users or trusted_services:
+    principals = []
+    saml_providers = []
+    services = []
 
-        trusted_principals = {}
-        trusted_aws_principals = []
+    for entity in trusted_entities:
+        if entity == 'root':
+            principals.append('arn:aws:iam::{}:root'.format(account))
+            continue
 
-        if trust_root:
-            trusted_aws_principals.append(
-                'arn:aws:iam::{}:root'.format(account))
+        if entity.startswith('user:'):
+            parts = entity.split(':')
+            principals.append(_user_arn(account, parts[1]))
+            continue
 
-        if trusted_users:
-            for user in trusted_users:
-                trusted_aws_principals.append(
-                    'arn:aws:iam::{}:user/{}'.format(account, user))
+        if entity.startswith('saml-provider:'):
+            parts = entity.split(':')
+            saml_providers.append(_saml_provider_arn(account, parts[1]))
+            continue
 
-        if trusted_aws_principals:
-            trusted_principals['AWS'] = trusted_aws_principals
+        if entity.startswith('service:'):
+            parts = entity.split(':')
+            services.append(parts[1])
+            continue
 
-        if trusted_services:
-            trusted_principals['Service'] = trusted_services
+        raise click.UsageError('Invalid syntax for trusted entity [%s]'
+                               % entity)
 
+    statements = []
+    if principals or services:
         statement = {
             'Action': 'sts:AssumeRole',
             'Effect': 'Allow',
-            'Principal': trusted_principals
+            'Principal': {}
         }
+        if principals:
+            statement['Principal']['AWS'] = principals
+        if services:
+            statement['Principal']['Service'] = services
         statements.append(statement)
 
-    if trusted_saml_providers:
-        principals = []
-        for saml_provider in trusted_saml_providers:
-            pol = 'arn:aws:iam::%s:saml-provider/%s' % (account, saml_provider)
-            principals.append(pol)
-
+    if saml_providers:
         statement = {
             'Action': 'sts:AssumeRoleWithSAML',
-            'Effect': 'Allow',
-            'Principal': {
-                'Federated': principals
-            },
             'Condition': {
                 'StringEquals': {
                     'SAML:aud': 'https://signin.aws.amazon.com/saml'
                 }
+            },
+            'Effect': 'Allow',
+            'Principal': {
+                'Federated': saml_providers
             }
         }
         statements.append(statement)
@@ -190,23 +203,9 @@ def init():
     @click.option('--trust-policy',
                   required=False,
                   help='Trust policy (aka assume role policy).')
-    @click.option('--trust-root',
-                  is_flag=True,
-                  default=False,
-                  help='Allow root to assume role')
-    @click.option('--trusted-users',
+    @click.option('--trusted-entities',
                   type=cli.LIST,
-                  required=False,
-                  help='IAM users allowed to assume role')
-    @click.option('--trusted-saml-providers',
-                  type=cli.LIST,
-                  required=False,
-                  help='Trusted SAML Providers')
-    @click.option('--trusted-services',
-                  type=cli.LIST,
-                  required=False,
-                  help='AWS services allowed to assume role, e.g., '
-                       'ec2.amazonaws.com')
+                  help='See above for syntax of --trusted-entities.')
     @click.option('--inline-policies',
                   type=cli.LIST,
                   required=False,
@@ -225,14 +224,23 @@ def init():
                   path,
                   max_session_duration,
                   trust_policy,
-                  trust_root,
-                  trusted_users,
-                  trusted_services,
-                  trusted_saml_providers,
+                  trusted_entities,
                   inline_policies,
                   attached_policies,
                   role_name):
-        """Create/configure/get IAM role."""
+        """Create/configure/get IAM role.
+
+        Arguments for --trusted-entities are of the form:
+
+        Entities are form:\n
+          * root:                             : trusted AWS account
+
+          * user:<user-name>                  : trusted IAM user
+
+          * saml-provider:<provider-name>:    : trusted SAML Provider
+
+          * service:<service-name>:           : trusted AWS Service
+        """
 
         iam_conn = awscontext.GLOBAL.iam
 
@@ -246,21 +254,12 @@ def init():
         if trust_policy:
             with io.open(trust_policy) as f:
                 trust_document = f.read()
-        elif (trust_root or
-              trusted_users or
-              trusted_services or
-              trusted_saml_providers):
-            trust_document = _generate_trust_document(trust_root,
-                                                      trusted_users,
-                                                      trusted_services,
-                                                      trusted_saml_providers)
+        elif trusted_entities:
+            trust_document = _generate_trust_document(trusted_entities)
         elif create:
-            raise click.UsageError('Must specify one of the following:\n'
+            raise click.UsageError('Must specify one:\n'
                                    '  --trust-policy\n'
-                                   '  --trust-root\n'
-                                   '  --trusted-user\n'
-                                   '  --trusted-service\n'
-                                   '  --trusted-saml-provider')
+                                   '  --trusted-entties')
         else:
             trust_document = None
 
