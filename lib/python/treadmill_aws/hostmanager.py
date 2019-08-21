@@ -278,7 +278,9 @@ def create_zk(
         subnet_id=None,
         ip_address=None,
         instance_type=None,
-        instance_profile=None):
+        instance_profile=None,
+        image_id=None,
+        disk=None):
     """ Create new Zookeeper """
     ipa_domain = awscontext.GLOBAL.ipa_domain
 
@@ -286,7 +288,9 @@ def create_zk(
     cell = admin_cell.get(context.GLOBAL.cell)
     data = cell['data']
 
-    image_id = data['image']
+    if not image_id:
+        image_id = data['image']
+
     if not image_id.startswith('ami-'):
         image_id = ec2client.get_image(
             ec2_conn, owners=['self'], name=image_id
@@ -328,7 +332,7 @@ def create_zk(
                 secgroup_ids=data['secgroup'],
                 instance_type=instance_type,
                 subnet=subnet_id,
-                disk=30,
+                disk=disk or 30,
                 instance_vars=instance_vars,
                 role='zookeeper',
                 hostgroups=['zookeepers'],
