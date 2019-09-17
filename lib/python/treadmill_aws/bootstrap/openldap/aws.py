@@ -29,7 +29,11 @@ DEFAULTS = {
             'rootdn': 'cn=Manager,{{ suffix }}',
             'rootpw': '{{ rootpw }}',
             'suffix': '{{ suffix }}',
-            'syncrepl_searchbase': '{{ suffix }}'
+            'syncrepl_searchbase': '{{ suffix }}',
+            'index': {
+                'objectClass': 'eq',
+                'entryCSN': 'eq',
+            },
         }
     ],
     'log_levels': [16384],
