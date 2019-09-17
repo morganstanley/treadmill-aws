@@ -6,15 +6,18 @@
 dn: cn=config
 objectClass: olcGlobal
 cn: config
+entryCSN: 19700000000000.000000Z#000000#000#000000
 {%- for attribute_option in attribute_options %}
 olcAttributeOptions: {{ attribute_option }}
 {%- endfor %}
 olcArgsFile: {{ dir }}/run/slapd.args
 olcPidFile: {{ dir }}/run/slapd.pid
 
+{%- if is_master %}
 {%- for master in masters %}
 olcServerID: {{ loop.index }} {{ master }}
 {%- endfor %}
+{%- endif %}
 olcIdleTimeout: {{ idletimout | default(0) }}
 
 dn: cn=module,cn=config
@@ -30,6 +33,7 @@ olcModuleLoad: syncprov.la
 dn: cn=schema,cn=config
 objectClass: olcSchemaConfig
 cn: schema
+entryCSN: 19700000000000.000000Z#000000#000#000000
 {% for schema_file in schemas %}
 include: {{ schema_file}}
 {%- endfor %}
@@ -58,10 +62,9 @@ olcAccess: to *
 {% if uri == master %}#{% endif %}olcSyncRepl: rid={{ replica_ids.next() }} provider={{ master }}
 {% if uri == master %}#{% endif %}  searchbase="{{ backend.syncrepl_searchbase }}"
 {% if uri == master %}#{% endif %}  type=refreshAndPersist retry="5 12 60 +" timeout=1
-{% if uri == master %}#{% endif %}  bindmethod=sasl
+{% if uri == master %}#{% endif %}  bindmethod=sasl saslmech=gssapi
 {%- endfor %}
 {%- if (masters|length) > 1 %}
-# master has mirroring enabled
 olcMirrorMode: TRUE
 {%- endif %}
 
@@ -69,6 +72,7 @@ dn: olcOverlay=syncprov,olcDatabase={{ backend.name }},cn=config
 objectClass: olcOverlayConfig
 objectClass: olcSyncProvConfig
 olcOverlay: syncprov
+entryCSN: 19700000000000.000000Z#000000#000#000000
 {%- endmacro %}{# replication_provider() #}
 
 {%- macro replication_consumer(backend, masters, replica_ids) %}
@@ -79,7 +83,7 @@ olcOverlay: syncprov
 olcSyncRepl: rid={{ replica_ids.next() }} provider={{ master }}
   searchbase="{{ backend.syncrepl_searchbase }}"
   type=refreshAndPersist retry="5 12 60 +" timeout=1
-  bindmethod=sasl
+  bindmethod=sasl saslmech=gssapi
 {%- endfor %}
 {%- for master in masters %}
 olcUpdateref: {{ master }}
@@ -96,6 +100,7 @@ olcUpdateref: {{ master }}
 #
 dn: olcDatabase={{ backend.name }},cn=config
 objectClass: olcDatabaseConfig
+entryCSN: 19700000000000.000000Z#000000#000#000000
 {{- if_exists('objectClass', backend.objectclass) }}
 olcDatabase: {{ backend.name }}
 {%- if backend.objectclass == "olcMdbConfig" %}
