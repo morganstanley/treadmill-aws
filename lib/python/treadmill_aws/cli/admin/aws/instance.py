@@ -134,6 +134,18 @@ def init():
         help='domain name to use instead of default'
     )
     @click.option(
+        '--host-location', type=str,
+        required=False,
+        help='Host location (account) where the host resides.'
+        ' Default is queried from LDAP.'
+        ' Used to generate the otp if --otp not specified'
+    )
+    @click.option(
+        '--otp', type=str,
+        required=False,
+        help='OTP passed to the instance to join the domain',
+    )
+    @click.option(
         '--ipa-enroll/--no-ipa-enroll',
         is_flag=True,
         default=True,
@@ -143,7 +155,7 @@ def init():
     def create(
             image, image_account, count, disk_size, key, role, ip_address, eni,
             spot, secgroup, size, subnet, data, instance_profile,
-            hostgroup, hostname, domain, ipa_enroll):
+            hostgroup, hostname, domain, host_location, otp, ipa_enroll):
         """Create instance(s)"""
         if ipa_enroll:
             ipa_client = awscontext.GLOBAL.ipaclient
@@ -183,7 +195,9 @@ def init():
             ip_address=ip_address,
             eni=eni,
             spot=spot,
-            ipa_enroll=ipa_enroll
+            nshostlocation=host_location,
+            otp=otp,
+            ipa_enroll=ipa_enroll,
         )
         for host_created in hosts_created:
             click.echo(host_created)

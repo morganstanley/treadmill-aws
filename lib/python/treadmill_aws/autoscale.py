@@ -1,4 +1,5 @@
-"""Autoscale cell capacity."""
+"""Autoscale cell capacity.
+"""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -139,18 +140,18 @@ def _create_host(ipa_client, ec2_conn, hostname, instance_type, spot, subnets,
                 }
             except botoexc.ClientError as err:
                 err_code = err.response['Error']['Code']
-                if err_code in (
-                        'SpotMaxPriceTooLow',
-                        'InsufficientInstanceCapacity'
-                ):
+                if err_code in ('SpotMaxPriceTooLow',
+                                'InsufficientInstanceCapacity'):
                     _LOGGER.info('Instance not feasible, trying next: %r', err)
                     tracker.exclude_instance(instance_type, spot, subnet)
                     break
-                elif err_code == 'InsufficientFreeAddressesInSubnet':
+
+                if err_code == 'InsufficientFreeAddressesInSubnet':
                     _LOGGER.info('Subnet exhausted, trying next: %r', err)
                     tracker.exclude_subnet(subnet)
                     break
-                elif err_code == 'InternalError':
+
+                if err_code == 'InternalError':
                     if i == _CREATE_HOST_MAX_TRIES - 1:
                         raise
                     _LOGGER.error('Internal error, retrying: %r', err)
