@@ -54,7 +54,7 @@ class Krb5KeytabProxy(peercredprotocol.PeerCredLineServer):
         self.domain = domain
         self.krb5keytab_servers = krb5keytab_servers
         self.keytab_dir = keytab_dir
-        super(__class__, self).__init__()
+        super().__init__()
 
     def _handle_error(self, msg, err):
         """Handle error, return reason back to the client."""
@@ -160,7 +160,7 @@ class Krb5KeytabProxyFactory(protocol.Factory):
 
         self.krb5keytab_servers = krb5keytab_servers
 
-        super(__class__, self).__init__()
+        super().__init__()
 
     def buildProtocol(self, addr):  # pylint: disable=C0103
         return Krb5KeytabProxy(
